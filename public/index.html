@@ -248,7 +248,7 @@ const row=(i,t,a,v)=>`<button class="ic" data-a="${a}" ${v?`data-v="${v}"`:''}><
 const inp=(i,p)=>`<div class="ic" style="background:#0b141c;padding:6px 16px;cursor:text"><input placeholder="${p}" style="border:0;background:none;margin:0"><span class="cy">${ic(i)}</span></div>`;
 function draw(){sync();const a=$('#app');a.className=['welcome','login','signup','otp','ref','home','counter','users','fun'].includes(S.r)?'':'g';a.innerHTML=(V[S.r]||V.home)();if(S.r=='chat')$('#cm').focus?.();if(S.r=='counter'){rain();arc()}}
 const go=r=>{S.r=r;draw();scrollTo(0,0)};
-document.addEventListener('click',e=>{const b=e.target.closest('[data-r],[data-a]');if(!b)return;let{r,a,i,v}=b.dataset;if(r){$('#d').open&&$('#d').close();return go(r)}
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-r],[data-a]');if(!b)return;let{r,a,i,v}=b.dataset;if(r){$('#d').open&&$('#d').close();return go(r)}
  const pay=(p,m)=>S.pts<p?(toast('رصيد النقاط غير كافٍ'),0):(S.pts-=p,toast(m),1);
  switch(a){
  case'enter':return enter();
