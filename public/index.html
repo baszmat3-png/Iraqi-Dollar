@@ -261,23 +261,38 @@ async function doSign(){
   const oldText=btn?btn.innerHTML:'';
   if(btn){btn.disabled=true;btn.innerHTML='جارٍ إرسال رمز التحقق…';}
 
+  const ctrl=new AbortController();
+  const slowTimer=setTimeout(()=>{
+    if(btn&&btn.disabled)btn.innerHTML='جارٍ انتظار استجابة الخادم…';
+  },3500);
+  const killTimer=setTimeout(()=>ctrl.abort(),18000);
+
   try{
     const r=await fetch('/api/auth/signup/request',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name:n,email:e,phone:p,password:w})
+      body:JSON.stringify({name:n,email:e,phone:p,password:w}),
+      signal:ctrl.signal
     });
-    const d=await r.json();
+    clearTimeout(slowTimer);
+    clearTimeout(killTimer);
+    const d=await r.json().catch(()=>({}));
     if(!r.ok){
       if(btn){btn.disabled=false;btn.innerHTML=oldText;}
       return er(d.error||'تعذر إرسال رمز التحقق');
     }
     S.otp={p:'signup',ph:p,pl:{e,p,n,w},back:'signup',exp:Date.now()+3e5,t:0,rs:Date.now()+6e4,st:1,dsp:p};
     go('otp');
-    toast('تم إرسال رمز التحقق بنجاح');
+    toast('تم إرسال رمز التحقق بنجاح إلى واتساب');
   }catch(err){
+    clearTimeout(slowTimer);
+    clearTimeout(killTimer);
     if(btn){btn.disabled=false;btn.innerHTML=oldText;}
-    er('تعذر الاتصال بالخادم لإرسال رمز التحقق');
+    if(err.name==='AbortError'){
+      er('استغرق الخادم وقتاً أطول من المتوقع، يرجى إعادة المحاولة.');
+    }else{
+      er('تعذر الاتصال بالخادم لإرسال رمز التحقق، يرجى المحاولة ثانية.');
+    }
   }
 }
 
@@ -327,19 +342,30 @@ async function finishOtp(o){
 }
 
 async function sendOtp(p,ph,pl,back){
+  const btn=document.querySelector('#rs');
+  if(btn)btn.disabled=true;
+  const ctrl=new AbortController();
+  const killTimer=setTimeout(()=>ctrl.abort(),15000);
   try{
     const r=await fetch('/api/auth/signup/request',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({phone:ph,email:pl.e||'',purpose:p,payload:pl})
+      body:JSON.stringify({phone:ph,email:pl.e||'',purpose:p,payload:pl}),
+      signal:ctrl.signal
     });
-    const d=await r.json();
-    if(!r.ok)return toast(d.error||'تعذر إرسال الرمز');
+    clearTimeout(killTimer);
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){
+      if(btn)btn.disabled=false;
+      return toast(d.error||'تعذر إرسال الرمز');
+    }
     S.otp={p,ph,pl,back,exp:Date.now()+3e5,t:0,rs:Date.now()+6e4,st:1,dsp:p=='reset'?ph.slice(0,4)+'••••'+ph.slice(-3):ph};
     go('otp');
-    toast('تم إرسال رمز التحقق');
+    toast('تم إرسال رمز التحقق عبر واتساب');
   }catch(e){
-    toast('تعذر الاتصال بالخادم لإرسال الرمز');
+    clearTimeout(killTimer);
+    if(btn)btn.disabled=false;
+    toast('تعذر الاتصال بالخادم لإرسال الرمز، يرجى إعادة المحاولة');
   }
 }
 const V={
