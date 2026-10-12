@@ -314,7 +314,7 @@ app.post(['/api/auth/signup/request', '/send-otp', '/api/auth/send-otp'], wrap(a
   const purpose = req.body.purpose || 'signup';
 
   if (purpose === 'signup') {
-    if (name.split(' ').length < 3) fail(400, 'اكتب الاسم الثلاثي كاملاً');
+    if (name.split(' ').length < 2) fail(400, 'اكتب الاسم كاملاً (الاسم واسم الأب)');
     if (!EM.test(email)) fail(400, 'بريد إلكتروني غير صحيح');
     if (!PH.test(phone)) fail(400, 'رقم واتساب غير صحيح، اكتبه مع رمز الدولة');
     if (password.length < 6) fail(400, 'كلمة المرور 6 أحرف على الأقل');
