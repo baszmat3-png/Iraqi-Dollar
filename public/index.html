@@ -179,7 +179,8 @@ const EM=/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/,PH=/^\+\d{9,15}$/;
 const DEMO_LOGIN=false,DA={e:'demo@test.com',pw:'123456',n:'مستخدم تجريبي',p:'+964700000000'};
 const MEM={};
 const AC={get(){let o={};try{o=JSON.parse(localStorage.getItem('ac')||'{}')}catch(e){}return Object.assign(o,MEM)},set(o){Object.keys(MEM).forEach(k=>delete MEM[k]);Object.assign(MEM,o);try{localStorage.setItem('ac',JSON.stringify(o));return 1}catch(e){return 0}}};
-const er=m=>{const e=$('#er');if(e)e.textContent=m;toast(m)};
+const er=m=>{const e=$('#er');if(e){e.textContent=m;e.scrollIntoView({behavior:'smooth',block:'center'});}toast(m);};
+function normPhone(raw){let s=String(raw||'').replace(/[s\-()]/g,'');if(s.startsWith('00'))s='+'+s.slice(2);else if(s.startsWith('07'))s='+964'+s.slice(1);else if(s.startsWith('7')&&s.length===10)s='+964'+s;else if(!s.startsWith('+')&&s.length>=10)s='+'+s;return s;}
 const hp=async s=>{try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}catch(e){let h=5381;for(const c of s)h=(h*33)^c.charCodeAt(0);return'x'+(h>>>0)}};
 const fld=(id,l,t,p,x='')=>`<label style="display:block;margin-top:12px;font-weight:600;font-size:.95rem">${l}<input id="${id}" type="${t}" placeholder="${p}" ${x}></label>`;
 const pwf=(id,l,ac)=>`<label style="display:block;margin-top:12px;font-weight:600;font-size:.95rem">${l}<span style="position:relative;display:block"><input id="${id}" type="password" placeholder="••••••••" autocomplete="${ac}" style="padding-left:48px"><button type="button" class="ib s" data-a="eye" data-v="${id}" aria-label="إظهار كلمة المرور" style="position:absolute;left:8px;top:50%;margin-top:-16px;border:0;background:none">${ic('eye',18)}</button></span></label>`;
@@ -211,7 +212,8 @@ async function doLogin(){
   if(!w)return er('اكتب كلمة المرور');
   debtGuard(e);
   const btn=document.querySelector('[data-a="dologin"]');
-  if(btn)btn.disabled=true;
+  const oldText=btn?btn.innerHTML:'';
+  if(btn){btn.disabled=true;btn.innerHTML='جارٍ تسجيل الدخول…';}
   try{
     const r=await fetch('/api/auth/login',{
       method:'POST',
@@ -220,7 +222,7 @@ async function doLogin(){
     });
     const d=await r.json();
     if(!r.ok){
-      if(btn)btn.disabled=false;
+      if(btn){btn.disabled=false;btn.innerHTML=oldText;}
       return er(d.error||'البريد أو كلمة المرور غير صحيحة');
     }
     if(d.token)localStorage.setItem('token',d.token);
@@ -228,7 +230,7 @@ async function doLogin(){
     await syncBackendState();
     enter();
   }catch(err){
-    if(btn)btn.disabled=false;
+    if(btn){btn.disabled=false;btn.innerHTML=oldText;}
     const a=AC.get()[e];
     if(a&&a.h===await hp(w)){load(a);enter();return}
     er('تعذر الاتصال بالخادم، تحقق من الاتصال بالإنترنت');
@@ -236,15 +238,20 @@ async function doLogin(){
 }
 
 async function doSign(){
-  const n=$('#rn').value.trim().replace(/\s+/g,' '),e=$('#re').value.trim().toLowerCase(),p=$('#rp').value.replace(/[\s\-()]/g,''),w=$('#rw1').value,w2=$('#rw2').value;
-  if(n.split(' ').length<3)return er('اكتب الاسم الثلاثي كاملاً');
+  const n=$('#rn').value.trim().replace(/\s+/g,' ');
+  const e=$('#re').value.trim().toLowerCase();
+  let p=normPhone($('#rp').value);
+  const w=$('#rw1').value,w2=$('#rw2').value;
+
+  if(!n||n.split(' ').length<2)return er('اكتب اسمك الثنائي أو الثلاثي');
   if(!EM.test(e))return er('اكتب بريداً إلكترونياً صحيحاً');
-  if(!PH.test(p))return er('رقم واتساب غير صحيح، اكتبه مع رمز الدولة مثل +964...');
+  if(!PH.test(p))return er('رقم واتساب غير صحيح، اكتبه مثل 07xxxxxxxxx أو +9647xxxxxxxxx');
   if(w.length<6)return er('كلمة المرور 6 أحرف على الأقل');
   if(w!==w2)return er('كلمتا المرور غير متطابقتين');
   
   const btn=document.querySelector('[data-a="dosign"]');
-  if(btn)btn.disabled=true;
+  const oldText=btn?btn.innerHTML:'';
+  if(btn){btn.disabled=true;btn.innerHTML='جارٍ إرسال رمز التحقق…';}
 
   try{
     const r=await fetch('/api/auth/signup/request',{
@@ -254,14 +261,14 @@ async function doSign(){
     });
     const d=await r.json();
     if(!r.ok){
-      if(btn)btn.disabled=false;
+      if(btn){btn.disabled=false;btn.innerHTML=oldText;}
       return er(d.error||'تعذر إرسال رمز التحقق');
     }
     S.otp={p:'signup',ph:p,pl:{e,p,n,w},back:'signup',exp:Date.now()+3e5,t:0,rs:Date.now()+6e4,st:1,dsp:p};
     go('otp');
     toast('تم إرسال رمز التحقق بنجاح');
   }catch(err){
-    if(btn)btn.disabled=false;
+    if(btn){btn.disabled=false;btn.innerHTML=oldText;}
     er('تعذر الاتصال بالخادم لإرسال رمز التحقق');
   }
 }
@@ -270,7 +277,8 @@ async function finishOtp(o){
   const c=($('#oc').value||'').trim();
   if(!c||c.length<6)return toast('أدخل رمز التحقق المكون من 6 أرقام');
   const btn=document.querySelector('[data-a="vo"]');
-  if(btn)btn.disabled=true;
+  const oldText=btn?btn.innerHTML:'';
+  if(btn){btn.disabled=true;btn.innerHTML='جارٍ التأكيد…';}
 
   if(o.p=='signup'){
     try{
@@ -281,7 +289,7 @@ async function finishOtp(o){
       });
       const d=await r.json();
       if(!r.ok){
-        if(btn)btn.disabled=false;
+        if(btn){btn.disabled=false;btn.innerHTML=oldText;}
         return toast(d.error||'رمز التحقق غير صحيح');
       }
       if(d.token)localStorage.setItem('token',d.token);
@@ -295,7 +303,7 @@ async function finishOtp(o){
       go('ref');
       return dlg(`<h2 style="text-align:center;margin-top:0;color:#3ddc68">تم إنشاء حسابك بنجاح ✓</h2><p class="mu" style="text-align:center">مرحباً ${esc(o.pl.n)}، تم تأكيد حسابك وتفعيله بنجاح.</p><button class="btn" onclick="d.close()">متابعة</button>`);
     }catch(err){
-      if(btn)btn.disabled=false;
+      if(btn){btn.disabled=false;btn.innerHTML=oldText;}
       return toast('تعذر التحقق من الرمز عبر الخادم');
     }
   }
