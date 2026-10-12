@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "main": "server.js",
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "node server.js",
     "build": "node -e \"console.log('Build complete')\"",
@@ -17,6 +19,7 @@
     "express-rate-limit": "^7.4.0",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^10.1.0",
     "pg": "^8.12.0"
   }
 }

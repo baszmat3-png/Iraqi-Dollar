@@ -17,10 +17,20 @@ services:
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
+      - key: GMAIL
+        sync: false
+      - key: APP_PASS
+        sync: false
+      - key: WPSENDER_API_KEY
+        sync: false
+      - key: WPSENDER_API_URL
+        value: https://backendapi.wpsenderx.com/api/messages/send
       - key: WA_API_KEY
         sync: false
       - key: WA_API_URL
         value: https://backendapi.wpsenderx.com/api/messages/send
+      - key: ADMIN_PASSWORD
+        sync: false
 
 databases:
   - name: iraqi-dollar-db

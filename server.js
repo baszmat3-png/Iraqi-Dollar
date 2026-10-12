@@ -6,12 +6,18 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 const { pool, migrate } = require('./db');
 
 const {
   JWT_SECRET,
   WA_API_URL = 'https://backendapi.wpsenderx.com/api/messages/send',
   WA_API_KEY,
+  WPSENDER_API_KEY,
+  WPSENDER_API_URL,
+  GMAIL,
+  APP_PASS,
+  ADMIN_PASSWORD = 'admin123',
   CORS_ORIGIN,
   OTP_DEBUG,
   NODE_ENV,
@@ -75,46 +81,177 @@ function auth(req, _res, next) {
     next();
   } catch { next(Object.assign(new Error('غير مصرح، سجّل الدخول'), { http: 401 })); }
 }
-async function sendWhatsApp(phone, code) {
-  if (!WA_API_KEY) {
-    if (OTP_DEBUG === 'true' && NODE_ENV !== 'production') { console.log(`[DEBUG OTP] ${phone}: ${code}`); return; }
-    throw new Error('WA_API_KEY غير مضبوط');
+let mailTransporter = null;
+function getMailTransporter() {
+  if (!GMAIL || !APP_PASS) return null;
+  if (!mailTransporter) {
+    mailTransporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: GMAIL, pass: APP_PASS },
+    });
   }
-  const r = await fetch(WA_API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-API-Key': WA_API_KEY },
-    body: JSON.stringify({
-      phone: phone.replace(/\D/g, ''),
-      message: `رمز التحقق الخاص بك هو: ${code}\nصالح لمدة 5 دقائق، لا تشاركه مع أي شخص.`,
-    }),
-  });
-  if (!r.ok) throw new Error('WhatsApp HTTP ' + r.status);
+  return mailTransporter;
+}
+
+async function sendEmailOtp(email, code) {
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  if (!cleanEmail || !EM.test(cleanEmail)) {
+    fail(400, 'البريد الإلكتروني غير صحيح');
+  }
+
+  const transporter = getMailTransporter();
+  if (!transporter) {
+    if (OTP_DEBUG === 'true' && NODE_ENV !== 'production') {
+      console.log(`[DEBUG EMAIL OTP] To: ${cleanEmail} | Code: ${code}`);
+      return { ok: true, debug: true };
+    }
+    fail(503, 'خدمة البريد الإلكتروني غير مضبوطة على الخادم (GMAIL / APP_PASS)');
+  }
+
+  const mailOptions = {
+    from: `"الدولار العراقي" <${GMAIL}>`,
+    to: cleanEmail,
+    subject: 'رمز التحقق الخاص بك - الدولار العراقي',
+    text: `رمز التحقق الخاص بك هو: ${code}\nصالح لمدة 5 دقائق، لا تشاركه مع أي شخص.`,
+    html: `
+      <div dir="rtl" style="font-family: Cairo, Tahoma, sans-serif; background: #070C12; padding: 24px; color: #ffffff; border-radius: 16px; max-width: 480px; margin: 0 auto; border: 1px solid #1F2A37;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h2 style="color: #00d2d3; margin: 0; font-size: 24px;">الدولار العراقي</h2>
+        </div>
+        <p style="font-size: 16px; margin: 0 0 12px; color: #ffffff;">مرحباً بك،</p>
+        <p style="color: #9AA9B5; font-size: 14px; margin: 0 0 20px;">رمز التحقق لتأكيد حسابك في تطبيق الدولار العراقي هو:</p>
+        <div style="background: #1F2A37; padding: 18px; border-radius: 12px; text-align: center; margin-bottom: 20px; border: 1px solid #00d2d3;">
+          <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #00d2d3;">${code}</span>
+        </div>
+        <p style="color: #9AA9B5; font-size: 13px; margin: 0;">الرمز صالح لمدة <b>5 دقائق</b>. لا تشارك هذا الرمز مع أي شخص لحماية حسابك.</p>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    return { ok: true };
+  } catch (e) {
+    console.error('Email send failed:', e.message);
+    fail(502, 'تعذر إرسال رمز التحقق إلى البريد الإلكتروني');
+  }
+}
+
+async function sendWhatsApp(phone, code) {
+  const apiKey = WPSENDER_API_KEY || WA_API_KEY;
+  const apiUrl = WPSENDER_API_URL || WA_API_URL;
+  const cleanPhone = String(phone || '').replace(/\D/g, '');
+
+  if (!cleanPhone || cleanPhone.length < 10 || cleanPhone.length > 15) {
+    fail(400, 'رقم واتساب غير صالح للإرسال');
+  }
+
+  if (!apiKey) {
+    if (OTP_DEBUG === 'true' && NODE_ENV !== 'production') {
+      console.log(`[DEBUG WHATSAPP OTP] Phone: ${cleanPhone} | Code: ${code}`);
+      return { ok: true, debug: true };
+    }
+    fail(503, 'خدمة واتساب غير مضبوطة على الخادم (WPSENDER_API_KEY)');
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+  try {
+    const r = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+      body: JSON.stringify({
+        phone: cleanPhone,
+        message: `رمز التحقق الخاص بك هو: ${code}\nصالح لمدة 5 دقائق، لا تشاركه مع أي شخص.`,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!r.ok) {
+      let detail = '';
+      try { detail = (await r.json()).message || ''; } catch { detail = await r.text().catch(() => ''); }
+      console.error(`WhatsApp HTTP ${r.status}:`, detail);
+      fail(502, `تعذر إرسال الرمز عبر واتساب (خطأ المزود ${r.status})`);
+    }
+
+    return { ok: true, data: await r.json().catch(() => ({})) };
+  } catch (e) {
+    clearTimeout(timeoutId);
+    if (e.name === 'AbortError') fail(504, 'انتهت مهلة الاتصال بخدمة واتساب');
+    if (e.http) throw e;
+    console.error('WhatsApp failed:', e.message);
+    fail(502, 'تعذر إرسال الرمز عبر واتساب');
+  }
 }
 
 async function createOtp(purpose, phone, email, payload) {
   const recent = await pool.query(
-    `SELECT 1 FROM otps WHERE phone=$1 AND purpose=$2 AND created_at > NOW() - INTERVAL '60 seconds'`, [phone, purpose]);
+    `SELECT 1 FROM otps WHERE (phone = $1 OR (email IS NOT NULL AND email = $2)) AND purpose = $3 AND created_at > NOW() - INTERVAL '60 seconds'`,
+    [phone, email, purpose]
+  );
   if (recent.rowCount) fail(429, 'انتظر 60 ثانية قبل إعادة الإرسال');
+
   const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
-  await pool.query(`DELETE FROM otps WHERE phone=$1 AND purpose=$2`, [phone, purpose]);
   await pool.query(
-    `INSERT INTO otps(purpose,phone,email,code_hash,payload,expires_at) VALUES($1,$2,$3,$4,$5,NOW()+INTERVAL '5 minutes')`,
-    [purpose, phone, email, sha(code), payload ? JSON.stringify(payload) : null]);
-  try { await sendWhatsApp(phone, code); }
-  catch (e) { console.error('WhatsApp failed:', e.message); fail(502, 'تعذر إرسال الرمز عبر واتساب'); }
+    `DELETE FROM otps WHERE (phone = $1 OR (email IS NOT NULL AND email = $2)) AND purpose = $3`,
+    [phone, email, purpose]
+  );
+  await pool.query(
+    `INSERT INTO otps(purpose, phone, email, code_hash, payload, expires_at) VALUES($1, $2, $3, $4, $5, NOW() + INTERVAL '5 minutes')`,
+    [purpose, phone, email, sha(code), payload ? JSON.stringify(payload) : null]
+  );
+
+  let emailSent = false;
+  let waSent = false;
+  let lastErr = null;
+
+  if (email) {
+    try {
+      await sendEmailOtp(email, code);
+      emailSent = true;
+    } catch (e) {
+      lastErr = e;
+      console.error('Email OTP dispatch error:', e.message);
+    }
+  }
+
+  if (phone) {
+    try {
+      await sendWhatsApp(phone, code);
+      waSent = true;
+    } catch (e) {
+      if (!lastErr) lastErr = e;
+      console.error('WhatsApp OTP dispatch error:', e.message);
+    }
+  }
+
+  if (!emailSent && !waSent) {
+    throw lastErr || Object.assign(new Error('تعذر إرسال رمز التحقق عبر البريد أو واتساب'), { http: 502 });
+  }
+
+  return { ok: true, emailSent, waSent };
 }
 
-async function checkOtp(purpose, phone, code) {
-  const r = await pool.query(`SELECT * FROM otps WHERE phone=$1 AND purpose=$2 ORDER BY id DESC LIMIT 1`, [phone, purpose]);
+async function checkOtp(purpose, identifier, code) {
+  const isEmail = identifier && identifier.includes('@');
+  const query = isEmail
+    ? `SELECT * FROM otps WHERE email = $1 AND purpose = $2 ORDER BY id DESC LIMIT 1`
+    : `SELECT * FROM otps WHERE (phone = $1 OR email = $1) AND purpose = $2 ORDER BY id DESC LIMIT 1`;
+
+  const r = await pool.query(query, [identifier, purpose]);
   const o = r.rows[0];
   if (!o) fail(400, 'اطلب رمزاً جديداً');
   if (new Date(o.expires_at) < new Date()) fail(400, 'انتهت صلاحية الرمز');
   if (o.attempts >= 5) fail(429, 'محاولات كثيرة، اطلب رمزاً جديداً');
-  if (sha(String(code || '')) !== o.code_hash) {
-    await pool.query(`UPDATE otps SET attempts=attempts+1 WHERE id=$1`, [o.id]);
+
+  if (sha(String(code || '').trim()) !== o.code_hash) {
+    await pool.query(`UPDATE otps SET attempts = attempts + 1 WHERE id = $1`, [o.id]);
     fail(400, 'الرمز غير صحيح');
   }
-  await pool.query(`DELETE FROM otps WHERE id=$1`, [o.id]);
+
+  await pool.query(`DELETE FROM otps WHERE id = $1`, [o.id]);
   return o;
 }
 
@@ -166,32 +303,68 @@ const stateOf = (s) => ({
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false });
 app.use('/api/auth', authLimiter);
 
-app.post('/api/auth/signup/request', wrap(async (req, res) => {
+app.post(['/api/auth/signup/request', '/send-otp', '/api/auth/send-otp'], wrap(async (req, res) => {
   const name = String(req.body.name || '').trim().replace(/\s+/g, ' ');
   const email = String(req.body.email || '').trim().toLowerCase();
   const phone = String(req.body.phone || '').replace(/[\s\-()]/g, '');
   const password = String(req.body.password || '');
-  if (name.split(' ').length < 3) fail(400, 'اكتب الاسم الثلاثي كاملاً');
-  if (!EM.test(email)) fail(400, 'بريد إلكتروني غير صحيح');
-  if (!PH.test(phone)) fail(400, 'رقم واتساب غير صحيح، اكتبه مع رمز الدولة');
-  if (password.length < 6) fail(400, 'كلمة المرور 6 أحرف على الأقل');
-  if ((await pool.query(`SELECT 1 FROM users WHERE email=$1`, [email])).rowCount) fail(409, 'هذا البريد مسجل مسبقاً');
-  await createOtp('signup', phone, email, { name, email, phone, h: await bcrypt.hash(password, 10) });
-  res.json({ ok: true });
+  const purpose = req.body.purpose || 'signup';
+
+  if (purpose === 'signup') {
+    if (name.split(' ').length < 3) fail(400, 'اكتب الاسم الثلاثي كاملاً');
+    if (!EM.test(email)) fail(400, 'بريد إلكتروني غير صحيح');
+    if (!PH.test(phone)) fail(400, 'رقم واتساب غير صحيح، اكتبه مع رمز الدولة');
+    if (password.length < 6) fail(400, 'كلمة المرور 6 أحرف على الأقل');
+    if ((await pool.query(`SELECT 1 FROM users WHERE email=$1`, [email])).rowCount) fail(409, 'هذا البريد مسجل مسبقاً');
+    const result = await createOtp('signup', phone, email, { name, email, phone, h: await bcrypt.hash(password, 10) });
+    return res.json({ ok: true, emailSent: result.emailSent, waSent: result.waSent });
+  }
+
+  // General purpose OTP (e.g. email or phone verification)
+  if (!email && !phone) fail(400, 'يرجى إدخال البريد الإلكتروني أو رقم الهاتف');
+  if (email && !EM.test(email)) fail(400, 'بريد إلكتروني غير صحيح');
+  if (phone && !PH.test(phone)) fail(400, 'رقم هاتف غير صحيح');
+  const result = await createOtp(purpose, phone, email, req.body.payload || null);
+  res.json({ ok: true, emailSent: result.emailSent, waSent: result.waSent });
 }));
 
-app.post('/api/auth/signup/verify', wrap(async (req, res) => {
+app.post(['/api/auth/signup/verify', '/verify-otp', '/api/auth/verify-otp'], wrap(async (req, res) => {
   const phone = String(req.body.phone || '').replace(/[\s\-()]/g, '');
-  const o = await checkOtp('signup', phone, req.body.code);
-  const p = o.payload;
-  const ref = 'U' + crypto.randomBytes(4).toString('hex').toUpperCase();
-  let u;
-  try {
-    u = (await pool.query(
-      `INSERT INTO users(email,phone,name,pass_hash,ref_code) VALUES($1,$2,$3,$4,$5) RETURNING *`,
-      [p.email, p.phone, p.name, p.h, ref])).rows[0];
-  } catch (e) { if (e.code === '23505') fail(409, 'هذا البريد مسجل مسبقاً'); throw e; }
-  res.json({ token: sign(u), user: pub(u) });
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const identifier = phone || email;
+  if (!identifier) fail(400, 'يرجى تقديم رقم الهاتف أو البريد الإلكتروني');
+  const purpose = req.body.purpose || 'signup';
+
+  const o = await checkOtp(purpose, identifier, req.body.code);
+
+  if (purpose === 'signup') {
+    const p = o.payload || {};
+    const ref = 'U' + crypto.randomBytes(4).toString('hex').toUpperCase();
+    let u;
+    try {
+      u = (await pool.query(
+        `INSERT INTO users(email, phone, name, pass_hash, ref_code, email_verified, phone_verified) VALUES($1, $2, $3, $4, $5, TRUE, TRUE) RETURNING *`,
+        [p.email || email, p.phone || phone, p.name || 'مستخدم', p.h, ref])).rows[0];
+    } catch (e) {
+      if (e.code === '23505') fail(409, 'هذا البريد مسجل مسبقاً');
+      throw e;
+    }
+    return res.json({ ok: true, token: sign(u), user: pub(u) });
+  }
+
+  res.json({ ok: true, verified: true });
+}));
+
+app.post('/api/admin/verify', wrap(async (req, res) => {
+  const password = String(req.body.password || '');
+  if (!password || password !== ADMIN_PASSWORD) {
+    fail(401, 'كلمة مرور لوحة التحكم غير صحيحة');
+  }
+  res.json({ ok: true, admin: true });
+}));
+
+app.get('/api/products', wrap(async (_req, res) => {
+  res.json(PR);
 }));
 
 app.post('/api/auth/login', wrap(async (req, res) => {
@@ -199,7 +372,7 @@ app.post('/api/auth/login', wrap(async (req, res) => {
   const u = (await pool.query(`SELECT * FROM users WHERE email=$1`, [email])).rows[0];
   const ok = u && await bcrypt.compare(String(req.body.password || ''), u.pass_hash);
   if (!ok) fail(401, 'البريد أو كلمة المرور غير صحيحة');
-  res.json({ token: sign(u), user: pub(u) });
+  res.json({ ok: true, token: sign(u), user: pub(u) });
 }));
 
 app.post('/api/auth/password', auth, wrap(async (req, res) => {
