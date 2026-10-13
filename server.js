@@ -305,9 +305,9 @@ async function deliverOtpEmail(toEmail, code) {
         secure: false,
         requireTLS: true,
         auth: { user: smtpUser, pass: smtpPass },
-        connectionTimeout: 7000,
-        greetingTimeout: 7000,
-        socketTimeout: 9000,
+        connectionTimeout: 3500,
+        greetingTimeout: 3500,
+        socketTimeout: 5000,
       });
       await t587.sendMail({
         from: `"الدولار العراقي" <${smtpUser}>`,
@@ -327,9 +327,9 @@ async function deliverOtpEmail(toEmail, code) {
         port: 465,
         secure: true,
         auth: { user: smtpUser, pass: smtpPass },
-        connectionTimeout: 7000,
-        greetingTimeout: 7000,
-        socketTimeout: 9000,
+        connectionTimeout: 3500,
+        greetingTimeout: 3500,
+        socketTimeout: 5000,
       });
       await t465.sendMail({
         from: `"الدولار العراقي" <${smtpUser}>`,
@@ -363,7 +363,10 @@ app.post('/api/otp/send-email', wrap(async (req, res) => {
     });
   } catch (e) {
     console.error('Email delivery error:', e.message);
-    fail(500, 'تعذر إرسال البريد الإلكتروني: ' + e.message);
+    const msg = e.message.includes('timeout')
+      ? 'تعذر الاتصال بخادم البريد (خطة Render المجانية تحظر منافذ SMTP، استخدم واتساب أو اربط Brevo/Resend API)'
+      : ('تعذر إرسال البريد الإلكتروني: ' + e.message);
+    res.status(500).json({ ok: false, error: msg, can_fallback_wa: true });
   }
 }));
 
