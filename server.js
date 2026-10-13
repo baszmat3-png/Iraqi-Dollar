@@ -296,7 +296,28 @@ async function deliverOtpEmail(toEmail, code) {
     }
   }
 
-  // 3. SMTP Port 587 (STARTTLS)
+  // 3. Email Webhook / Google Apps Script (HTTPS port 443 - works on Render Free)
+  if (process.env.EMAIL_WEBHOOK_URL) {
+    try {
+      const r = await fetch(process.env.EMAIL_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: toEmail,
+          subject: `رمز تأكيد البريد الإلكتروني: ${code}`,
+          code,
+          html
+        })
+      });
+      if (r.ok) return { ok: true, provider: 'webhook' };
+      const d = await r.json().catch(() => ({}));
+      console.warn('Email webhook failed:', d);
+    } catch (e) {
+      console.warn('Email webhook error:', e.message);
+    }
+  }
+
+  // 4. SMTP Port 587 (STARTTLS)
   if (smtpUser && smtpPass) {
     try {
       const t587 = nodemailer.createTransport({
