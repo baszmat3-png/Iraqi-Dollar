@@ -159,7 +159,7 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 const EM=/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/,PH=/^\+\d{9,15}$/;
 const normPhone=raw=>{let s=String(raw||'').trim().replace(/[\s\-()]/g,'');if(s.startsWith('00'))s='+'+s.slice(2);else if(s.startsWith('07'))s='+964'+s.slice(1);else if(s.startsWith('7')&&s.length===10)s='+964'+s;else if(s.startsWith('964'))s='+'+s;else if(!s.startsWith('+')&&s.length>=9)s='+'+s;return s};
 /* حساب تجريبي للاختبار: عطّله بجعل DEMO_LOGIN=false قبل النشر */
-const DEMO_LOGIN=true,DA={e:'demo@test.com',pw:'123456',n:'مستخدم تجريبي',p:'+964700000000'};
+const DEMO_LOGIN=false,DA={e:'demo@test.com',pw:'123456',n:'مستخدم تجريبي',p:'+964700000000'};
 const isDemo=()=>DEMO_LOGIN&&S.acc&&S.acc.e==DA.e,DEMO_BLOCK=new Set(['wd','wde','dreq','tr','pay2','buyc','cbuy','cpay','mp','dn','bc','bcc','mb','mbc','sl','slc','pb','pbc','ab','abc']);
 const DGRP={wd:'wd',wde:'wd',dreq:'debt',tr:'tr',pay2:'store',buyc:'store',cbuy:'store',cpay:'store',mp:'pay',dn:'pay',bc:'ctr',bcc:'ctr',mb:'mkt',mbc:'mkt',sl:'mkt',slc:'mkt',pb:'buyp',pbc:'buyp',ab:'buyp',abc:'buyp'};
 const DMD={wd:0,debt:0,tr:0,store:0,pay:0,ctr:0,mkt:0,buyp:0,keep:0};
@@ -318,11 +318,12 @@ function load(a){
   S.mail=a.e;
   S.phone=a.p;
   S.v.ph=(a.vph!==false&&a.vph!==0)?1:0;
-  S.v.ml=(a.vml===true||a.vml===1)?1:0;
+  S.v.ml=(a.vml===true||a.vml===1||a.vml==='true'||a.mv===1)?1:0;
 }
 function persist(){
   if(!S.acc)return;
-  const m=AC.get(),oe=S.acc.e,o=Object.assign({},S.acc,m[oe],{e:S.mail,p:S.phone,vml:!!S.v.ml,vph:!!S.v.ph});
+  const m=AC.get(),oe=S.acc.e,oldObj=m[oe]||{};
+  const o=Object.assign({},oldObj,S.acc,{e:S.mail,p:S.phone,vml:!!S.v.ml,vph:!!S.v.ph});
   delete m[oe];
   S.acc=o;
   m[o.e]=o;
@@ -341,53 +342,39 @@ function clearSes(){try{localStorage.removeItem('ses')}catch(e){}}
 function enter(){restoreState();applyAdj();if(!S.wg){S.wg=1;if(CFG.gift>0){S.usd+=CFG.gift;toast('هدية ترحيبية: '+CFG.gift+'$ لأول استخدام')}}S.run=S.done?0:1;if(S.acc){saveSes();save();syncAccountState(S.acc.e)}go('home')}
 async function doLogin(){
   const e=$('#le').value.trim().toLowerCase(),w=$('#lp').value;
-  if(CFG.maint&&!(DEMO_LOGIN&&e==DA.e))return er('التطبيق قيد الصيانة حالياً، حاول لاحقاً');
-  if(DEMO_LOGIN&&e==DA.e&&w==DA.pw){load({e:DA.e,n:DA.n,p:DA.p,vml:1,vph:1});return enter()}
+  if(CFG.maint)return er('التطبيق قيد الصيانة حالياً، حاول لاحقاً');
   if(!EM.test(e))return er('اكتب بريداً إلكترونياً صحيحاً');
   if(!w)return er('اكتب كلمة المرور');
   debtGuard(e);
-  let a=AC.get()[e];
   const hashed=await hp(w);
-  if(!a){
-    const btn=document.querySelector('[data-a=dologin]');
-    if(btn){btn.disabled=true;btn.textContent='جارٍ التحقق من الخادم…'}
-    try{
-      const res=await fetch('/api/sync/account-login',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({email:e,password:w,pass_hash:hashed})
-      });
-      const d=await res.json();
-      if(btn){btn.disabled=false;btn.textContent='تسجيل الدخول'}
-      if(!res.ok||!d.ok){
-        return er(d.error||'لا يوجد حساب بهذا البريد، أنشئ حساباً جديداً');
-      }
+  const btn=document.querySelector('[data-a=dologin]');
+  if(btn){btn.disabled=true;btn.textContent='جارٍ تسجيل الدخول…'}
+  let a=null;
+  try{
+    const res=await fetch('/api/sync/account-login',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:e,password:w,pass_hash:hashed})
+    });
+    const d=await res.json().catch(()=>({}));
+    if(res.ok&&d.ok&&d.account){
       a=d.account;
       const m=AC.get();m[a.e]=a;AC.set(m);
-    }catch(err){
+    }else{
+      if(btn){btn.disabled=false;btn.textContent='تسجيل الدخول'}
+      return er(d.error||'بيانات الدخول غير صحيحة');
+    }
+  }catch(err){
+    const localAcc=AC.get()[e];
+    if(localAcc&&localAcc.h===hashed){
+      a=localAcc;
+    }else{
       if(btn){btn.disabled=false;btn.textContent='تسجيل الدخول'}
       return er('تعذر الاتصال بالخادم، تأكد من اتصال الإنترنت');
     }
   }
+  if(btn){btn.disabled=false;btn.textContent='تسجيل الدخول'}
   if(!a)return er('لا يوجد حساب بهذا البريد، أنشئ حساباً جديداً');
-  if(a.h!==hashed){
-    try{
-      const res=await fetch('/api/sync/account-login',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({email:e,password:w,pass_hash:hashed})
-      });
-      const d=await res.json();
-      if(res.ok&&d.ok){
-        a=d.account;
-        const m=AC.get();m[a.e]=a;AC.set(m);
-      }else{
-        return er('كلمة المرور غير صحيحة');
-      }
-    }catch(err){
-      return er('كلمة المرور غير صحيحة');
-    }
-  }
   if(a.blk)return er(a.why=='debt'?'تم حظر حسابك لعدم تسديد قسط الاستدانة، تواصل مع الدعم':'هذا الحساب محظور، تواصل مع الدعم');
   load(a);
   enter();
@@ -495,6 +482,11 @@ function finishOtp(o){
       S.acc.vml=true;
       S.acc.e=S.mail;
     }
+    const m=AC.get();
+    if(m[S.mail]){
+      m[S.mail].vml=true;
+      AC.set(m);
+    }
     persist();
     try{
       fetch('/api/sync/verify-email-success',{
@@ -524,7 +516,7 @@ if(!T.find(t=>t[0]==S.pt))S.pt=T[0][0];
 return H+`<div class="chips">${T.map(t=>`<button class="chip ${S.pt==t[0]?'on':''}" data-a="ptab" data-v="${t[0]}">${t[1]}${nb(t[0])?`<b>${nb(t[0])}</b>`:''}</button>`).join('')}</div>`+(PT2[S.pt]||PT[S.pt])()+(S.pt=='cfg'?cfgExtra()+ctlCard()+cfgBar():(['demo','ct','products','cards','pst','agents','mr','rf','dc','nw','ann','chg'].includes(S.pt)?pubBar():''))},
 resetpw:()=>{if(!S.rs)return V.login();return hd('كلمة مرور جديدة','lock',{back:'login'})+`<h2 style="font-size:1.6rem;margin:24px 0 4px">تعيين كلمة مرور جديدة</h2><p class="mu" style="margin-top:0">تم التحقق من الرمز، اختر كلمة مرور جديدة</p><div class="card" style="padding:16px">${pwf('rw1','كلمة المرور الجديدة','new-password')}${pwf('rw2','تأكيد كلمة المرور','new-password')}<p id="er" role="alert" style="color:#ef5350;text-align:center;min-height:1.5em;margin:12px 0 0"></p><button class="btn" data-a="rspw">حفظ كلمة المرور</button></div>`},
 welcome:()=>`<div class="hd"><h1 style="text-align:start">مرحباً بك</h1><div class="ci">${ic('user')}</div></div><div style="display:grid;place-items:center;margin:50px 0 30px"><div style="width:230px;height:230px;border-radius:50%;border:3px solid hsl(calc(var(--h) + 1) 65% 25%);background:hsl(calc(var(--h) + 2) 71% 20%);display:grid;place-items:center;color:var(--cy2);box-shadow:0 0 70px hsl(calc(var(--h) + -1) 76% 53% / 0.20)"><svg class="f" style="width:110px;height:110px" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20a8 6 0 0116 0z"/></svg></div></div><h2 data-a="sec" style="text-align:center;font-size:1.8rem;margin:0">مرحباً بك في تطبيقنا</h2><p class="mu" style="text-align:center">سجل دخولك أو أنشئ حساباً جديداً للاستمتاع بمزايا التطبيق</p><div style="margin-top:50px;display:grid;gap:14px"><button class="btn" data-r="login">تسجيل الدخول ${ic('out')}</button><button class="btn o" data-r="signup">إنشاء حساب جديد ${ic('add')}</button></div><p class="cy" style="text-align:center;margin-top:30px">سياسة الخصوصية</p>`,
-login:()=>hd('تسجيل الدخول','out',{back:'welcome'})+`<h2 style="font-size:1.6rem;margin:24px 0 4px">أهلاً بعودتك</h2><p class="mu" style="margin-top:0">أدخل بريدك الإلكتروني وكلمة المرور</p><div class="card" style="padding:16px">${fld('le','البريد الإلكتروني','email','name@example.com','dir="ltr" autocomplete="email" autocapitalize="none" inputmode="email"')}${pwf('lp','كلمة المرور','current-password')}<p id="er" role="alert" style="color:#ef5350;text-align:center;min-height:1.5em;margin:12px 0 0"></p><button class="btn" style="margin-top:6px" data-a="dologin">تسجيل الدخول ${ic('out')}</button><button class="btn o" style="margin-top:10px;background:rgba(37,211,102,0.12);border-color:#25d366;color:#25d366;font-weight:600" data-a="login_wa_dialog">تسجيل الدخول عبر رمز واتساب 💬</button></div>${DEMO_LOGIN?'<button class="btn o" style="margin-bottom:12px" data-a="demo">دخول تجريبي (بدون حساب)</button><p class="mu" style="text-align:center;font-size:.8rem;margin:0 0 12px" dir="ltr">demo@test.com / 123456</p>':''}<p style="text-align:center;margin:12px 0"><a class="cy" data-a="forgot" style="font-size:1.05rem">نسيت كلمة المرور؟</a></p><p class="mu" style="text-align:center">ليس لديك حساب؟ <a class="cy" data-r="signup">إنشاء حساب جديد</a></p>`,
+login:()=>hd('تسجيل الدخول','out',{back:'welcome'})+`<h2 style="font-size:1.6rem;margin:24px 0 4px">أهلاً بعودتك</h2><p class="mu" style="margin-top:0">أدخل بريدك الإلكتروني وكلمة المرور</p><div class="card" style="padding:16px">${fld('le','البريد الإلكتروني','email','name@example.com','dir="ltr" autocomplete="email" autocapitalize="none" inputmode="email"')}${pwf('lp','كلمة المرور','current-password')}<p id="er" role="alert" style="color:#ef5350;text-align:center;min-height:1.5em;margin:12px 0 0"></p><button class="btn" style="margin-top:6px" data-a="dologin">تسجيل الدخول ${ic('out')}</button></div><p style="text-align:center;margin:12px 0"><a class="cy" data-a="forgot" style="font-size:1.05rem">نسيت كلمة المرور؟</a></p><p class="mu" style="text-align:center">ليس لديك حساب؟ <a class="cy" data-r="signup">إنشاء حساب جديد</a></p>`,
 signup:()=>hd('إنشاء حساب جديد','add',{back:'welcome'})+`<h2 style="font-size:1.6rem;margin:24px 0 4px">أنشئ حسابك</h2><p class="mu" style="margin-top:0">سنرسل رمز تأكيد عبر واتساب لتفعيل حسابك داخل التطبيق</p><div class="card" style="padding:16px">${fld('rn','الاسم الثلاثي','text','الاسم الأول واسم الأب واسم الجد','autocomplete="name"')}${fld('re','البريد الإلكتروني','email','name@example.com','dir="ltr" autocomplete="email" autocapitalize="none" inputmode="email"')}${fld('rp','رقم واتساب (لاستلام رمز التأكيد)','tel','+964 7xx xxx xxxx','dir="ltr" autocomplete="tel" inputmode="tel"')}${pwf('rw1','كلمة المرور','new-password')}${pwf('rw2','تأكيد كلمة المرور','new-password')}<p id="er" role="alert" style="color:#ef5350;text-align:center;min-height:1.5em;margin:12px 0 0"></p><button class="btn" style="margin-top:6px" data-a="dosign">إنشاء الحساب ${ic('add')}</button></div><p class="mu" style="text-align:center">لديك حساب؟ <a class="cy" data-r="login">تسجيل الدخول</a></p>`,
 otp:()=>{const o=S.otp;if(!o)return V.welcome();const s=Math.max(0,Math.ceil((o.rs-Date.now())/1000));const isEmail=o.channel==='email'||o.p==='email_verify';const targetDesc=isEmail?`<b style="color:var(--cy)" dir="ltr">${esc(o.dsp||o.mail||'')}</b>`:`<b dir="ltr">${esc(o.dsp||o.ph)}</b>`;const channelDesc=isEmail?'<b style="color:var(--cy)">البريد الإلكتروني</b>':'<b style="color:#25d366">واتساب</b>';return hd(isEmail?'توثيق البريد':'تأكيد الحساب','shield',{back:o.back||'welcome'})+`<h2 style="font-size:1.6rem;margin:24px 0 4px">أدخل رمز التحقق</h2><p class="mu" style="margin-top:0">أرسلنا رمزاً من 6 أرقام عبر ${channelDesc} إلى ${targetDesc}</p><p id="ws" style="margin:6px 0">${wst(o)}</p>${DEMO?`<div class="note"><span>وضع تجريبي (بدون خادم): الرمز هو <b dir="ltr">${o.code}</b></span></div>`:''}<div class="card" style="padding:16px"><input id="oc" inputmode="numeric" autocomplete="one-time-code" maxlength="6" dir="ltr" placeholder="••••••" oninput="this.value=this.value.replace(/\\D/g,'');if(this.value.length===6)document.querySelector('[data-a=vo]')?.click()" onkeydown="if(event.key==='Enter')document.querySelector('[data-a=vo]')?.click()" autofocus style="text-align:center;letter-spacing:.5em;font-size:1.6rem"><button class="btn" style="margin-top:12px" data-a="vo">تأكيد</button><button class="btn o" id="rs" style="margin-top:10px" data-a="rs2" ${s?'disabled':''}>${s?'إعادة الإرسال بعد '+s+' ث':(isEmail?'إعادة إرسال الرمز للبريد':'إعادة إرسال الرمز عبر واتساب')}</button></div>`},
 ref:()=>hd('رمز الإحالة','gift',{back:'welcome'})+`<div class="card row" style="margin-top:40px;padding:26px;background:hsl(calc(var(--h) + 7) 57% 15%)"><div class="sp"><b style="font-size:1.4rem">أدخل رمز الإحالة</b><div class="mu">رمز صديقك (اختياري)</div></div><div class="ci cy" style="width:66px;height:66px;background:none">${ic('gift',40)}</div></div><input placeholder="أدخل رمز الإحالة هنا" style="padding:26px 20px"><div class="card row" style="background:#33322a;border-color:#7a6a20"><div class="sp">يمكنك المتابعة بدون رمز. الهدية الترحيبية ${CFG.gift}$ للجميع مرة واحدة فقط</div><span style="color:#f4c20d">${ic('info',30)}</span></div><button class="btn" style="margin-top:30px;padding:20px" data-a="enter">متابعة ${ic('back')}</button>`,
@@ -846,7 +838,7 @@ try{const sv=LS(SYNK,null),r=await fetch('/api/sync?since='+(sv==null?'init':sv)
 if(r.ok){const j=await r.json();if(sv==null)LSset(SYNK,+j.max||0);else if(Array.isArray(j.cmds)&&j.cmds.length)applyCmds(j.cmds);
 const c=j.config;if(c&&typeof c=='object'&&Object.keys(c).length)return cfgMark(c)}}catch(e){}
 try{const r=await fetch('config.json?_='+Date.now(),{cache:'no-store'});return r.ok?cfgMark(await r.json()):null}catch(e){return null}}
-async function syncAccountState(email){if(!email)return;try{const r=await fetch('/api/sync/account-state?email='+encodeURIComponent(email)),d=await r.json().catch(()=>({}));if(d&&d.ok&&d.account){const a=d.account;if(S.acc&&S.acc.e.toLowerCase()===a.email.toLowerCase()){let ch=false;if(S.pts!==a.pts||S.gems!==a.gems||S.usd!==a.usd||S.v.ml!=(a.vml?1:0)||S.v.ph!=(a.vph!==false?1:0)){S.pts=a.pts;S.gems=a.gems;S.usd=a.usd;S.v.ml=a.vml?1:0;S.v.ph=a.vph!==false?1:0;ch=true}if(a.blk){clearSes();S.acc=null;toast('تم إيقاف حسابك من الإدارة');return go('welcome')}if(ch){save();draw()}}}}catch(e){}}
+async function syncAccountState(email){if(!email)return;try{const r=await fetch('/api/sync/account-state?email='+encodeURIComponent(email)),d=await r.json().catch(()=>({}));if(d&&d.ok&&d.account){const a=d.account;if(S.acc&&S.acc.e.toLowerCase()===a.email.toLowerCase()){let ch=false;const srvVml=(a.vml===true||a.vml===1||a.vml==='true')?1:0,srvVph=(a.vph!==false&&a.vph!==0)?1:0;if(S.pts!==a.pts||S.gems!==a.gems||S.usd!==a.usd||S.v.ml!==srvVml||S.v.ph!==srvVph){S.pts=a.pts;S.gems=a.gems;S.usd=a.usd;S.v.ml=srvVml;S.v.ph=srvVph;ch=true}if(S.acc.vml!==(srvVml===1)){S.acc.vml=(srvVml===1);ch=true}const m=AC.get();if(m[S.acc.e]&&m[S.acc.e].vml!==(srvVml===1)){m[S.acc.e].vml=(srvVml===1);AC.set(m)}if(a.blk){clearSes();S.acc=null;toast('تم إيقاف حسابك من الإدارة');return go('welcome')}if(ch){save();draw()}}}}catch(e){}}
 function syncReport(){try{const m=AC.get(),L=Object.values(m).slice(0,20).map(a=>{const x=(S.acc&&S.acc.e==a.e)?[S.pts,S.gems,S.usd]:ubal(a);return{e:a.e,n:a.n,p:a.p||'',h:a.h||'',vml:a.vml?1:0,vph:a.vph!==false?1:0,demo:a.demo?1:0,pts:Math.floor(x[0]||0),gems:Math.floor(x[1]||0),usd:+(+x[2]||0).toFixed(2),blk:a.blk?1:0,kyc:a.kyc?1:0}});if(!L.length)return;fetch('/api/sync/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cid:CID,accounts:L}),keepalive:true}).then(r=>r.json()).then(d=>{if(d&&d.ok&&Array.isArray(d.accounts)){let needSave=false;d.accounts.forEach(srv=>{if(S.acc&&S.acc.e.toLowerCase()===srv.e.toLowerCase()){if(S.pts!==srv.pts||S.gems!==srv.gems||S.usd!==srv.usd||S.v.ml!=(srv.vml?1:0)||S.v.ph!=(srv.vph?1:0)){S.pts=srv.pts;S.gems=srv.gems;S.usd=srv.usd;S.v.ml=srv.vml?1:0;S.v.ph=srv.vph?1:0;needSave=true}if(srv.blk){clearSes();S.acc=null;toast('تم إيقاف حسابك من الإدارة');return go('welcome')}}const cur=m[srv.e];if(cur){cur.b=[srv.pts,srv.gems,srv.usd];cur.blk=srv.blk;cur.vml=srv.vml;cur.vph=srv.vph}});AC.set(m);if(needSave){save();draw()}}}).catch(()=>{})}catch(e){}}
 function syncPoll(){syncFetch().then(j=>{if(j&&window._cfgChanged&&window._cfgH)window._cfgH(j)}).catch(()=>{});syncReport();if(S.acc)syncAccountState(S.acc.e)}
 setInterval(syncPoll,45000);setTimeout(syncReport,6000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncPoll()});
@@ -1176,7 +1168,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-r],[data-a
  draw()});
 let LT=Date.now();
 const CK='ctr_state',sk=()=>CK+':'+(S.acc?S.acc.e:''),save=()=>{if(!S.acc)return;try{localStorage.setItem(sk(),JSON.stringify({usd:S.usd,wg:S.wg,pts:S.pts,gems:S.gems,cl:S.cl,run:S.run,left:S.left,accr:S.accr,accg:S.accg,done:S.done,at:Date.now()}))}catch(e){}snap()};
-function snap(){if(!S.acc||Date.now()-(snap.t||0)<15000)return;snap.t=Date.now();const m=AC.get(),a=m[S.acc.e];if(a){a.b=[S.pts,S.gems,S.usd];a.ls=Date.now();AC.set(m)}}
+function snap(){if(!S.acc||Date.now()-(snap.t||0)<15000)return;snap.t=Date.now();const m=AC.get(),a=m[S.acc.e];if(a){a.b=[S.pts,S.gems,S.usd];a.vml=!!S.v.ml;a.vph=!!S.v.ph;a.ls=Date.now();AC.set(m)}}
 function restoreState(){Object.assign(S,{pts:0,gems:0,usd:0,cl:[],run:0,left:86400,accr:0,accg:0,done:0,wg:1});try{const j=JSON.parse(localStorage.getItem(sk())||'null');if(j){S.pts=Number(j.pts)||0;S.usd=Number(j.usd)||0;S.wg=j.wg!=null?j.wg:1;S.gems=Number(j.gems)||0;S.cl=Array.isArray(j.cl)?j.cl:[];S.left=j.left!=null?j.left:86400;S.accr=Number(j.accr)||0;S.accg=Number(j.accg)||0;S.done=j.done||0;S.run=j.run||0;if(S.run)tick(Math.max(0,(Date.now()-(j.at||Date.now()))/1000))}else if(S.acc&&S.acc.b){S.pts=Number(S.acc.b[0])||0;S.gems=Number(S.acc.b[1])||0;S.usd=Number(S.acc.b[2])||0}}catch(e){}LT=Date.now()}
 function wall(){const now=Date.now(),n=(now-LT)/1000;LT=now;if(S.acc&&S.done)autoClaim();if(n>0)tick(n);save();kycSync();if(S.acc&&CFG.maint&&!S.staff){clearSes();S.acc=null;toast('التطبيق قيد الصيانة');go('welcome')}if(S.acc&&now-(wall.dc||0)>6e4){wall.dc=now;if(debtGuard(S.acc.e)){clearSes();S.acc=null;toast('تم حظر حسابك لعدم تسديد قسط الاستدانة');go('welcome')}}}
 setInterval(wall,1000);

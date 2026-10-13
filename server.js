@@ -305,13 +305,13 @@ app.post('/api/sync/account-login', wrap(async (req, res) => {
 
   const cleanPh = normPhone(ident);
   const r = await pool.query(
-    `SELECT * FROM sync_accounts WHERE email=$1 OR phone=$1 OR phone=$2 LIMIT 1`,
+    `SELECT * FROM sync_accounts WHERE LOWER(email)=LOWER($1) OR phone=$1 OR phone=$2 LIMIT 1`,
     [ident, cleanPh]
   );
   let acc = r.rows[0];
 
   if (!acc) {
-    const ru = await pool.query(`SELECT * FROM users WHERE email=$1 OR phone=$1 OR phone=$2 LIMIT 1`, [ident, cleanPh]);
+    const ru = await pool.query(`SELECT * FROM users WHERE LOWER(email)=LOWER($1) OR phone=$1 OR phone=$2 LIMIT 1`, [ident, cleanPh]);
     const u = ru.rows[0];
     if (u) {
       acc = {
@@ -367,12 +367,12 @@ app.post('/api/sync/otp-login-request', wrap(async (req, res) => {
   if (!ident) fail(400, 'أدخل البريد أو رقم الهاتف المسجل');
   const cleanPh = normPhone(ident);
   const r = await pool.query(
-    `SELECT * FROM sync_accounts WHERE email=$1 OR phone=$1 OR phone=$2 LIMIT 1`,
+    `SELECT * FROM sync_accounts WHERE LOWER(email)=LOWER($1) OR phone=$1 OR phone=$2 LIMIT 1`,
     [ident, cleanPh]
   );
   let acc = r.rows[0];
   if (!acc) {
-    const ru = await pool.query(`SELECT * FROM users WHERE email=$1 OR phone=$1 OR phone=$2 LIMIT 1`, [ident, cleanPh]);
+    const ru = await pool.query(`SELECT * FROM users WHERE LOWER(email)=LOWER($1) OR phone=$1 OR phone=$2 LIMIT 1`, [ident, cleanPh]);
     acc = ru.rows[0];
   }
   if (!acc) fail(404, 'لم يتم العثور على حساب مسجل بهذه البيانات');
@@ -410,12 +410,12 @@ app.post('/api/sync/otp-login-verify', wrap(async (req, res) => {
   await pool.query(`DELETE FROM otps WHERE id=$1`, [otp.id]);
 
   const r = await pool.query(
-    `SELECT * FROM sync_accounts WHERE email=$1 OR phone=$1 OR phone=$2 LIMIT 1`,
+    `SELECT * FROM sync_accounts WHERE LOWER(email)=LOWER($1) OR phone=$1 OR phone=$2 LIMIT 1`,
     [otp.email || ident, otp.phone || cleanPh]
   );
   let acc = r.rows[0];
   if (!acc) {
-    const ru = await pool.query(`SELECT * FROM users WHERE email=$1 OR phone=$1 OR phone=$2 LIMIT 1`, [otp.email || ident, otp.phone || cleanPh]);
+    const ru = await pool.query(`SELECT * FROM users WHERE LOWER(email)=LOWER($1) OR phone=$1 OR phone=$2 LIMIT 1`, [otp.email || ident, otp.phone || cleanPh]);
     acc = ru.rows[0];
   }
   if (!acc) fail(404, 'الحساب غير موجود');
@@ -439,7 +439,7 @@ app.post('/api/sync/otp-login-verify', wrap(async (req, res) => {
 app.post('/api/sync/verify-email-success', wrap(async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   if (!email) fail(400, 'البريد مطلوب');
-  await pool.query(`UPDATE sync_accounts SET vml=TRUE, last_seen=NOW() WHERE email=$1`, [email]);
+  await pool.query(`UPDATE sync_accounts SET vml=TRUE, last_seen=NOW() WHERE LOWER(email)=LOWER($1)`, [email]);
   res.json({ ok: true });
 }));
 
