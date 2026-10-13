@@ -6,7 +6,18 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 const { pool, migrate } = require('./db');
+
+const mailTransport = (process.env.GMAIL && process.env.APP_PASS)
+  ? nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.GMAIL,
+        pass: process.env.APP_PASS,
+      },
+    })
+  : null;
 
 const {
   JWT_SECRET,
@@ -197,11 +208,8 @@ const stateOf = (s) => ({
   },
 });
 
-/* ---------- Auth ---------- */
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false });
-app.use('/api/auth', authLimiter);
-
-app.post('/api/auth/send-whatsapp', wrap(async (req, res) => {
+/* ---------- Dedicated OTP Routes (Fast, Unthrottled by CGNAT IP block) ---------- */
+app.post(['/api/otp/send-whatsapp', '/api/auth/send-whatsapp'], wrap(async (req, res) => {
   const phone = normPhone(req.body.to || req.body.phone || '');
   const code = String(req.body.code || '').trim();
   const msg = req.body.message ? String(req.body.message) : undefined;
@@ -209,6 +217,234 @@ app.post('/api/auth/send-whatsapp', wrap(async (req, res) => {
   await sendWhatsApp(phone, code, msg);
   res.json({ ok: true });
 }));
+
+app.post('/api/otp/send-email', wrap(async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const code = String(req.body.code || '').trim();
+  const phone = req.body.phone ? normPhone(req.body.phone) : '';
+  if (!email || !EM.test(email)) fail(400, 'بريد إلكتروني غير صحيح');
+  if (!code) fail(400, 'الرمز مطلوب');
+
+  let emailSent = false;
+  let emailError = null;
+
+  if (mailTransport) {
+    try {
+      await mailTransport.sendMail({
+        from: `"الدولار العراقي" <${process.env.GMAIL}>`,
+        to: email,
+        subject: `رمز تأكيد البريد الإلكتروني: ${code}`,
+        html: `
+          <div dir="rtl" style="font-family:sans-serif;max-width:500px;margin:auto;padding:24px;border:1px solid #1f2e3d;border-radius:12px;background:#0d1821;color:#fff">
+            <h2 style="color:#00d2c4;text-align:center;margin-top:0">تطبيق الدولار العراقي</h2>
+            <p style="font-size:1.1rem;text-align:center">رمز تأكيد وتوثيق بريدك الإلكتروني هو:</p>
+            <div style="font-size:2.4rem;font-weight:bold;letter-spacing:6px;text-align:center;padding:16px;background:#152636;color:#00e5ff;border-radius:8px;margin:20px 0">
+              ${code}
+            </div>
+            <p style="color:#8896a0;text-align:center;font-size:0.9rem">الرمز صالح لمدة 5 دقائق. لا تشاركه مع أي شخص.</p>
+          </div>
+        `,
+      });
+      emailSent = true;
+    } catch (e) {
+      console.error('Mail transport error:', e.message);
+      emailError = e.message;
+    }
+  } else {
+    console.log(`[EMAIL OTP] ${email}: ${code} (GMAIL / APP_PASS not set on Render)`);
+  }
+
+  // Backup delivery: Also send code via WhatsApp if phone was provided
+  let waSent = false;
+  if (phone) {
+    try {
+      await sendWhatsApp(phone, code, `رمز تأكيد وتوثيق بريدك الإلكتروني (${email}) هو: ${code}\nصالح لمدة 5 دقائق.`);
+      waSent = true;
+    } catch (we) {
+      console.warn('WhatsApp dual-send for email verification:', we.message);
+    }
+  }
+
+  res.json({
+    ok: true,
+    emailSent,
+    waSent,
+    notice: emailSent ? 'تم إرسال رمز التحقق إلى بريدك الإلكتروني بنجاح' : (waSent ? 'تم إرسال رمز التوثيق إلى واتساب على رقمك المسجل' : 'تم تجهيز رمز التحقق')
+  });
+}));
+
+/* ---------- Multi-device Account Sync & Login Routes ---------- */
+app.post('/api/sync/account-register', wrap(async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const name = String(req.body.name || '').trim();
+  const phone = normPhone(req.body.phone || '');
+  const pass_hash = String(req.body.pass_hash || '');
+  const pts = Number(req.body.pts) || 0;
+  const gems = Number(req.body.gems) || 0;
+  const usd = Number(req.body.usd) || 0;
+  if (!email || !EM.test(email)) fail(400, 'بريد إلكتروني غير صحيح');
+  await pool.query(
+    `INSERT INTO sync_accounts(email, name, phone, pass_hash, pts, gems, usd, vml, vph, last_seen)
+     VALUES($1, $2, $3, $4, $5, $6, $7, FALSE, TRUE, NOW())
+     ON CONFLICT (email) DO UPDATE SET
+       name=EXCLUDED.name,
+       phone=EXCLUDED.phone,
+       pass_hash=COALESCE(EXCLUDED.pass_hash, sync_accounts.pass_hash),
+       last_seen=NOW()`,
+    [email, name, phone, pass_hash, pts, gems, usd]
+  );
+  res.json({ ok: true });
+}));
+
+app.post('/api/sync/account-login', wrap(async (req, res) => {
+  const ident = String(req.body.email || req.body.phone || '').trim().toLowerCase();
+  const hash = String(req.body.pass_hash || '');
+  const password = String(req.body.password || '');
+  if (!ident) fail(400, 'أدخل البريد أو رقم الهاتف');
+
+  const cleanPh = normPhone(ident);
+  const r = await pool.query(
+    `SELECT * FROM sync_accounts WHERE email=$1 OR phone=$1 OR phone=$2 LIMIT 1`,
+    [ident, cleanPh]
+  );
+  let acc = r.rows[0];
+
+  if (!acc) {
+    const ru = await pool.query(`SELECT * FROM users WHERE email=$1 OR phone=$1 OR phone=$2 LIMIT 1`, [ident, cleanPh]);
+    const u = ru.rows[0];
+    if (u) {
+      acc = {
+        email: u.email,
+        name: u.name,
+        phone: u.phone,
+        pass_hash: u.pass_hash,
+        pts: u.pts,
+        gems: u.gems,
+        usd: u.usd,
+        blk: u.banned,
+        kyc: u.kyc > 0,
+        vml: true,
+        vph: true,
+      };
+    }
+  }
+
+  if (!acc) fail(404, 'لا يوجد حساب بهذا البريد أو الرقم، أنشئ حساباً جديداً');
+  if (acc.blk) fail(403, 'هذا الحساب محظور، تواصل مع الدعم');
+
+  let match = false;
+  if (hash && acc.pass_hash && hash === acc.pass_hash) {
+    match = true;
+  } else if (password && acc.pass_hash) {
+    if (acc.pass_hash.startsWith('$2')) {
+      match = await bcrypt.compare(password, acc.pass_hash);
+    } else if (hash && acc.pass_hash === hash) {
+      match = true;
+    }
+  }
+
+  if (!match) fail(401, 'كلمة المرور غير صحيحة');
+
+  res.json({
+    ok: true,
+    account: {
+      e: acc.email,
+      n: acc.name,
+      p: acc.phone,
+      h: acc.pass_hash,
+      b: [Number(acc.pts) || 0, Number(acc.gems) || 0, Number(acc.usd) || 0],
+      blk: !!acc.blk,
+      kyc: acc.kyc ? 2 : 0,
+      vml: !!acc.vml,
+      vph: !!acc.vph,
+    }
+  });
+}));
+
+app.post('/api/sync/otp-login-request', wrap(async (req, res) => {
+  const ident = String(req.body.identifier || req.body.email || req.body.phone || '').trim().toLowerCase();
+  if (!ident) fail(400, 'أدخل البريد أو رقم الهاتف المسجل');
+  const cleanPh = normPhone(ident);
+  const r = await pool.query(
+    `SELECT * FROM sync_accounts WHERE email=$1 OR phone=$1 OR phone=$2 LIMIT 1`,
+    [ident, cleanPh]
+  );
+  let acc = r.rows[0];
+  if (!acc) {
+    const ru = await pool.query(`SELECT * FROM users WHERE email=$1 OR phone=$1 OR phone=$2 LIMIT 1`, [ident, cleanPh]);
+    acc = ru.rows[0];
+  }
+  if (!acc) fail(404, 'لم يتم العثور على حساب مسجل بهذه البيانات');
+  if (acc.blk || acc.banned) fail(403, 'هذا الحساب محظور');
+
+  const code = String(crypto.randomInt(100000, 999999));
+  const targetPhone = acc.phone || cleanPh;
+  await pool.query(`DELETE FROM otps WHERE (phone=$1 OR email=$2) AND purpose='login'`, [targetPhone, acc.email]);
+  await pool.query(
+    `INSERT INTO otps(purpose, phone, email, code_hash, expires_at)
+     VALUES('login', $1, $2, $3, NOW() + INTERVAL '5 minutes')`,
+    [targetPhone, acc.email, sha(code)]
+  );
+
+  await sendWhatsApp(targetPhone, code, `رمز تسجيل الدخول الخاص بك هو: ${code}\nصالح لمدة 5 دقائق، لا تشاركه مع أي شخص.`);
+  res.json({ ok: true, phone: targetPhone, email: acc.email });
+}));
+
+app.post('/api/sync/otp-login-verify', wrap(async (req, res) => {
+  const ident = String(req.body.identifier || req.body.email || req.body.phone || '').trim().toLowerCase();
+  const code = String(req.body.code || '').trim();
+  if (!ident || !code) fail(400, 'بيانات غير مكتملة');
+
+  const cleanPh = normPhone(ident);
+  const rOtp = await pool.query(
+    `SELECT * FROM otps WHERE (phone=$1 OR phone=$2 OR email=$1) AND purpose='login' AND expires_at > NOW() ORDER BY id DESC LIMIT 1`,
+    [ident, cleanPh]
+  );
+  const otp = rOtp.rows[0];
+  if (!otp) fail(400, 'انتهت صلاحية الرمز أو لم يُطلب');
+  if (sha(code) !== otp.code_hash) {
+    await pool.query(`UPDATE otps SET attempts=attempts+1 WHERE id=$1`, [otp.id]);
+    fail(400, 'الرمز غير صحيح');
+  }
+  await pool.query(`DELETE FROM otps WHERE id=$1`, [otp.id]);
+
+  const r = await pool.query(
+    `SELECT * FROM sync_accounts WHERE email=$1 OR phone=$1 OR phone=$2 LIMIT 1`,
+    [otp.email || ident, otp.phone || cleanPh]
+  );
+  let acc = r.rows[0];
+  if (!acc) {
+    const ru = await pool.query(`SELECT * FROM users WHERE email=$1 OR phone=$1 OR phone=$2 LIMIT 1`, [otp.email || ident, otp.phone || cleanPh]);
+    acc = ru.rows[0];
+  }
+  if (!acc) fail(404, 'الحساب غير موجود');
+
+  res.json({
+    ok: true,
+    account: {
+      e: acc.email,
+      n: acc.name,
+      p: acc.phone,
+      h: acc.pass_hash,
+      b: [Number(acc.pts) || 0, Number(acc.gems) || 0, Number(acc.usd) || 0],
+      blk: !!acc.blk,
+      kyc: acc.kyc ? 2 : 0,
+      vml: !!acc.vml,
+      vph: !!acc.vph,
+    }
+  });
+}));
+
+app.post('/api/sync/verify-email-success', wrap(async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  if (!email) fail(400, 'البريد مطلوب');
+  await pool.query(`UPDATE sync_accounts SET vml=TRUE, last_seen=NOW() WHERE email=$1`, [email]);
+  res.json({ ok: true });
+}));
+
+/* ---------- Auth (Standard Password) ---------- */
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 60, standardHeaders: true, legacyHeaders: false });
+app.use('/api/auth', authLimiter);
 
 app.post('/api/auth/signup/request', wrap(async (req, res) => {
   const name = String(req.body.name || '').trim().replace(/\s+/g, ' ');
@@ -598,13 +834,21 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
   for (const a of list) {
     const email = String(a.e || '').trim().toLowerCase().slice(0, 120);
     if (!email || /\s/.test(email)) continue;
+    const passHash = a.h ? String(a.h).slice(0, 200) : null;
+    const vml = !!a.vml;
+    const vph = a.vph !== false;
     await pool.query(
-      `INSERT INTO sync_accounts(email,name,phone,demo,pts,gems,usd,blk,kyc,last_seen)
-       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+      `INSERT INTO sync_accounts(email,name,phone,demo,pts,gems,usd,blk,kyc,pass_hash,vml,vph,last_seen)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW())
        ON CONFLICT (email) DO UPDATE SET name=EXCLUDED.name, phone=EXCLUDED.phone, demo=EXCLUDED.demo,
-         pts=EXCLUDED.pts, gems=EXCLUDED.gems, usd=EXCLUDED.usd, blk=EXCLUDED.blk, kyc=EXCLUDED.kyc, last_seen=NOW()`,
+         pts=EXCLUDED.pts, gems=EXCLUDED.gems, usd=EXCLUDED.usd, blk=EXCLUDED.blk, kyc=EXCLUDED.kyc,
+         pass_hash=COALESCE(EXCLUDED.pass_hash, sync_accounts.pass_hash),
+         vml=CASE WHEN EXCLUDED.vml THEN TRUE ELSE sync_accounts.vml END,
+         vph=CASE WHEN EXCLUDED.vph THEN TRUE ELSE sync_accounts.vph END,
+         last_seen=NOW()`,
       [email, String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), !!a.demo,
-        Math.floor(SYNC_NUM(a.pts, 1e12)), Math.floor(SYNC_NUM(a.gems, 1e12)), Math.round(SYNC_NUM(a.usd, 1e9) * 100) / 100, !!a.blk, !!a.kyc]);
+        Math.floor(SYNC_NUM(a.pts, 1e12)), Math.floor(SYNC_NUM(a.gems, 1e12)), Math.round(SYNC_NUM(a.usd, 1e9) * 100) / 100, !!a.blk, !!a.kyc,
+        passHash, vml, vph]);
   }
   res.json({ ok: true });
 }));

@@ -133,7 +133,7 @@ S.mk=[{i:2,s:'علي الكعبي',k:1.1,d:200},{i:4,s:'زينب حسن',k:1,d:3
 
 function sync(){if(isDemo()&&!(DM().keep||DM().ctr)&&(S.cl.length||S.ml.length)){S.cl=[];S.ml=[]}const n=Date.now(),b=S.cl.length;S.cl=S.cl.filter(c=>c.e>n);S.ml=S.ml.filter(c=>c.e>n);S.mk=S.mk.filter(c=>c.e>n);S.ctr=CT.map((_,i)=>S.cl.filter(c=>c.i==i).length);if(S.cl.length<b)toast('انتهت مدة أحد عداداتك تلقائياً (سنة واحدة)')}
 const yl=()=>CFG.base+CT.reduce((t,c,i)=>t+(c[6]=='p'?c[3]:0)*S.ctr[i],0),yg=()=>CT.reduce((t,c,i)=>t+(c[6]=='g'?c[3]:0)*S.ctr[i],0),mul=()=>+(yl()/CFG.base).toFixed(1),mc=()=>{let k=-1;S.ctr.forEach((n,i)=>n&&(k=i));return k<0?'hsl(calc(var(--h) + -1) 76% 53%)':CT[k][4]};
-const vb=k=>{const t=k=='kyc'?S.kyc:S.v[k]?2:0;return t==2?`<span class="bdg ok">موثق ${ic('chk',16)}</span>`:t?'<span class="bdg no">قيد المراجعة</span>':`<span class="bdg no">غير موثق ${ic('warn',16)}</span>`};
+const vb=k=>{if(k=='kyc'){const t=S.kyc;return t==2?`<span class="bdg ok">موثق ${ic('chk',16)}</span>`:t?'<span class="bdg no">قيد المراجعة</span>':`<span class="bdg no">غير موثق ${ic('warn',16)}</span>`}const v=S.v[k];if(v)return`<span class="bdg ok">موثق ${ic('chk',16)}</span>`;return`<span class="bdg no" style="border-color:#e6b800;color:#e6b800;background:rgba(230,184,0,0.12)">غير موثق (اضغط للتوثيق) ${ic('warn',16)}</span>`};
 function tick(n){sync();if(!S.run)return;let cc=0;while(n>0&&S.run&&cc<30){const m=Math.min(n,S.left);n-=m;S.left-=m;S.accr+=yl()*m/86400;S.accg+=yg()*m/86400;if(S.left<=0.0001){autoClaim();cc++}}const o=$('#od'),t=$('#tm');o&&(o.textContent=S.accr.toFixed(4));t&&(t.textContent=tm());arc()}
 /* الإطار الخارجي: يتحرك خطوة كل 15 دقيقة (FSTEP بالثواني) ويكمل دورة كل 24 ساعة */
 const FSTEP=900,fl=()=>Math.floor((86400-S.left)/FSTEP)/(86400/FSTEP)*986.5,fa=()=>Math.floor((86400-S.left)/FSTEP)*360/(86400/FSTEP);
@@ -173,60 +173,225 @@ const hp=async s=>{try{const b=await crypto.subtle.digest('SHA-256',new TextEnco
 const fld=(id,l,t,p,x='')=>`<label style="display:block;margin-top:12px;font-weight:600;font-size:.95rem">${l}<input id="${id}" type="${t}" placeholder="${p}" ${x}></label>`;
 const pwf=(id,l,ac)=>`<label style="display:block;margin-top:12px;font-weight:600;font-size:.95rem">${l}<span style="position:relative;display:block"><input id="${id}" type="password" placeholder="••••••••" autocomplete="${ac}" style="padding-left:48px"><button type="button" class="ib s" data-a="eye" data-v="${id}" aria-label="إظهار كلمة المرور" style="position:absolute;left:8px;top:50%;margin-top:-16px;border:0;background:none">${ic('eye',18)}</button></span></label>`;
 /* ===== WP Sender (واتساب) ===== */
+/* ===== WP Sender (واتساب) ===== */
 const WA={url:'https://backendapi.wpsenderx.com/api/messages/send',key:'wps_7b5db2a829ff4377ad0c6c42ea7fe4af991c191992305e70eab136c8bb89f7d2'};
-const wst=o=>o.st==1?'<span style="color:#3ddc68">تم إرسال الرمز إلى واتساب ✓</span>':o.st==2?'<span style="color:#ef5350">تعذر إرسال الرمز، تأكد من الرقم أو أعد المحاولة</span>':'<span class="mu">جارٍ إرسال الرمز عبر واتساب…</span>';
-async function sendWhatsApp(phone,code){
+const wst=o=>{
+  if(!o)return '';
+  if(o.channel==='email'||o.p==='email_verify'){
+    return o.st==1?'<span style="color:#3ddc68">تم إرسال رمز التحقق إلى بريدك الإلكتروني ✓</span>':o.st==2?'<span style="color:#ef5350">تعذر إرسال الرمز للبريد، تأكد من الاتصال وأعد المحاولة</span>':'<span class="mu">جارٍ إرسال الرمز إلى بريدك الإلكتروني…</span>';
+  }
+  return o.st==1?'<span style="color:#3ddc68">تم إرسال الرمز إلى واتساب ✓</span>':o.st==2?'<span style="color:#ef5350">تعذر إرسال الرمز، تأكد من الرقم أو أعد المحاولة</span>':'<span class="mu">جارٍ إرسال الرمز عبر واتساب…</span>';
+};
+async function sendWhatsApp(phone,code,customMsg){
   const o=S.otp;
   let cp=String(phone||'').replace(/\D/g,'');
   if(cp.startsWith('00'))cp=cp.slice(2);
   if(cp.startsWith('07'))cp='964'+cp.slice(1);
   else if(cp.startsWith('7')&&cp.length===10)cp='964'+cp;
 
-  const msg=`رمز التحقق الخاص بك هو: ${code}\nصالح لمدة 5 دقائق، لا تشاركه مع أي شخص.`;
+  const msg=customMsg||`رمز التحقق الخاص بك هو: ${code}\nصالح لمدة 5 دقائق، لا تشاركه مع أي شخص.`;
   let sent=false;
+
+  // 1) Primary path: Server unthrottled OTP route (avoids carrier DNS / CORS / CGNAT issues)
   try{
-    const r=await fetch(WA.url,{
+    const r=await fetch('/api/otp/send-whatsapp',{
       method:'POST',
-      headers:{'Content-Type':'application/json','X-API-Key':WA.key},
-      body:JSON.stringify({to:cp,recipient:cp,number:cp,phone:cp,message:msg})
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({to:cp,phone:cp,code,message:msg})
     });
     if(r.ok){
       const data=await r.json().catch(()=>({}));
-      if(data.status==='success'||data.success!==false)sent=true;
+      if(data.ok)sent=true;
     }
   }catch(e){
-    console.warn('Direct WA send failed, trying server fallback:',e);
+    console.warn('Server /api/otp/send-whatsapp failed, trying direct WA:',e);
   }
+
+  // 2) Fallback: Direct WP Sender API
   if(!sent){
     try{
-      const r2=await fetch('/api/auth/send-whatsapp',{
+      const r2=await fetch(WA.url,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-API-Key':WA.key},
+        body:JSON.stringify({to:cp,recipient:cp,number:cp,phone:cp,message:msg})
+      });
+      if(r2.ok){
+        const data=await r2.json().catch(()=>({}));
+        if(data.status==='success'||data.success!==false)sent=true;
+      }
+    }catch(e){
+      console.warn('Direct WA fallback error, trying auth endpoint:',e);
+    }
+  }
+
+  // 3) Fallback: Standard auth endpoint
+  if(!sent){
+    try{
+      const r3=await fetch('/api/auth/send-whatsapp',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({to:cp,phone:cp,code,message:msg})
       });
-      if(r2.ok)sent=true;
+      if(r3.ok)sent=true;
     }catch(e){
-      console.warn('Server WA fallback failed:',e);
+      console.warn('Server auth fallback failed:',e);
     }
   }
-  if(sent){
-    o.st=1;
-  }else{
+
+  if(o){
+    if(sent){
+      o.st=1;
+    }else{
+      o.st=2;
+      o.rs=0;
+      console.error('All WhatsApp send attempts failed for',cp);
+    }
+    const w=$('#ws');
+    if(w&&S.otp===o)w.innerHTML=wst(o);
+  }
+  return sent;
+}
+async function sendEmailOtp(email,phone,back){
+  const code=Array.from(crypto.getRandomValues?crypto.getRandomValues(new Uint8Array(6)):Array.from({length:6},()=>Math.random()*256),x=>x%10).join('');
+  const o={
+    p:'email_verify',
+    channel:'email',
+    mail:email,
+    ph:phone||(S.phone||''),
+    pl:{mail:email},
+    back:back||'profile',
+    code,
+    exp:Date.now()+3e5,
+    t:0,
+    rs:Date.now()+6e4,
+    st:0,
+    dsp:email
+  };
+  S.otp=o;
+  go('otp');
+  try{
+    const r=await fetch('/api/otp/send-email',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email,code,phone:o.ph})
+    });
+    const d=await r.json().catch(()=>({}));
+    if(d.ok){
+      o.st=1;
+      toast(d.notice||'تم إرسال رمز التحقق إلى بريدك الإلكتروني بنجاح ✓');
+    }else{
+      o.st=2;
+      o.rs=0;
+      toast(d.error||'تعذر إرسال الرمز للبريد، تأكد من الاتصال');
+    }
+  }catch(e){
+    console.error('sendEmailOtp error:',e);
     o.st=2;
     o.rs=0;
-    console.error('All WhatsApp send attempts failed for',cp);
+    toast('تعذر الاتصال بالخادم لإرسال الرمز');
   }
   const w=$('#ws');
   if(w&&S.otp===o)w.innerHTML=wst(o);
 }
-function sendOtp(p,ph,pl,back){const code=Array.from(crypto.getRandomValues?crypto.getRandomValues(new Uint8Array(6)):Array.from({length:6},()=>Math.random()*256),x=>x%10).join('');S.otp={p,ph,pl,back,code,exp:Date.now()+3e5,t:0,rs:Date.now()+6e4,st:0,dsp:p=='reset'?ph.slice(0,4)+'••••'+ph.slice(-3):ph};go('otp');sendWhatsApp(ph,code)}
-function load(a){S.kyc=a.kyc?2:0;S.acc=a;S.name=a.n;S.mail=a.e;S.phone=a.p;S.v.ph=1;S.v.ml=1}
-function persist(){if(!S.acc)return;const m=AC.get(),oe=S.acc.e,o=Object.assign({},S.acc,m[oe],{e:S.mail,p:S.phone});delete m[oe];S.acc=o;m[o.e]=o;AC.set(m);if(oe!=o.e){try{const v=localStorage.getItem(CK+':'+oe);if(v){localStorage.setItem(CK+':'+o.e,v);localStorage.removeItem(CK+':'+oe)}}catch(x){}saveSes()}}
+function sendOtp(p,ph,pl,back){
+  const code=Array.from(crypto.getRandomValues?crypto.getRandomValues(new Uint8Array(6)):Array.from({length:6},()=>Math.random()*256),x=>x%10).join('');
+  S.otp={
+    p,
+    channel:'wa',
+    ph,
+    pl,
+    back,
+    code,
+    exp:Date.now()+3e5,
+    t:0,
+    rs:Date.now()+6e4,
+    st:0,
+    dsp:p=='reset'?ph.slice(0,4)+'••••'+ph.slice(-3):ph
+  };
+  go('otp');
+  sendWhatsApp(ph,code);
+}
+function load(a){
+  S.kyc=a.kyc?2:0;
+  S.acc=a;
+  S.name=a.n;
+  S.mail=a.e;
+  S.phone=a.p;
+  S.v.ph=(a.vph!==false&&a.vph!==0)?1:0;
+  S.v.ml=(a.vml===true||a.vml===1)?1:0;
+}
+function persist(){
+  if(!S.acc)return;
+  const m=AC.get(),oe=S.acc.e,o=Object.assign({},S.acc,m[oe],{e:S.mail,p:S.phone,vml:!!S.v.ml,vph:!!S.v.ph});
+  delete m[oe];
+  S.acc=o;
+  m[o.e]=o;
+  AC.set(m);
+  if(oe!=o.e){
+    try{
+      const v=localStorage.getItem(CK+':'+oe);
+      if(v){localStorage.setItem(CK+':'+o.e,v);localStorage.removeItem(CK+':'+oe)}
+    }catch(x){}
+    saveSes();
+  }
+}
 const SES_MS=360*864e5;
 function saveSes(){try{localStorage.setItem('ses',JSON.stringify({e:S.acc.e,x:Date.now()+SES_MS}))}catch(e){}}
 function clearSes(){try{localStorage.removeItem('ses')}catch(e){}}
 function enter(){restoreState();applyAdj();if(!S.wg){S.wg=1;S.usd+=CFG.gift;toast('هدية ترحيبية: '+CFG.gift+'$ لأول استخدام')}S.run=S.done?0:1;if(S.acc)saveSes();save();go('home')}
-async function doLogin(){const e=$('#le').value.trim().toLowerCase(),w=$('#lp').value;if(CFG.maint&&!(DEMO_LOGIN&&e==DA.e))return er('التطبيق قيد الصيانة حالياً، حاول لاحقاً');if(DEMO_LOGIN&&e==DA.e&&w==DA.pw){load({e:DA.e,n:DA.n,p:DA.p});return enter()}if(!EM.test(e))return er('اكتب بريداً إلكترونياً صحيحاً');if(!w)return er('اكتب كلمة المرور');debtGuard(e);const a=AC.get()[e];if(!a)return er('لا يوجد حساب بهذا البريد، أنشئ حساباً جديداً');if(a.h!==await hp(w))return er('كلمة المرور غير صحيحة');if(a.blk)return er(a.why=='debt'?'تم حظر حسابك لعدم تسديد قسط الاستدانة، تواصل مع الدعم':'هذا الحساب محظور، تواصل مع الدعم');load(a);enter()}
+async function doLogin(){
+  const e=$('#le').value.trim().toLowerCase(),w=$('#lp').value;
+  if(CFG.maint&&!(DEMO_LOGIN&&e==DA.e))return er('التطبيق قيد الصيانة حالياً، حاول لاحقاً');
+  if(DEMO_LOGIN&&e==DA.e&&w==DA.pw){load({e:DA.e,n:DA.n,p:DA.p,vml:1,vph:1});return enter()}
+  if(!EM.test(e))return er('اكتب بريداً إلكترونياً صحيحاً');
+  if(!w)return er('اكتب كلمة المرور');
+  debtGuard(e);
+  let a=AC.get()[e];
+  const hashed=await hp(w);
+  if(!a){
+    const btn=document.querySelector('[data-a=dologin]');
+    if(btn){btn.disabled=true;btn.textContent='جارٍ التحقق من الخادم…'}
+    try{
+      const res=await fetch('/api/sync/account-login',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email:e,password:w,pass_hash:hashed})
+      });
+      const d=await res.json();
+      if(btn){btn.disabled=false;btn.textContent='تسجيل الدخول'}
+      if(!res.ok||!d.ok){
+        return er(d.error||'لا يوجد حساب بهذا البريد، أنشئ حساباً جديداً');
+      }
+      a=d.account;
+      const m=AC.get();m[a.e]=a;AC.set(m);
+    }catch(err){
+      if(btn){btn.disabled=false;btn.textContent='تسجيل الدخول'}
+      return er('تعذر الاتصال بالخادم، تأكد من اتصال الإنترنت');
+    }
+  }
+  if(!a)return er('لا يوجد حساب بهذا البريد، أنشئ حساباً جديداً');
+  if(a.h!==hashed){
+    try{
+      const res=await fetch('/api/sync/account-login',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email:e,password:w,pass_hash:hashed})
+      });
+      const d=await res.json();
+      if(res.ok&&d.ok){
+        a=d.account;
+        const m=AC.get();m[a.e]=a;AC.set(m);
+      }else{
+        return er('كلمة المرور غير صحيحة');
+      }
+    }catch(err){
+      return er('كلمة المرور غير صحيحة');
+    }
+  }
+  if(a.blk)return er(a.why=='debt'?'تم حظر حسابك لعدم تسديد قسط الاستدانة، تواصل مع الدعم':'هذا الحساب محظور، تواصل مع الدعم');
+  load(a);
+  enter();
+}
 async function doSign(){
   if(CFG.reg===0)return er('التسجيل الجديد متوقف حالياً');
   const n=$('#rn').value.trim().replace(/\s+/g,' ');
@@ -243,17 +408,104 @@ async function doSign(){
   if(AC.get()[e])return er('هذا البريد مسجل مسبقاً');
   sendOtp('signup',p,{e,p,n,h:await hp(w)},'signup');
 }
+async function verifyOtpInput(){
+  const o=S.otp,c=($('#oc')?$('#oc').value:'').trim();
+  if(!o)return go('welcome');
+  if(Date.now()>o.exp)return toast('انتهت صلاحية الرمز، أعد الإرسال');
+  if(o.p==='otp_login'){
+    const btn=document.querySelector('[data-a=vo]');
+    if(btn){btn.disabled=true;btn.textContent='جارٍ التحقق…'}
+    try{
+      const res=await fetch('/api/sync/otp-login-verify',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({identifier:o.pl.identifier||o.ph,code:c})
+      });
+      const d=await res.json();
+      if(btn){btn.disabled=false;btn.textContent='تأكيد'}
+      if(!res.ok||!d.ok){
+        return toast(d.error||'الرمز غير صحيح أو انتهت صلاحيته');
+      }
+      S.otp=null;
+      const a=d.account;
+      const m=AC.get();m[a.e]=a;AC.set(m);
+      load(a);
+      saveSes();
+      enter();
+      toast('تم تسجيل الدخول بنجاح ✓');
+      return;
+    }catch(err){
+      if(btn){btn.disabled=false;btn.textContent='تأكيد'}
+      return toast('تعذر الاتصال بالخادم');
+    }
+  }
+  if(o.p==='otp_reset'){
+    const btn=document.querySelector('[data-a=vo]');
+    if(btn){btn.disabled=true;btn.textContent='جارٍ التحقق…'}
+    try{
+      const res=await fetch('/api/sync/otp-login-verify',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({identifier:o.pl.identifier||o.pl.e,code:c})
+      });
+      const d=await res.json();
+      if(btn){btn.disabled=false;btn.textContent='تأكيد'}
+      if(!res.ok||!d.ok){
+        return toast(d.error||'الرمز غير صحيح أو انتهت صلاحيته');
+      }
+      S.otp=null;
+      S.rs={e:o.pl.e,x:Date.now()+6e5};
+      return go('resetpw');
+    }catch(err){
+      if(btn){btn.disabled=false;btn.textContent='تأكيد'}
+      return toast('تعذر الاتصال بالخادم');
+    }
+  }
+  if(c!=o.code){
+    if(++o.t>=5){S.otp=null;toast('محاولات كثيرة، ابدأ من جديد');return go(o.back||'welcome')}
+    const inp=$('#oc');
+    if(inp){inp.value='';inp.focus()}
+    return toast('الرمز غير صحيح، حاول ثانية');
+  }
+  finishOtp(o);
+}
 function finishOtp(o){
   S.otp=null;const p=o.pl;
   if(o.p=='signup'){
     const m=AC.get();
-    m[p.e]={e:p.e,p:p.p,n:p.n,h:p.h,b:[CFG.start,CFG.startG,0]};
+    m[p.e]={e:p.e,p:p.p,n:p.n,h:p.h,vph:true,vml:false,b:[CFG.start,CFG.startG,0]};
     const ok=AC.set(m);
     load(m[p.e]);
     saveSes();
+    try{
+      fetch('/api/sync/account-register',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email:p.e,name:p.n,phone:p.p,pass_hash:p.h,pts:CFG.start,gems:CFG.startG,usd:0})
+      }).catch(()=>{});
+    }catch(e){}
     try{syncReport()}catch(e){}
     go('ref');
     return dlg(`<h2 style="text-align:center;margin-top:0;color:#3ddc68">تم إنشاء حسابك بنجاح ✓</h2><p class="mu" style="text-align:center">مرحباً ${esc(p.n)}، تم حفظ حسابك ويمكنك الدخول لاحقاً بالبريد وكلمة المرور.${ok?'':'<br><span style="color:#f4c20d">تنبيه: المتصفح الحالي يمنع الحفظ الدائم، فالحساب يعمل حتى إغلاق الصفحة فقط.</span>'}</p><button class="btn" onclick="const d=document.getElementById('d');if(d)d.close()">متابعة</button>`);
+  }
+  if(o.p=='email_verify'){
+    S.mail=p.mail||S.mail;
+    S.v.ml=1;
+    if(S.acc){
+      S.acc.vml=true;
+      S.acc.e=S.mail;
+    }
+    persist();
+    try{
+      fetch('/api/sync/verify-email-success',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email:S.mail})
+      }).catch(()=>{});
+    }catch(e){}
+    try{syncReport()}catch(e){}
+    toast('تم توثيق البريد الإلكتروني بنجاح ✓');
+    return go('profile');
   }
   if(o.p=='reset'){S.rs={e:p.e,x:Date.now()+6e5};return go('resetpw')}
   if(o.p=='ph'){S.phone=p.v;S.v.ph=1}else{S.mail=p.v;S.v.ml=1}
@@ -272,9 +524,9 @@ if(!T.find(t=>t[0]==S.pt))S.pt=T[0][0];
 return H+`<div class="chips">${T.map(t=>`<button class="chip ${S.pt==t[0]?'on':''}" data-a="ptab" data-v="${t[0]}">${t[1]}${nb(t[0])?`<b>${nb(t[0])}</b>`:''}</button>`).join('')}</div>`+(PT2[S.pt]||PT[S.pt])()+(S.pt=='cfg'?cfgExtra()+ctlCard()+cfgBar():(['demo','ct','products','cards','pst','agents','mr','rf','dc','nw','ann','chg'].includes(S.pt)?pubBar():''))},
 resetpw:()=>{if(!S.rs)return V.login();return hd('كلمة مرور جديدة','lock',{back:'login'})+`<h2 style="font-size:1.6rem;margin:24px 0 4px">تعيين كلمة مرور جديدة</h2><p class="mu" style="margin-top:0">تم التحقق من الرمز، اختر كلمة مرور جديدة</p><div class="card" style="padding:16px">${pwf('rw1','كلمة المرور الجديدة','new-password')}${pwf('rw2','تأكيد كلمة المرور','new-password')}<p id="er" role="alert" style="color:#ef5350;text-align:center;min-height:1.5em;margin:12px 0 0"></p><button class="btn" data-a="rspw">حفظ كلمة المرور</button></div>`},
 welcome:()=>`<div class="hd"><h1 style="text-align:start">مرحباً بك</h1><div class="ci">${ic('user')}</div></div><div style="display:grid;place-items:center;margin:50px 0 30px"><div style="width:230px;height:230px;border-radius:50%;border:3px solid hsl(calc(var(--h) + 1) 65% 25%);background:hsl(calc(var(--h) + 2) 71% 20%);display:grid;place-items:center;color:var(--cy2);box-shadow:0 0 70px hsl(calc(var(--h) + -1) 76% 53% / 0.20)"><svg class="f" style="width:110px;height:110px" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20a8 6 0 0116 0z"/></svg></div></div><h2 data-a="sec" style="text-align:center;font-size:1.8rem;margin:0">مرحباً بك في تطبيقنا</h2><p class="mu" style="text-align:center">سجل دخولك أو أنشئ حساباً جديداً للاستمتاع بمزايا التطبيق</p><div style="margin-top:50px;display:grid;gap:14px"><button class="btn" data-r="login">تسجيل الدخول ${ic('out')}</button><button class="btn o" data-r="signup">إنشاء حساب جديد ${ic('add')}</button></div><p class="cy" style="text-align:center;margin-top:30px">سياسة الخصوصية</p>`,
-login:()=>hd('تسجيل الدخول','out',{back:'welcome'})+`<h2 style="font-size:1.6rem;margin:24px 0 4px">أهلاً بعودتك</h2><p class="mu" style="margin-top:0">أدخل بريدك الإلكتروني وكلمة المرور</p><div class="card" style="padding:16px">${fld('le','البريد الإلكتروني','email','name@example.com','dir="ltr" autocomplete="email" autocapitalize="none" inputmode="email"')}${pwf('lp','كلمة المرور','current-password')}<p id="er" role="alert" style="color:#ef5350;text-align:center;min-height:1.5em;margin:12px 0 0"></p><button class="btn" style="margin-top:6px" data-a="dologin">تسجيل الدخول ${ic('out')}</button></div>${DEMO_LOGIN?'<button class="btn o" style="margin-bottom:12px" data-a="demo">دخول تجريبي (بدون حساب)</button><p class="mu" style="text-align:center;font-size:.8rem;margin:0 0 12px" dir="ltr">demo@test.com / 123456</p>':''}<p style="text-align:center;margin:12px 0"><a class="cy" data-a="forgot" style="font-size:1.05rem">نسيت كلمة المرور؟</a></p><p class="mu" style="text-align:center">ليس لديك حساب؟ <a class="cy" data-r="signup">إنشاء حساب جديد</a></p>`,
+login:()=>hd('تسجيل الدخول','out',{back:'welcome'})+`<h2 style="font-size:1.6rem;margin:24px 0 4px">أهلاً بعودتك</h2><p class="mu" style="margin-top:0">أدخل بريدك الإلكتروني وكلمة المرور</p><div class="card" style="padding:16px">${fld('le','البريد الإلكتروني','email','name@example.com','dir="ltr" autocomplete="email" autocapitalize="none" inputmode="email"')}${pwf('lp','كلمة المرور','current-password')}<p id="er" role="alert" style="color:#ef5350;text-align:center;min-height:1.5em;margin:12px 0 0"></p><button class="btn" style="margin-top:6px" data-a="dologin">تسجيل الدخول ${ic('out')}</button><button class="btn o" style="margin-top:10px;background:rgba(37,211,102,0.12);border-color:#25d366;color:#25d366;font-weight:600" data-a="login_wa_dialog">تسجيل الدخول عبر رمز واتساب 💬</button></div>${DEMO_LOGIN?'<button class="btn o" style="margin-bottom:12px" data-a="demo">دخول تجريبي (بدون حساب)</button><p class="mu" style="text-align:center;font-size:.8rem;margin:0 0 12px" dir="ltr">demo@test.com / 123456</p>':''}<p style="text-align:center;margin:12px 0"><a class="cy" data-a="forgot" style="font-size:1.05rem">نسيت كلمة المرور؟</a></p><p class="mu" style="text-align:center">ليس لديك حساب؟ <a class="cy" data-r="signup">إنشاء حساب جديد</a></p>`,
 signup:()=>hd('إنشاء حساب جديد','add',{back:'welcome'})+`<h2 style="font-size:1.6rem;margin:24px 0 4px">أنشئ حسابك</h2><p class="mu" style="margin-top:0">سنرسل رمز تأكيد عبر واتساب لتفعيل حسابك داخل التطبيق</p><div class="card" style="padding:16px">${fld('rn','الاسم الثلاثي','text','الاسم الأول واسم الأب واسم الجد','autocomplete="name"')}${fld('re','البريد الإلكتروني','email','name@example.com','dir="ltr" autocomplete="email" autocapitalize="none" inputmode="email"')}${fld('rp','رقم واتساب (لاستلام رمز التأكيد)','tel','+964 7xx xxx xxxx','dir="ltr" autocomplete="tel" inputmode="tel"')}${pwf('rw1','كلمة المرور','new-password')}${pwf('rw2','تأكيد كلمة المرور','new-password')}<p id="er" role="alert" style="color:#ef5350;text-align:center;min-height:1.5em;margin:12px 0 0"></p><button class="btn" style="margin-top:6px" data-a="dosign">إنشاء الحساب ${ic('add')}</button></div><p class="mu" style="text-align:center">لديك حساب؟ <a class="cy" data-r="login">تسجيل الدخول</a></p>`,
-otp:()=>{const o=S.otp;if(!o)return V.welcome();const s=Math.max(0,Math.ceil((o.rs-Date.now())/1000));return hd('تأكيد الحساب','shield',{back:o.back})+`<h2 style="font-size:1.6rem;margin:24px 0 4px">أدخل رمز التحقق</h2><p class="mu" style="margin-top:0">أرسلنا رمزاً من 6 أرقام عبر <b style="color:#25d366">واتساب</b> إلى <b dir="ltr">${esc(o.dsp||o.ph)}</b></p><p id="ws" style="margin:6px 0">${wst(o)}</p>${DEMO?`<div class="note"><span>وضع تجريبي (بدون خادم): رمز واتساب هو <b dir="ltr">${o.code}</b></span></div>`:''}<div class="card" style="padding:16px"><input id="oc" inputmode="numeric" autocomplete="one-time-code" maxlength="6" dir="ltr" placeholder="••••••" oninput="this.value=this.value.replace(/\\D/g,'');if(this.value.length===6)document.querySelector('[data-a=vo]')?.click()" onkeydown="if(event.key==='Enter')document.querySelector('[data-a=vo]')?.click()" autofocus style="text-align:center;letter-spacing:.5em;font-size:1.6rem"><button class="btn" style="margin-top:12px" data-a="vo">تأكيد</button><button class="btn o" id="rs" style="margin-top:10px" data-a="rs2" ${s?'disabled':''}>${s?'إعادة الإرسال بعد '+s+' ث':'إعادة إرسال الرمز عبر واتساب'}</button></div>`},
+otp:()=>{const o=S.otp;if(!o)return V.welcome();const s=Math.max(0,Math.ceil((o.rs-Date.now())/1000));const isEmail=o.channel==='email'||o.p==='email_verify';const targetDesc=isEmail?`<b style="color:var(--cy)" dir="ltr">${esc(o.dsp||o.mail||'')}</b>`:`<b dir="ltr">${esc(o.dsp||o.ph)}</b>`;const channelDesc=isEmail?'<b style="color:var(--cy)">البريد الإلكتروني</b>':'<b style="color:#25d366">واتساب</b>';return hd(isEmail?'توثيق البريد':'تأكيد الحساب','shield',{back:o.back||'welcome'})+`<h2 style="font-size:1.6rem;margin:24px 0 4px">أدخل رمز التحقق</h2><p class="mu" style="margin-top:0">أرسلنا رمزاً من 6 أرقام عبر ${channelDesc} إلى ${targetDesc}</p><p id="ws" style="margin:6px 0">${wst(o)}</p>${DEMO?`<div class="note"><span>وضع تجريبي (بدون خادم): الرمز هو <b dir="ltr">${o.code}</b></span></div>`:''}<div class="card" style="padding:16px"><input id="oc" inputmode="numeric" autocomplete="one-time-code" maxlength="6" dir="ltr" placeholder="••••••" oninput="this.value=this.value.replace(/\\D/g,'');if(this.value.length===6)document.querySelector('[data-a=vo]')?.click()" onkeydown="if(event.key==='Enter')document.querySelector('[data-a=vo]')?.click()" autofocus style="text-align:center;letter-spacing:.5em;font-size:1.6rem"><button class="btn" style="margin-top:12px" data-a="vo">تأكيد</button><button class="btn o" id="rs" style="margin-top:10px" data-a="rs2" ${s?'disabled':''}>${s?'إعادة الإرسال بعد '+s+' ث':(isEmail?'إعادة إرسال الرمز للبريد':'إعادة إرسال الرمز عبر واتساب')}</button></div>`},
 ref:()=>hd('رمز الإحالة','gift',{back:'welcome'})+`<div class="card row" style="margin-top:40px;padding:26px;background:hsl(calc(var(--h) + 7) 57% 15%)"><div class="sp"><b style="font-size:1.4rem">أدخل رمز الإحالة</b><div class="mu">رمز صديقك (اختياري)</div></div><div class="ci cy" style="width:66px;height:66px;background:none">${ic('gift',40)}</div></div><input placeholder="أدخل رمز الإحالة هنا" style="padding:26px 20px"><div class="card row" style="background:#33322a;border-color:#7a6a20"><div class="sp">يمكنك المتابعة بدون رمز. الهدية الترحيبية ${CFG.gift}$ للجميع مرة واحدة فقط</div><span style="color:#f4c20d">${ic('info',30)}</span></div><button class="btn" style="margin-top:30px;padding:20px" data-a="enter">متابعة ${ic('back')}</button>`,
 home:()=>hd('الرئيسية','wallet',{acts:`<button class="ib" data-r="alerts" aria-label="الإشعارات">${ic('bell')}${bellB()}</button><button class="ib" data-r="profile" aria-label="الحساب">${ic('user')}</button>`}).replace('<div class="ci">','<div class="ci" style="order:0">')+`<div class="g2" style="margin-top:14px"><button class="tl" data-a="pay"><div class="row2"><div class="ci" style="background:#ffffff33;color:#fff">${ic('store')}</div><b style="font-size:1.2rem">الدفع للتاجر</b></div><p style="margin:14px 0 6px;opacity:.9">مسح الباركود أو التحويل</p>${ic('back')}</button><button class="tl" data-r="transfer"><div class="row2"><div class="ci" style="background:#ffffff33;color:#fff">${ic('swap')}</div><b style="font-size:1.2rem">التحويلات</b></div><p style="margin:14px 0 6px;opacity:.9">تحويل النقاط والمجوهرات</p>${ic('back')}</button></div>`+newsStrip()+calcView()+`<div style="margin-top:12px"></div>${row('wallet','سحب الرصيد (الحد الأدنى '+CFG.wMin+'$)','go','withdraw')}`+nav('home'),
 counter:()=>hd('العداد','gauge',{l:1})+bal()+`<div class="g2" style="margin-bottom:12px">${tile('مجموع النقاط',f(S.pts),'coin')}${tile('مجموع المجوهرات',S.gems,'gem')}</div><div class="ring"><svg viewBox="0 0 340 340"><circle cx="170" cy="170" r="161.5" fill="none" stroke-width="7.65" style="stroke:var(--cy2);opacity:.25"/><circle id="pa" cx="170" cy="170" r="161.5" fill="none" stroke-width="7.65" stroke-linecap="round" transform="rotate(-90 170 170)" style="stroke:var(--cy2);stroke-dasharray:0 1015"/><circle cx="170" cy="8.5" r="4.25" fill="#f2c200"/><circle id="hd" cx="170" cy="8.5" r="7.65" fill="#f2c200" stroke="#fff" stroke-width="2"/><g class="spin" style="animation-play-state:${S.run?'running':'paused'}"><path d="M 65.8 257.4 A 136 136 0 0 0 274.2 257.4" fill="none" stroke="#ff9800" stroke-width="7.65"/><circle cx="65.8" cy="257.4" r="9.35" style="fill:var(--cy2)"/><circle cx="274.2" cy="257.4" r="9.35" style="fill:var(--cy2)"/></g></svg><canvas id="mx" class="mx" width="280" height="280"></canvas><div class="in"><div class="pill">الرصيد اليومي <b id="od">${S.accr.toFixed(4)}</b> نقطة</div><div class="cy" style="font-size:.65rem;margin-top:6px">${f(yl())} نقطة ÷ 24 ساعة = ${(yl()/86400).toFixed(4)} كل ثانية${yg()?' · +'+f(yg())+' جوهرة':''}</div></div></div><div class="g2 pills"><div class="card row" style="padding:12px"><div class="ci" style="width:48px;height:48px;color:${mc()};border:2px solid ${mc()};background:hsl(calc(var(--h) + 18) 44% 11%)">${ic('gauge',28)}</div><div><small class="mu">المضاعفة</small><br><b style="color:${mc()};font-size:1.3rem">${mul()}×</b></div><button class="ib s" data-a="tolist" style="margin-inline-start:auto;border-radius:50%;background:var(--cy);color:#fff" aria-label="شراء عداد">${ic('plus')}</button></div><div class="card row" style="padding:12px"><div class="ci" style="width:42px;height:42px">${ic('timer')}</div><div class="sp"><small class="mu">الوقت المتبقي</small><br><b id="tm">${tm()}</b></div><button class="ib s" style="background:var(--cy);color:hsl(calc(var(--h) + 6) 75% 9%);border-radius:50%" data-a="run" aria-label="تشغيل">${ic(S.run?'x':'play')}</button></div></div><div class="card row2" style="margin:12px 0"><span class="mu">نقاط الدورة / إجمالي الدورة</span><b class="cy" dir="ltr">${S.accr.toFixed(2)} / ${f(yl())}</b></div><div class="mu" style="text-align:center;font-size:.85rem;margin:8px 0">يتم استلام النقاط تلقائياً عند انتهاء الـ24 ساعة</div><div id="cl"></div>${sec('قائمة العدادات',CFG.hmk?'':'<a data-r="cmarket">متجر العدادات</a>')}${CFG.hcl?'<div class="card mu" style="text-align:center">شراء العدادات متوقف مؤقتاً</div>':CT.map((c,i)=>`<div class="card row"><div class="ci" style="width:60px;height:60px;color:${c[4]};border:2px solid ${c[4]};background:hsl(calc(var(--h) + 18) 44% 11%)">${ic('gauge',32)}</div><div class="sp"><b>عداد ${c[0]}</b><div class="mu">يمنح ${f(c[3])} ${c[6]=='g'?'جوهرة':'نقطة'} كل 24 ساعة · مملوك: ${S.ctr[i]}</div><b class="cy">${f(c[2])} نقطة · ${f(c[5])} دينار</b></div><button class="btn sm" data-a="bc" data-i="${i}">شراء</button></div>`).join('')}${S.cl.length?sec('عداداتي النشطة')+S.cl.map(c=>{const k=CT[c.i],n=Math.ceil((c.e-Date.now())/864e5);return`<div class="card row2" style="padding:12px 16px"><b style="color:${k[4]}">عداد ${k[0]}</b><span class="mu">ينتهي بعد ${n} يوماً</span></div>`}).join(''):''}<button class="btn o" data-a="ad">${ic('plus')} إضافة إعلان</button>`+nav('counter'),
@@ -594,7 +846,7 @@ try{const sv=LS(SYNK,null),r=await fetch('/api/sync?since='+(sv==null?'init':sv)
 if(r.ok){const j=await r.json();if(sv==null)LSset(SYNK,+j.max||0);else if(Array.isArray(j.cmds)&&j.cmds.length)applyCmds(j.cmds);
 const c=j.config;if(c&&typeof c=='object'&&Object.keys(c).length)return cfgMark(c)}}catch(e){}
 try{const r=await fetch('config.json?_='+Date.now(),{cache:'no-store'});return r.ok?cfgMark(await r.json()):null}catch(e){return null}}
-function syncReport(){try{const m=AC.get(),L=Object.values(m).slice(0,20).map(a=>{const x=(S.acc&&S.acc.e==a.e)?[S.pts,S.gems,S.usd]:ubal(a);return{e:a.e,n:a.n,p:a.p||'',demo:a.demo?1:0,pts:Math.floor(x[0]||0),gems:Math.floor(x[1]||0),usd:+(+x[2]||0).toFixed(2),blk:a.blk?1:0,kyc:a.kyc?1:0}});if(!L.length)return;fetch('/api/sync/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cid:CID,accounts:L}),keepalive:true}).catch(()=>{})}catch(e){}}
+function syncReport(){try{const m=AC.get(),L=Object.values(m).slice(0,20).map(a=>{const x=(S.acc&&S.acc.e==a.e)?[S.pts,S.gems,S.usd]:ubal(a);return{e:a.e,n:a.n,p:a.p||'',h:a.h||'',vml:a.vml?1:0,vph:a.vph!==false?1:0,demo:a.demo?1:0,pts:Math.floor(x[0]||0),gems:Math.floor(x[1]||0),usd:+(+x[2]||0).toFixed(2),blk:a.blk?1:0,kyc:a.kyc?1:0}});if(!L.length)return;fetch('/api/sync/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cid:CID,accounts:L}),keepalive:true}).catch(()=>{})}catch(e){}}
 function syncPoll(){syncFetch().then(j=>{if(j&&window._cfgChanged&&window._cfgH)window._cfgH(j)}).catch(()=>{});syncReport()}
 setInterval(syncPoll,45000);setTimeout(syncReport,6000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncPoll()});
 /* ===== واجهة التحكم المركزي (لوحة التحكم) ===== */
@@ -636,10 +888,72 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-r],[data-a
  case'enter':return enter();
  case'logout':save();clearSes();S.acc=null;return go('welcome');
  case'dologin':doLogin();return;case'dosign':doSign();return;
- case'demo':load({e:DA.e,n:DA.n,p:DA.p});return enter();
+ case'login_wa_dialog':return dlg(`<h2 style="margin-top:0">الدخول برمز واتساب</h2><p class="mu" style="margin-top:0">أدخل رقم الهاتف أو البريد الإلكتروني المسجل وسنرسل لك رمز OTP للدخول فوراً دون كلمة مرور.</p><label style="display:block;margin-top:12px;font-weight:600">رقم الهاتف أو البريد المسجل<input id="wa_ident" dir="ltr" placeholder="+964 7xx xxx xxxx أو name@example.com" autocomplete="username"></label><button class="btn" style="margin-top:14px;background:#25d366;box-shadow:none" data-a="login_wa_send">إرسال رمز الدخول عبر واتساب</button>`);
+ case'login_wa_send':{
+  const ident=($('#wa_ident')?$('#wa_ident').value:'').trim();
+  if(!ident)return toast('أدخل رقم الهاتف أو البريد');
+  const btn=document.querySelector('[data-a=login_wa_send]');
+  if(btn){btn.disabled=true;btn.textContent='جارٍ الإرسال…'}
+  fetch('/api/sync/otp-login-request',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({identifier:ident})
+  }).then(r=>r.json()).then(d=>{
+    if($('#d'))$('#d').close();
+    if(d.ok){
+      S.otp={
+        p:'otp_login',
+        pl:{identifier:ident,phone:d.phone,email:d.email},
+        ph:d.phone,
+        channel:'wa',
+        back:'login',
+        dsp:d.phone||ident,
+        code:'',
+        exp:Date.now()+3e5,
+        t:0,
+        rs:Date.now()+6e4,
+        st:1
+      };
+      go('otp');
+      toast('تم إرسال رمز الدخول عبر واتساب ✓');
+    }else{
+      toast(d.error||'لم يتم العثور على حساب مسجل بهذه البيانات');
+    }
+  }).catch(()=>{
+    if(btn){btn.disabled=false;btn.textContent='إرسال رمز الدخول عبر واتساب'}
+    toast('تعذر الاتصال بالخادم، أعد المحاولة');
+  });
+  return;
+ }
+ case'demo':load({e:DA.e,n:DA.n,p:DA.p,vml:1,vph:1});return enter();
  case'eye':{const e=$('#'+v);e.type=e.type=='password'?'text':'password';return}
- case'vo':{const o=S.otp,c=($('#oc')?$('#oc').value:'').trim();if(!o)return go('welcome');if(Date.now()>o.exp)return toast('انتهت صلاحية الرمز، أعد الإرسال');if(c!=o.code){if(++o.t>=5){S.otp=null;toast('محاولات كثيرة، ابدأ من جديد');return go(o.back)}const inp=$('#oc');if(inp){inp.value='';inp.focus()}return toast('الرمز غير صحيح، حاول ثانية')}finishOtp(o);return}
- case'rs2':{const o=S.otp;if(!o||Date.now()<o.rs)return;sendOtp(o.p,o.ph,o.pl,o.back);toast('تم إرسال رمز جديد عبر واتساب');return}
+ case'vo':verifyOtpInput();return;
+ case'rs2':{
+  const o=S.otp;if(!o||Date.now()<o.rs)return;
+  if(o.p==='otp_login'||o.p==='otp_reset'){
+    fetch('/api/sync/otp-login-request',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({identifier:o.pl.identifier||o.ph})
+    }).then(r=>r.json()).then(d=>{
+      if(d.ok){
+        o.rs=Date.now()+6e4;
+        toast('تم إعادة إرسال رمز الدخول عبر واتساب ✓');
+      }else{
+        toast(d.error||'تعذر إعادة إرسال الرمز');
+      }
+    }).catch(()=>toast('تعذر الاتصال بالخادم'));
+    return;
+  }
+  if(o.p==='email_verify'||o.channel==='email'){
+    sendEmailOtp(o.dsp||o.pl?.mail||S.mail, S.phone, o.back);
+    toast('تم إرسال رمز جديد إلى بريدك الإلكتروني');
+  } else {
+    sendOtp(o.p,o.ph,o.pl,o.back);
+    toast('تم إرسال رمز جديد عبر واتساب');
+  }
+  return;
+ }
  case'shopmenu':return dlg(`<h2 style="text-align:center">خيارات الشراء</h2>${row('store','قائمة التجار','go','merchants')}${row('cart','المتجر','go','store')}${row('coin','شراء نقاط','bp')}${CFG.hmk?'':row('gauge','متجر العدادات','go','cmarket')}<div style="text-align:center"><button class="ib" style="border-radius:50%;width:44px;height:44px;background:#1b2531" onclick="d.close()" aria-label="إغلاق">${ic('x')}</button></div>`);
  case'go':$('#d').close();return go(v);
  case'bp':$('#d').close();return dlg(`<h2 style="text-align:center;margin-top:0">شراء نقاط</h2>${buyRows()}`);
@@ -677,8 +991,47 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-r],[data-a
  case'bc':{if(CFG.hcl)return toast('شراء العدادات متوقف مؤقتاً');const c=CT[+i],u=c[6]=='g'?'جوهرة':'نقطة',d=new Date(Date.now()+365*864e5).toLocaleDateString('ar-IQ',{year:'numeric',month:'long',day:'numeric'});return dlg(`<h2 style="text-align:center;margin-top:0">تفاصيل العداد</h2>${S.pts<c[2]?`<div class="note" style="color:#ef5350;background:#3a2025;border-color:#7a3a3a">${ic('warn',18)}<span>رصيدك غير كافٍ، ينقصك ${f(c[2]-S.pts)} نقطة</span></div>`:''}<div class="card" style="margin-bottom:10px"><div class="row2" style="padding-bottom:6px"><b style="color:${c[4]};font-size:1.15rem">عداد ${c[0]}</b><b class="cy">${f(c[3])} ${u}/يوم</b></div>${[['السعر',f(c[2])+' نقطة · '+f(c[5])+' دينار'],['يمنح كل 24 ساعة',f(c[3])+' '+u],['إجمالي المنح خلال السنة',f(c[3]*365)+' '+u],...(c[6]=='p'?[['استرجاع ثمن العداد خلال',Math.ceil(c[2]/c[3])+' يوماً']]:[]),['مدة العداد','سنة واحدة فقط'],['ينتهي تلقائياً في',d]].map(r=>`<div class="row2" style="padding:6px 0;border-top:1px solid #ffffff14;gap:12px"><span class="mu">${r[0]}</span><b style="text-align:end">${r[1]}</b></div>`).join('')}</div>${dcBox('c',i)}<label class="ic"><input type="checkbox" id="ag" style="width:22px;height:22px;margin:0;accent-color:var(--cy);flex:none"><span>أوافق على الشروط والأحكام: مدة العداد سنة واحدة فقط لا غير، وينتهي تلقائياً.</span></label><div class="g2"><button class="btn o" onclick="d.close()">إلغاء</button><button class="btn" data-a="bcc" data-i="${i}">تأكيد الشراء</button></div>`)}
  case'bcc':{if(CFG.hcl){$('#d').close();return toast('شراء العدادات متوقف مؤقتاً')}if(CFG.coff&&CFG.coff[+i]){$('#d').close();return toast('هذا العداد غير متاح حالياً')}if(!$('#ag').checked)return toast('يرجى الموافقة على الشروط والأحكام أولاً');const c0=CT[+i],dq=dcChk(($('#dcc')||{}).value,'c');if(dq&&dq.err)return toast(dq.err);const pr=dq?dq.price(c0[2]):c0[2],c=c0.map((x,k)=>k==2?pr:x);$('#d').close();if(S.pts<pr)return lack(c);S.pts-=pr;if(dq){dq.commit();alog&&0}txlog('شراء عداد '+c[0]+(dq?' (كود '+dq.code+')':''),pr,'out');cstat(+i);S.cl.push({i:+i,e:Date.now()+365*864e5});toast('تم شراء عداد '+c[0]+' لمدة سنة واحدة');break}
  case'claim':{const q=Math.floor(S.accr),g=Math.floor(S.accg);if(!S.done||(!q&&!g))return toast('انتظر انتهاء الـ24 ساعة لاستلام نقاطك');S.pts+=q;S.gems+=g;S.accr-=q;S.accg-=g;S.left=86400;S.done=0;toast('تم استلام '+f(q)+' نقطة'+(g?' و'+f(g)+' جوهرة':''));break}
- case'chg':return dlg(`<h2>${v=='ph'?'تغيير رقم الهاتف':'تغيير البريد الإلكتروني'}</h2><p class="mu" style="margin-top:0">سيصلك رمز التحقق عبر واتساب${v=='ph'?' على الرقم الجديد':''}</p><input id="nv" dir="ltr" type="${v=='ph'?'tel':'email'}" value="${esc(v=='ph'?S.phone:S.mail)}"><button class="btn" data-a="chs" data-v="${v}">إرسال الرمز</button>`);
- case'chs':{let x=$('#nv').value.trim();if(v=='ph'){x=x.replace(/[\s\-()]/g,'');if(!PH.test(x))return toast('رقم غير صحيح، اكتبه مع رمز الدولة')}else{x=x.toLowerCase();if(!EM.test(x))return toast('بريد إلكتروني غير صحيح');if(S.acc&&x!=S.acc.e&&AC.get()[x])return toast('هذا البريد مستخدم')}$('#d').close();sendOtp(v,v=='ph'?x:S.phone,{v:x},'profile');return}
+ case'chg':{
+  if(v=='ml'&&!S.v.ml){
+    return dlg(`
+      <h2 style="margin-top:0">توثيق البريد الإلكتروني</h2>
+      <p class="mu" style="margin-top:0">البريد المسجل: <b dir="ltr" style="color:var(--cy)">${esc(S.mail)}</b></p>
+      <div class="note" style="margin:12px 0;background:#0f2a33;color:var(--cy);border-color:var(--line)">
+        ${ic('info',18)}
+        <span>سيتم إرسال رمز OTP مكون من 6 أرقام إلى بريدك الإلكتروني لتأكيد ملكيته وتوثيق الحساب.</span>
+      </div>
+      <div class="g2" style="margin-top:16px">
+        <button class="btn" data-a="do_send_email_otp">إرسال رمز التوثيق (OTP) ✉️</button>
+        <button class="btn o" data-a="edit_email_modal">تعديل البريد</button>
+      </div>
+    `);
+  }
+  return dlg(`<h2>${v=='ph'?'تغيير رقم الهاتف':'تغيير البريد الإلكتروني'}</h2><p class="mu" style="margin-top:0">${v=='ph'?'سيصلك رمز التحقق عبر واتساب على الرقم الجديد':'سنرسل رمز OTP إلى بريدك الإلكتروني الجديد'}</p><input id="nv" dir="ltr" type="${v=='ph'?'tel':'email'}" value="${esc(v=='ph'?S.phone:S.mail)}"><button class="btn" data-a="chs" data-v="${v}">إرسال الرمز</button>`);
+ }
+ case'do_send_email_otp':{
+  if($('#d'))$('#d').close();
+  sendEmailOtp(S.mail, S.phone, 'profile');
+  return;
+ }
+ case'edit_email_modal':{
+  return dlg(`<h2>تعديل البريد الإلكتروني</h2><p class="mu" style="margin-top:0">اكتب البريد الجديد وسنرسل له رمز التوثيق OTP</p><input id="nv" dir="ltr" type="email" value="${esc(S.mail)}"><button class="btn" data-a="chs" data-v="ml">إرسال رمز التوثيق</button>`);
+ }
+ case'chs':{
+  let x=$('#nv').value.trim();
+  if(v=='ph'){
+    x=x.replace(/[\s\-()]/g,'');
+    if(!PH.test(x))return toast('رقم غير صحيح، اكتبه مع رمز الدولة');
+    if($('#d'))$('#d').close();
+    sendOtp(v,x,{v:x},'profile');
+  }else{
+    x=x.toLowerCase();
+    if(!EM.test(x))return toast('بريد إلكتروني غير صحيح');
+    if(S.acc&&x!=S.acc.e&&AC.get()[x])return toast('هذا البريد مستخدم');
+    if($('#d'))$('#d').close();
+    sendEmailOtp(x,S.phone,'profile');
+  }
+  return;
+ }
  case'kyc':if(S.kyc)return toast(S.kyc==2?'حسابك موثق':'طلبك قيد المراجعة');return dlg(`<h2>توثيق الحساب</h2><label>ملف موقّع<input id="k1" type="file" accept=".pdf,image/*"></label><label>صورة الهوية الشخصية<input id="k2" type="file" accept="image/*,.pdf"></label><button class="btn" data-a="kys">إرسال للتوثيق</button>`);
  case'kys':if(!$('#k1').files[0]||!$('#k2').files[0])return toast('يرجى رفع الملف الموقّع وصورة الهوية');$('#d').close();S.kyc=1;rqAdd('توثيق هوية',{n:'ملف موقّع + صورة هوية'});toast('تم إرسال المستندات — بانتظار موافقة الإدارة');break;
  case'fbuy':{const x=S.fr.find(x=>!x[1]);if(!x)return toast('كل الأصدقاء لديهم عداد');x[1]=1500;toast(x[0]+' اشترى عداداً');break}
@@ -739,8 +1092,69 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-r],[data-a
  case'stdl':{if(!can('staff'))return;if(!confirm('حذف الموظف؟'))return;const l=STF(),s=l.splice(+i,1)[0];LSset('staff',l);alog('حذف موظف '+(s&&s.u));break}
  case'ownpw':{if(!can('staff'))return;const w=$('#op').value;if(w.length<8)return toast('8 أحرف على الأقل');LSset('ownh',sh(OWNER.u,w));alog('تغيير كلمة مرور المالك');toast('تم تغيير كلمة مرور المالك');break}
  case'forgot':return dlg(`<h2 style="margin-top:0">استعادة كلمة المرور</h2><p class="mu" style="margin-top:0">اكتب بريدك الإلكتروني وسنرسل رمز التحقق عبر واتساب إلى الرقم المسجل في حسابك</p><input id="fe" type="email" dir="ltr" placeholder="name@example.com" autocomplete="email" autocapitalize="none"><button class="btn" data-a="fsend">إرسال الرمز</button>`);
- case'fsend':{const e2=($('#fe').value||'').trim().toLowerCase();if(!EM.test(e2))return toast('اكتب بريداً إلكترونياً صحيحاً');const ac=AC.get()[e2];if(!ac)return toast('لا يوجد حساب بهذا البريد');$('#d').close();sendOtp('reset',ac.p,{e:e2},'login');return}
- case'rspw':{const w=$('#rw1').value,w2=$('#rw2').value;if(!S.rs||Date.now()>S.rs.x){S.rs=null;toast('انتهت صلاحية العملية، ابدأ من جديد');return go('login')}if(w.length<6)return er('كلمة المرور 6 أحرف على الأقل');if(w!==w2)return er('كلمتا المرور غير متطابقتين');const em=S.rs.e;hp(w).then(h=>{const m=AC.get();if(!m[em]){toast('الحساب غير موجود');return go('login')}m[em].h=h;AC.set(m);S.rs=null;toast('تم تغيير كلمة المرور، سجّل الدخول الآن');go('login')});return}
+ case'fsend':{
+  const e2=($('#fe').value||'').trim().toLowerCase();
+  if(!EM.test(e2))return toast('اكتب بريداً إلكترونياً صحيحاً');
+  let ac=AC.get()[e2];
+  if(ac){
+    if($('#d'))$('#d').close();
+    sendOtp('reset',ac.p,{e:e2},'login');
+    return;
+  }
+  const btn=document.querySelector('[data-a=fsend]');
+  if(btn){btn.disabled=true;btn.textContent='جارٍ البحث…'}
+  fetch('/api/sync/otp-login-request',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({identifier:e2})
+  }).then(r=>r.json()).then(d=>{
+    if(btn){btn.disabled=false;btn.textContent='إرسال الرمز'}
+    if($('#d'))$('#d').close();
+    if(d.ok){
+      S.otp={
+        p:'otp_reset',
+        pl:{e:e2,identifier:e2},
+        ph:d.phone,
+        channel:'wa',
+        back:'login',
+        dsp:d.phone||e2,
+        code:'',
+        exp:Date.now()+3e5,
+        t:0,
+        rs:Date.now()+6e4,
+        st:1
+      };
+      go('otp');
+      toast('تم إرسال رمز استعادة الحساب عبر واتساب ✓');
+    }else{
+      toast(d.error||'لا يوجد حساب بهذا البريد');
+    }
+  }).catch(()=>{
+    if(btn){btn.disabled=false;btn.textContent='إرسال الرمز'}
+    toast('تعذر الاتصال بالخادم');
+  });
+  return;
+ }
+ case'rspw':{
+  const w=$('#rw1').value,w2=$('#rw2').value;
+  if(!S.rs||Date.now()>S.rs.x){S.rs=null;toast('انتهت صلاحية العملية، ابدأ من جديد');return go('login')}
+  if(w.length<6)return er('كلمة المرور 6 أحرف على الأقل');
+  if(w!==w2)return er('كلمتا المرور غير متطابقتين');
+  const em=S.rs.e;
+  hp(w).then(h=>{
+    const m=AC.get();
+    if(m[em]){m[em].h=h;AC.set(m)}
+    fetch('/api/sync/account-register',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:em,pass_hash:h})
+    }).catch(()=>{});
+    S.rs=null;
+    toast('تم تغيير كلمة المرور، سجّل الدخول الآن');
+    go('login');
+  });
+  return;
+ }
    case'cflt':S.cfl=v;break;
  case'ccopy':{try{navigator.clipboard.writeText(v).then(()=>toast('تم نسخ الكود'),()=>toast('تعذر النسخ'))}catch(e){toast('تعذر النسخ')}return}
  case'cbuy':{const c=CDS().find(x=>x.id==v);if(!c)return;if(!(CCODES()[c.id]||[]).length)return toast('نفدت أكواد هذه البطاقة');return dlg(`<h2 style="margin-top:0">تأكيد الشراء</h2><div class="card" style="padding:12px">${[['البطاقة',esc(c.n)],['السعر',f(c.p)+' نقطة'],['رصيدك',f(S.pts)+' نقطة']].map(r=>`<div class="row2" style="padding:4px 0;gap:10px"><span class="mu">${r[0]}</span><b>${r[1]}</b></div>`).join('')}</div><p class="mu" style="text-align:center;margin:8px 0">يظهر الكود بعد إتمام الدفع فقط</p><button class="btn" data-a="cpay" data-v="${esc(c.id)}">دفع ${f(c.p)} نقطة</button>`)}
@@ -769,7 +1183,7 @@ addEventListener('pageshow',wall);addEventListener('focus',wall);addEventListene
 try{const ss=JSON.parse(localStorage.getItem('ses')||'null');if(ss&&ss.x>Date.now()){const a=ss.e==DA.e?{e:DA.e,n:DA.n,p:DA.p}:AC.get()[ss.e];if(a&&!debtGuard(ss.e)&&!AC.get()[ss.e]?.blk||a&&ss.e==DA.e){load(a);S.r='home';restoreState();applyAdj();if(!S.run&&!S.done)S.run=1;saveSes()}}else if(ss)clearSes()}catch(e){}
 ensureDemo();stfLoad();if(S.staff){stfSave();if(!S.acc)S.r='panel'}
 LT=Date.now();
-setInterval(()=>{const b=$('#rs'),o=S.otp;if(!b||!o)return;const s=Math.max(0,Math.ceil((o.rs-Date.now())/1000));b.disabled=s>0;b.textContent=s>0?'إعادة الإرسال بعد '+s+' ث':'إعادة إرسال الرمز عبر واتساب'},1000);
+setInterval(()=>{const b=$('#rs'),o=S.otp;if(!b||!o)return;const s=Math.max(0,Math.ceil((o.rs-Date.now())/1000));b.disabled=s>0;const isEmail=o.channel==='email'||o.p==='email_verify';b.textContent=s>0?'إعادة الإرسال بعد '+s+' ث':(isEmail?'إعادة إرسال الرمز للبريد':'إعادة إرسال الرمز عبر واتساب')},1000);
 document.addEventListener('change',e=>{if(e.target.id=='am'){const fl=e.target.files[0];if(!fl)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,700/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);window._img=c.toDataURL('image/jpeg',.8);const v=$('#apv');v.src=window._img;v.style.display='block'};im.src=r.result};r.readAsDataURL(fl);return}if(e.target.id!='pf')return;const fl=e.target.files[0];if(!fl)return;const r=new FileReader();r.onload=()=>{S.av=r.result;toast('تم تحديث الصورة الشخصية');draw()};r.readAsDataURL(fl)});
 document.addEventListener('change',e=>{const x=e.target;if(x.id=='cdm'){const fl=x.files[0];if(!fl)return;imgPack(fl,u=>{window._cimg=u;const v=$('#cdv');v.src=u;v.style.display='block'},600)}else if(x.id=='cdf'){const fl=x.files[0];if(!fl)return;const r=new FileReader();r.onload=()=>{const a=$('#cdx');a.value=(a.value?a.value+'\n':'')+r.result};r.readAsText(fl)}});
 document.addEventListener('change',e=>{const x=e.target;if(x.id!='wbc')return;const fl=x.files[0];if(!fl)return;imgPack(fl,u=>{const a=$('#wa'),c=$('#wac'),av=a?a.value:'',cv=c?c.value:'';window._wbc=u;draw();if($('#wa'))$('#wa').value=av;if($('#wac'))$('#wac').value=cv},700)});
