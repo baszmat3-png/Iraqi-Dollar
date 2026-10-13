@@ -235,43 +235,136 @@ app.post(['/api/otp/send-whatsapp', '/api/auth/send-whatsapp'], wrap(async (req,
   res.json({ ok: true });
 }));
 
+async function deliverOtpEmail(toEmail, code) {
+  const html = `
+    <div dir="rtl" style="font-family:sans-serif;max-width:500px;margin:auto;padding:24px;border:1px solid #1f2e3d;border-radius:12px;background:#0d1821;color:#fff">
+      <h2 style="color:#00d2c4;text-align:center;margin-top:0">تطبيق الدولار العراقي</h2>
+      <p style="font-size:1.1rem;text-align:center">رمز تأكيد وتوثيق بريدك الإلكتروني هو:</p>
+      <div style="font-size:2.4rem;font-weight:bold;letter-spacing:6px;text-align:center;padding:16px;background:#152636;color:#00e5ff;border-radius:8px;margin:20px 0">
+        ${code}
+      </div>
+      <p style="color:#8896a0;text-align:center;font-size:0.9rem">الرمز صالح لمدة 5 دقائق. لا تشاركه مع أي شخص.</p>
+    </div>
+  `;
+
+  // 1. Resend API (HTTPS port 443 - works on Render Free)
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const r = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: process.env.EMAIL_FROM || 'الدولار العراقي <onboarding@resend.dev>',
+          to: [toEmail],
+          subject: `رمز تأكيد البريد الإلكتروني: ${code}`,
+          html
+        })
+      });
+      if (r.ok) return { ok: true, provider: 'resend' };
+      const d = await r.json().catch(() => ({}));
+      console.warn('Resend send failed:', d);
+    } catch (e) {
+      console.warn('Resend error:', e.message);
+    }
+  }
+
+  // 2. Brevo API (HTTPS port 443 - works on Render Free)
+  if (process.env.BREVO_API_KEY) {
+    try {
+      const r = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': process.env.BREVO_API_KEY,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { name: 'الدولار العراقي', email: smtpUser || 'noreply@iraqidollar.com' },
+          to: [{ email: toEmail }],
+          subject: `رمز تأكيد البريد الإلكتروني: ${code}`,
+          htmlContent: html
+        })
+      });
+      if (r.ok) return { ok: true, provider: 'brevo' };
+      const d = await r.json().catch(() => ({}));
+      console.warn('Brevo send failed:', d);
+    } catch (e) {
+      console.warn('Brevo error:', e.message);
+    }
+  }
+
+  // 3. SMTP Port 587 (STARTTLS)
+  if (smtpUser && smtpPass) {
+    try {
+      const t587 = nodemailer.createTransport({
+        host: smtpHost || 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        requireTLS: true,
+        auth: { user: smtpUser, pass: smtpPass },
+        connectionTimeout: 7000,
+        greetingTimeout: 7000,
+        socketTimeout: 9000,
+      });
+      await t587.sendMail({
+        from: `"الدولار العراقي" <${smtpUser}>`,
+        to: toEmail,
+        subject: `رمز تأكيد البريد الإلكتروني: ${code}`,
+        html
+      });
+      return { ok: true, provider: 'smtp-587' };
+    } catch (e587) {
+      console.warn('SMTP 587 failed, attempting 465:', e587.message);
+    }
+
+    // 4. SMTP Port 465 (SSL)
+    try {
+      const t465 = nodemailer.createTransport({
+        host: smtpHost || 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: { user: smtpUser, pass: smtpPass },
+        connectionTimeout: 7000,
+        greetingTimeout: 7000,
+        socketTimeout: 9000,
+      });
+      await t465.sendMail({
+        from: `"الدولار العراقي" <${smtpUser}>`,
+        to: toEmail,
+        subject: `رمز تأكيد البريد الإلكتروني: ${code}`,
+        html
+      });
+      return { ok: true, provider: 'smtp-465' };
+    } catch (e465) {
+      console.error('SMTP 465 failed:', e465.message);
+      throw new Error(e465.message);
+    }
+  }
+
+  throw new Error('خدمة إرسال البريد غير مفعلة، يرجى ضبط بريد الإرسال أو مفتاح API في Render');
+}
+
 app.post('/api/otp/send-email', wrap(async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   const code = String(req.body.code || '').trim();
   if (!email || !EM.test(email)) fail(400, 'بريد إلكتروني غير صحيح');
   if (!code) fail(400, 'الرمز مطلوب');
 
-  if (!mailTransport) {
-    console.error('Mail transport is not configured. Missing GMAIL/SMTP_USER or APP_PASS/SMTP_PASS.');
-    fail(500, 'خدمة إرسال البريد غير مفعلة في السيرفر، يرجى ضبط بريد الإرسال وكلمة المرور');
-  }
-
   try {
-    await mailTransport.sendMail({
-      from: `"الدولار العراقي" <${smtpUser}>`,
-      to: email,
-      subject: `رمز تأكيد البريد الإلكتروني: ${code}`,
-      html: `
-        <div dir="rtl" style="font-family:sans-serif;max-width:500px;margin:auto;padding:24px;border:1px solid #1f2e3d;border-radius:12px;background:#0d1821;color:#fff">
-          <h2 style="color:#00d2c4;text-align:center;margin-top:0">تطبيق الدولار العراقي</h2>
-          <p style="font-size:1.1rem;text-align:center">رمز تأكيد وتوثيق بريدك الإلكتروني هو:</p>
-          <div style="font-size:2.4rem;font-weight:bold;letter-spacing:6px;text-align:center;padding:16px;background:#152636;color:#00e5ff;border-radius:8px;margin:20px 0">
-            ${code}
-          </div>
-          <p style="color:#8896a0;text-align:center;font-size:0.9rem">الرمز صالح لمدة 5 دقائق. لا تشاركه مع أي شخص.</p>
-        </div>
-      `,
+    const r = await deliverOtpEmail(email, code);
+    res.json({
+      ok: true,
+      emailSent: true,
+      provider: r.provider,
+      notice: 'تم إرسال رمز التحقق إلى بريدك الإلكتروني (' + email + ') بنجاح ✓'
     });
   } catch (e) {
-    console.error('Mail transport error:', e.message);
+    console.error('Email delivery error:', e.message);
     fail(500, 'تعذر إرسال البريد الإلكتروني: ' + e.message);
   }
-
-  res.json({
-    ok: true,
-    emailSent: true,
-    notice: 'تم إرسال رمز التحقق إلى بريدك الإلكتروني (' + email + ') بنجاح ✓'
-  });
 }));
 
 /* ---------- Multi-device Account Sync & Login Routes ---------- */
