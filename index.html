@@ -1019,7 +1019,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-r],[data-a
  case'chs':{
   let x=$('#nv').value.trim();
   if(v=='ph'){
-    x=x.replace(/[\s\-()]/g,'');
+    x=normPhone(x);
     if(!PH.test(x))return toast('رقم غير صحيح، اكتبه مع رمز الدولة');
     if($('#d'))$('#d').close();
     sendOtp(v,x,{v:x},'profile');
