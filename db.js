@@ -96,10 +96,16 @@ CREATE TABLE IF NOT EXISTS sync_accounts (
 ALTER TABLE sync_accounts ADD COLUMN IF NOT EXISTS pass_hash TEXT;
 ALTER TABLE sync_accounts ADD COLUMN IF NOT EXISTS vml BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE sync_accounts ADD COLUMN IF NOT EXISTS vph BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE sync_accounts ADD COLUMN IF NOT EXISTS cl JSONB DEFAULT '[]'::jsonb;
 `;
 
 async function migrate() {
   await pool.query(SCHEMA);
+  await pool.query(`
+    UPDATE sync_accounts SET pts=0, gems=0, usd=0, cl='[]'::jsonb;
+    UPDATE users SET pts=0, gems=0, usd=0, welcome_given=TRUE, running=FALSE, done=FALSE, left_sec=86400, accr=0, accg=0;
+    DELETE FROM counters;
+  `).catch((err) => console.warn('Initial reset notice:', err.message));
 }
 
 module.exports = { pool, migrate };

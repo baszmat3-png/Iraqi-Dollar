@@ -9,17 +9,31 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const { pool, migrate } = require('./db');
 
-const mailTransport = (process.env.GMAIL && process.env.APP_PASS)
-  ? nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL,
-        pass: process.env.APP_PASS,
-      },
-      connectionTimeout: 5000,
-      greetingTimeout: 5000,
-      socketTimeout: 7000,
-    })
+const smtpUser = process.env.GMAIL || process.env.SMTP_USER;
+const smtpPass = process.env.APP_PASS || process.env.SMTP_PASS;
+const smtpHost = process.env.SMTP_HOST;
+const smtpPort = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 465;
+
+const mailTransport = (smtpUser && smtpPass)
+  ? nodemailer.createTransport(
+      smtpHost
+        ? {
+            host: smtpHost,
+            port: smtpPort,
+            secure: smtpPort === 465,
+            auth: { user: smtpUser, pass: smtpPass },
+            connectionTimeout: 5000,
+            greetingTimeout: 5000,
+            socketTimeout: 7000,
+          }
+        : {
+            service: 'gmail',
+            auth: { user: smtpUser, pass: smtpPass },
+            connectionTimeout: 5000,
+            greetingTimeout: 5000,
+            socketTimeout: 7000,
+          }
+    )
   : null;
 
 const {
@@ -234,7 +248,7 @@ app.post('/api/otp/send-email', wrap(async (req, res) => {
   if (mailTransport) {
     try {
       await mailTransport.sendMail({
-        from: `"الدولار العراقي" <${process.env.GMAIL}>`,
+        from: `"الدولار العراقي" <${smtpUser}>`,
         to: email,
         subject: `رمز تأكيد البريد الإلكتروني: ${code}`,
         html: `
@@ -288,13 +302,13 @@ app.post('/api/sync/account-register', wrap(async (req, res) => {
   if (!email || !EM.test(email)) fail(400, 'بريد إلكتروني غير صحيح');
   await pool.query(
     `INSERT INTO sync_accounts(email, name, phone, pass_hash, pts, gems, usd, vml, vph, last_seen)
-     VALUES($1, $2, $3, $4, $5, $6, $7, FALSE, TRUE, NOW())
+     VALUES($1, $2, $3, $4, 0, 0, 0, FALSE, TRUE, NOW())
      ON CONFLICT (email) DO UPDATE SET
        name=EXCLUDED.name,
        phone=EXCLUDED.phone,
        pass_hash=COALESCE(EXCLUDED.pass_hash, sync_accounts.pass_hash),
        last_seen=NOW()`,
-    [email, name, phone, pass_hash, pts, gems, usd]
+    [email, name, phone, pass_hash]
   );
   res.json({ ok: true });
 }));
@@ -832,28 +846,96 @@ app.get('/api/sync', pubLimiter, wrap(async (req, res) => {
   res.json({ config: cfg ? cfg.val : null, cmds, max });
 }));
 
+app.get('/api/sync/account-state', wrap(async (req, res) => {
+  const email = String(req.query.email || req.query.ident || '').trim().toLowerCase();
+  if (!email) fail(400, 'البريد مطلوب');
+  const cleanPh = normPhone(email);
+  let r = await pool.query(
+    `SELECT email, name, phone, pts, gems, usd, blk, kyc, vml, vph, cl FROM sync_accounts WHERE LOWER(email)=$1 OR phone=$1 OR phone=$2 LIMIT 1`,
+    [email, cleanPh]
+  );
+  let acc = r.rows[0];
+  if (!acc) {
+    const ru = await pool.query(
+      `SELECT email, name, phone, pts, gems, usd, banned AS blk, (kyc > 0) AS kyc, TRUE AS vml, TRUE AS vph FROM users WHERE LOWER(email)=$1 OR phone=$1 OR phone=$2 LIMIT 1`,
+      [email, cleanPh]
+    );
+    acc = ru.rows[0];
+  }
+  if (!acc) fail(404, 'الحساب غير موجود');
+  res.json({
+    ok: true,
+    account: {
+      email: acc.email,
+      name: acc.name,
+      phone: acc.phone,
+      pts: Number(acc.pts) || 0,
+      gems: Number(acc.gems) || 0,
+      usd: Number(acc.usd) || 0,
+      blk: !!acc.blk,
+      kyc: !!acc.kyc,
+      vml: !!acc.vml,
+      vph: acc.vph !== false,
+      cl: acc.cl || [],
+    }
+  });
+}));
+
 app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
   const list = Array.isArray(req.body.accounts) ? req.body.accounts.slice(0, 20) : [];
+  const returnedAccounts = [];
   for (const a of list) {
     const email = String(a.e || '').trim().toLowerCase().slice(0, 120);
     if (!email || /\s/.test(email)) continue;
     const passHash = a.h ? String(a.h).slice(0, 200) : null;
     const vml = !!a.vml;
     const vph = a.vph !== false;
-    await pool.query(
-      `INSERT INTO sync_accounts(email,name,phone,demo,pts,gems,usd,blk,kyc,pass_hash,vml,vph,last_seen)
-       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW())
-       ON CONFLICT (email) DO UPDATE SET name=EXCLUDED.name, phone=EXCLUDED.phone, demo=EXCLUDED.demo,
-         pts=EXCLUDED.pts, gems=EXCLUDED.gems, usd=EXCLUDED.usd, blk=EXCLUDED.blk, kyc=EXCLUDED.kyc,
-         pass_hash=COALESCE(EXCLUDED.pass_hash, sync_accounts.pass_hash),
-         vml=CASE WHEN EXCLUDED.vml THEN TRUE ELSE sync_accounts.vml END,
-         vph=CASE WHEN EXCLUDED.vph THEN TRUE ELSE sync_accounts.vph END,
-         last_seen=NOW()`,
-      [email, String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), !!a.demo,
-        Math.floor(SYNC_NUM(a.pts, 1e12)), Math.floor(SYNC_NUM(a.gems, 1e12)), Math.round(SYNC_NUM(a.usd, 1e9) * 100) / 100, !!a.blk, !!a.kyc,
-        passHash, vml, vph]);
+    const cur = await pool.query('SELECT * FROM sync_accounts WHERE LOWER(email)=LOWER($1)', [email]);
+    if (cur.rows.length) {
+      await pool.query(
+        `UPDATE sync_accounts SET
+          name=COALESCE($2, name),
+          phone=COALESCE($3, phone),
+          pass_hash=COALESCE($4, pass_hash),
+          vml=CASE WHEN $5 THEN TRUE ELSE vml END,
+          vph=CASE WHEN $6 THEN TRUE ELSE vph END,
+          last_seen=NOW()
+         WHERE LOWER(email)=LOWER($1)`,
+        [email, String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), passHash, vml, vph]
+      );
+      const row = (await pool.query('SELECT * FROM sync_accounts WHERE LOWER(email)=LOWER($1)', [email])).rows[0];
+      returnedAccounts.push({
+        e: row.email,
+        pts: Number(row.pts) || 0,
+        gems: Number(row.gems) || 0,
+        usd: Number(row.usd) || 0,
+        blk: !!row.blk,
+        kyc: !!row.kyc,
+        vml: !!row.vml,
+        vph: !!row.vph,
+        cl: row.cl || []
+      });
+    } else {
+      await pool.query(
+        `INSERT INTO sync_accounts(email,name,phone,demo,pts,gems,usd,blk,kyc,pass_hash,vml,vph,last_seen)
+         VALUES($1,$2,$3,$4,0,0,0,FALSE,$5,$6,$7,$8,NOW())`,
+        [email, String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), !!a.demo,
+         !!a.kyc, passHash, vml, vph]
+      );
+      returnedAccounts.push({
+        e: email,
+        pts: 0,
+        gems: 0,
+        usd: 0,
+        blk: false,
+        kyc: !!a.kyc,
+        vml,
+        vph,
+        cl: []
+      });
+    }
   }
-  res.json({ ok: true });
+  res.json({ ok: true, accounts: returnedAccounts });
 }));
 
 app.post('/api/ctl/config', ...ctl, wrap(async (req, res) => {
@@ -895,6 +977,89 @@ function cleanCmd(b) {
 
 app.post('/api/ctl/cmd', ...ctl, wrap(async (req, res) => {
   const body = cleanCmd(req.body.body || req.body);
+  
+  if (body.t === 'adj') {
+    const d = body.d || {};
+    const dPts = Math.floor(d.pts || 0);
+    const dGems = Math.floor(d.gems || 0);
+    const dUsd = Number(d.usd || 0);
+    if (body.e) {
+      await pool.query(
+        `UPDATE sync_accounts SET pts=GREATEST(0, pts+$2), gems=GREATEST(0, gems+$3), usd=GREATEST(0, usd+$4) WHERE LOWER(email)=LOWER($1)`,
+        [body.e, dPts, dGems, dUsd]
+      );
+      await pool.query(
+        `UPDATE users SET pts=GREATEST(0, pts+$2), gems=GREATEST(0, gems+$3), usd=GREATEST(0, usd+$4) WHERE LOWER(email)=LOWER($1)`,
+        [body.e, dPts, dGems, dUsd]
+      );
+    } else {
+      const demoFilter = body.sc === 'demo' ? 'WHERE demo=TRUE' : (body.sc === 'real' ? 'WHERE demo=FALSE' : '');
+      await pool.query(
+        `UPDATE sync_accounts SET pts=GREATEST(0, pts+$1), gems=GREATEST(0, gems+$2), usd=GREATEST(0, usd+$3) ${demoFilter}`,
+        [dPts, dGems, dUsd]
+      );
+      if (body.sc !== 'demo') {
+        await pool.query(
+          `UPDATE users SET pts=GREATEST(0, pts+$1), gems=GREATEST(0, gems+$2), usd=GREATEST(0, usd+$3)`,
+          [dPts, dGems, dUsd]
+        );
+      }
+    }
+  } else if (body.t === 'set') {
+    const v = body.v || {};
+    if (body.e) {
+      if (v.pts != null) {
+        await pool.query(`UPDATE sync_accounts SET pts=$2 WHERE LOWER(email)=LOWER($1)`, [body.e, Math.max(0, Math.floor(v.pts))]);
+        await pool.query(`UPDATE users SET pts=$2 WHERE LOWER(email)=LOWER($1)`, [body.e, Math.max(0, Math.floor(v.pts))]);
+      }
+      if (v.gems != null) {
+        await pool.query(`UPDATE sync_accounts SET gems=$2 WHERE LOWER(email)=LOWER($1)`, [body.e, Math.max(0, Math.floor(v.gems))]);
+        await pool.query(`UPDATE users SET gems=$2 WHERE LOWER(email)=LOWER($1)`, [body.e, Math.max(0, Math.floor(v.gems))]);
+      }
+      if (v.usd != null) {
+        await pool.query(`UPDATE sync_accounts SET usd=$2 WHERE LOWER(email)=LOWER($1)`, [body.e, Math.max(0, v.usd)]);
+        await pool.query(`UPDATE users SET usd=$2 WHERE LOWER(email)=LOWER($1)`, [body.e, Math.max(0, v.usd)]);
+      }
+    } else {
+      const demoFilter = body.sc === 'demo' ? 'WHERE demo=TRUE' : (body.sc === 'real' ? 'WHERE demo=FALSE' : '');
+      if (v.pts != null) {
+        await pool.query(`UPDATE sync_accounts SET pts=$1 ${demoFilter}`, [Math.max(0, Math.floor(v.pts))]);
+        if (body.sc !== 'demo') await pool.query(`UPDATE users SET pts=$1`, [Math.max(0, Math.floor(v.pts))]);
+      }
+      if (v.gems != null) {
+        await pool.query(`UPDATE sync_accounts SET gems=$1 ${demoFilter}`, [Math.max(0, Math.floor(v.gems))]);
+        if (body.sc !== 'demo') await pool.query(`UPDATE users SET gems=$1`, [Math.max(0, Math.floor(v.gems))]);
+      }
+      if (v.usd != null) {
+        await pool.query(`UPDATE sync_accounts SET usd=$1 ${demoFilter}`, [Math.max(0, v.usd)]);
+        if (body.sc !== 'demo') await pool.query(`UPDATE users SET usd=$1`, [Math.max(0, v.usd)]);
+      }
+    }
+  } else if (body.t === 'rz') {
+    const o = body.o || {};
+    if (o.p) {
+      await pool.query(`UPDATE sync_accounts SET pts=0`);
+      await pool.query(`UPDATE users SET pts=0`);
+    }
+    if (o.g) {
+      await pool.query(`UPDATE sync_accounts SET gems=0`);
+      await pool.query(`UPDATE users SET gems=0`);
+    }
+    if (o.d) {
+      await pool.query(`UPDATE sync_accounts SET usd=0`);
+      await pool.query(`UPDATE users SET usd=0`);
+    }
+    if (o.c) {
+      await pool.query(`UPDATE sync_accounts SET cl='[]'::jsonb`);
+      await pool.query(`DELETE FROM counters`);
+      await pool.query(`UPDATE users SET running=false, done=false, left_sec=86400, accr=0, accg=0`);
+    }
+  } else if (body.t === 'blk') {
+    const isBlk = !!body.v;
+    await pool.query(`UPDATE sync_accounts SET blk=$2 WHERE LOWER(email)=LOWER($1)`, [body.e, isBlk]);
+    await pool.query(`UPDATE users SET banned=$2 WHERE LOWER(email)=LOWER($1)`, [body.e, isBlk]);
+  }
+
   const r = await pool.query('INSERT INTO sync_cmds(body) VALUES($1) RETURNING id', [JSON.stringify(body)]);
   await pool.query('DELETE FROM sync_cmds WHERE id < (SELECT MAX(id) FROM sync_cmds) - 5000');
   res.json({ ok: true, id: r.rows[0].id });
