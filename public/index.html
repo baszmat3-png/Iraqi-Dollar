@@ -273,7 +273,7 @@ async function sendEmailOtp(email,phone,back){
     const r=await fetch('/api/otp/send-email',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email,code,phone:o.ph})
+      body:JSON.stringify({email,code})
     });
     const d=await r.json().catch(()=>({}));
     if(d.ok){

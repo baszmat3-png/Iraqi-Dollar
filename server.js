@@ -238,55 +238,39 @@ app.post(['/api/otp/send-whatsapp', '/api/auth/send-whatsapp'], wrap(async (req,
 app.post('/api/otp/send-email', wrap(async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   const code = String(req.body.code || '').trim();
-  const phone = req.body.phone ? normPhone(req.body.phone) : '';
   if (!email || !EM.test(email)) fail(400, 'بريد إلكتروني غير صحيح');
   if (!code) fail(400, 'الرمز مطلوب');
 
-  let emailSent = false;
-  let emailError = null;
-
-  if (mailTransport) {
-    try {
-      await mailTransport.sendMail({
-        from: `"الدولار العراقي" <${smtpUser}>`,
-        to: email,
-        subject: `رمز تأكيد البريد الإلكتروني: ${code}`,
-        html: `
-          <div dir="rtl" style="font-family:sans-serif;max-width:500px;margin:auto;padding:24px;border:1px solid #1f2e3d;border-radius:12px;background:#0d1821;color:#fff">
-            <h2 style="color:#00d2c4;text-align:center;margin-top:0">تطبيق الدولار العراقي</h2>
-            <p style="font-size:1.1rem;text-align:center">رمز تأكيد وتوثيق بريدك الإلكتروني هو:</p>
-            <div style="font-size:2.4rem;font-weight:bold;letter-spacing:6px;text-align:center;padding:16px;background:#152636;color:#00e5ff;border-radius:8px;margin:20px 0">
-              ${code}
-            </div>
-            <p style="color:#8896a0;text-align:center;font-size:0.9rem">الرمز صالح لمدة 5 دقائق. لا تشاركه مع أي شخص.</p>
-          </div>
-        `,
-      });
-      emailSent = true;
-    } catch (e) {
-      console.error('Mail transport error:', e.message);
-      emailError = e.message;
-    }
-  } else {
-    console.log(`[EMAIL OTP] ${email}: ${code} (GMAIL / APP_PASS not set on Render)`);
+  if (!mailTransport) {
+    console.error('Mail transport is not configured. Missing GMAIL/SMTP_USER or APP_PASS/SMTP_PASS.');
+    fail(500, 'خدمة إرسال البريد غير مفعلة في السيرفر، يرجى ضبط بريد الإرسال وكلمة المرور');
   }
 
-  // Backup delivery: Also send code via WhatsApp if phone was provided
-  let waSent = false;
-  if (phone) {
-    try {
-      await sendWhatsApp(phone, code, `رمز تأكيد وتوثيق بريدك الإلكتروني (${email}) هو: ${code}\nصالح لمدة 5 دقائق.`);
-      waSent = true;
-    } catch (we) {
-      console.warn('WhatsApp dual-send for email verification:', we.message);
-    }
+  try {
+    await mailTransport.sendMail({
+      from: `"الدولار العراقي" <${smtpUser}>`,
+      to: email,
+      subject: `رمز تأكيد البريد الإلكتروني: ${code}`,
+      html: `
+        <div dir="rtl" style="font-family:sans-serif;max-width:500px;margin:auto;padding:24px;border:1px solid #1f2e3d;border-radius:12px;background:#0d1821;color:#fff">
+          <h2 style="color:#00d2c4;text-align:center;margin-top:0">تطبيق الدولار العراقي</h2>
+          <p style="font-size:1.1rem;text-align:center">رمز تأكيد وتوثيق بريدك الإلكتروني هو:</p>
+          <div style="font-size:2.4rem;font-weight:bold;letter-spacing:6px;text-align:center;padding:16px;background:#152636;color:#00e5ff;border-radius:8px;margin:20px 0">
+            ${code}
+          </div>
+          <p style="color:#8896a0;text-align:center;font-size:0.9rem">الرمز صالح لمدة 5 دقائق. لا تشاركه مع أي شخص.</p>
+        </div>
+      `,
+    });
+  } catch (e) {
+    console.error('Mail transport error:', e.message);
+    fail(500, 'تعذر إرسال البريد الإلكتروني: ' + e.message);
   }
 
   res.json({
     ok: true,
-    emailSent,
-    waSent,
-    notice: emailSent ? 'تم إرسال رمز التحقق إلى بريدك الإلكتروني بنجاح' : (waSent ? 'تم إرسال رمز التوثيق إلى واتساب على رقمك المسجل' : 'تم تجهيز رمز التحقق')
+    emailSent: true,
+    notice: 'تم إرسال رمز التحقق إلى بريدك الإلكتروني (' + email + ') بنجاح ✓'
   });
 }));
 
