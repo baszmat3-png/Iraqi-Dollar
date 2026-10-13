@@ -16,6 +16,9 @@ const mailTransport = (process.env.GMAIL && process.env.APP_PASS)
         user: process.env.GMAIL,
         pass: process.env.APP_PASS,
       },
+      connectionTimeout: 5000,
+      greetingTimeout: 5000,
+      socketTimeout: 7000,
     })
   : null;
 
