@@ -644,7 +644,9 @@ app.use((err, _req, res, _next) => {
   if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'JSON غير صالح' });
   res.status(err.http || 500).json({ error: err.http ? err.message : 'خطأ داخلي في الخادم' });
 });
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, p) => { if (/\.(html|json)$/.test(p)) res.setHeader('Cache-Control', 'no-cache, must-revalidate'); },
+}));
 app.get('/admin', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
