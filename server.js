@@ -6,21 +6,12 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
 const { pool, migrate } = require('./db');
-
-const DEFAULT_WPSENDER_KEY = 'wps_7b5db2a829ff4377ad0c6c42ea7fe4af991c191992305e70eab136c8bb89f7d2';
-const DEFAULT_WPSENDER_URL = 'https://backendapi.wpsenderx.com/api/messages/send';
 
 const {
   JWT_SECRET,
-  WA_API_URL = DEFAULT_WPSENDER_URL,
+  WA_API_URL = 'https://backendapi.wpsenderx.com/api/messages/send',
   WA_API_KEY,
-  WPSENDER_API_KEY = DEFAULT_WPSENDER_KEY,
-  WPSENDER_API_URL = DEFAULT_WPSENDER_URL,
-  GMAIL,
-  APP_PASS,
-  ADMIN_PASSWORD = 'admin123',
   CORS_ORIGIN,
   OTP_DEBUG,
   NODE_ENV,
@@ -49,6 +40,8 @@ const WHEEL = ['3600', 'x', '200', 'x', '500', '100', 'gem', '50'];
 const app = express();
 app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false }));
+// الإعدادات المنشورة قد تحتوي صوراً، لذلك حد أكبر لهذا المسار فقط
+app.use('/api/ctl/config', express.json({ limit: '8mb' }));
 app.use(express.json({ limit: '50kb' }));
 if (CORS_ORIGIN) app.use('/api', cors({ origin: CORS_ORIGIN.split(',') }));
 
@@ -74,211 +67,69 @@ async function tx(fn) {
 
 const EM = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const PH = /^\+\d{9,15}$/;
-function normPhone(raw) {
-  let s = String(raw || '').replace(/[\s\-()]/g, '');
-  if (s.startsWith('00')) s = '+' + s.slice(2);
-  else if (s.startsWith('07')) s = '+964' + s.slice(1);
-  else if (s.startsWith('7') && s.length === 10) s = '+964' + s;
-  else if (s.startsWith('964')) s = '+' + s;
-  else if (!s.startsWith('+') && s.length >= 10) s = '+' + s;
-  return s;
-}
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
 const sign = (u) => jwt.sign({ uid: u.id }, JWT_SECRET, { expiresIn: '30d' });
 
-function auth(req, _res, next) {
+const ADMINS = (process.env.ADMIN_EMAILS || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+
+async function auth(req, _res, next) {
   const h = req.headers.authorization || '';
+  let uid;
+  try { uid = jwt.verify(h.replace(/^Bearer /, ''), JWT_SECRET).uid; }
+  catch { return next(Object.assign(new Error('غير مصرح، سجّل الدخول'), { http: 401 })); }
   try {
-    req.uid = jwt.verify(h.replace(/^Bearer /, ''), JWT_SECRET).uid;
+    const r = await pool.query(`SELECT email, banned FROM users WHERE id=$1`, [uid]);
+    if (!r.rowCount) return next(Object.assign(new Error('غير مصرح، سجّل الدخول'), { http: 401 }));
+    if (r.rows[0].banned) return next(Object.assign(new Error('تم إيقاف حسابك'), { http: 403 }));
+    req.uid = uid;
+    req.isAdmin = ADMINS.includes(r.rows[0].email.toLowerCase());
     next();
-  } catch { next(Object.assign(new Error('غير مصرح، سجّل الدخول'), { http: 401 })); }
+  } catch (e) { next(e); }
 }
-let mailTransporter = null;
-function getMailTransporter() {
-  if (!GMAIL || !APP_PASS) return null;
-  if (!mailTransporter) {
-    mailTransporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: GMAIL, pass: APP_PASS },
-    });
-  }
-  return mailTransporter;
+function adminOnly(req, _res, next) {
+  if (!req.isAdmin) return next(Object.assign(new Error('صلاحيات المدير مطلوبة'), { http: 403 }));
+  next();
 }
-
-async function sendEmailOtp(email, code) {
-  const cleanEmail = String(email || '').trim().toLowerCase();
-  if (!cleanEmail || !EM.test(cleanEmail)) {
-    fail(400, 'البريد الإلكتروني غير صحيح');
-  }
-
-  const transporter = getMailTransporter();
-  if (!transporter) {
-    if (OTP_DEBUG === 'true' && NODE_ENV !== 'production') {
-      console.log(`[DEBUG EMAIL OTP] To: ${cleanEmail} | Code: ${code}`);
-      return { ok: true, debug: true };
-    }
-    fail(503, 'خدمة البريد الإلكتروني غير مضبوطة على الخادم (GMAIL / APP_PASS)');
-  }
-
-  const mailOptions = {
-    from: `"الدولار العراقي" <${GMAIL}>`,
-    to: cleanEmail,
-    subject: 'رمز التحقق الخاص بك - الدولار العراقي',
-    text: `رمز التحقق الخاص بك هو: ${code}\nصالح لمدة 5 دقائق، لا تشاركه مع أي شخص.`,
-    html: `
-      <div dir="rtl" style="font-family: Cairo, Tahoma, sans-serif; background: #070C12; padding: 24px; color: #ffffff; border-radius: 16px; max-width: 480px; margin: 0 auto; border: 1px solid #1F2A37;">
-        <div style="text-align: center; margin-bottom: 20px;">
-          <h2 style="color: #00d2d3; margin: 0; font-size: 24px;">الدولار العراقي</h2>
-        </div>
-        <p style="font-size: 16px; margin: 0 0 12px; color: #ffffff;">مرحباً بك،</p>
-        <p style="color: #9AA9B5; font-size: 14px; margin: 0 0 20px;">رمز التحقق لتأكيد حسابك في تطبيق الدولار العراقي هو:</p>
-        <div style="background: #1F2A37; padding: 18px; border-radius: 12px; text-align: center; margin-bottom: 20px; border: 1px solid #00d2d3;">
-          <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #00d2d3;">${code}</span>
-        </div>
-        <p style="color: #9AA9B5; font-size: 13px; margin: 0;">الرمز صالح لمدة <b>5 دقائق</b>. لا تشارك هذا الرمز مع أي شخص لحماية حسابك.</p>
-      </div>
-    `,
-  };
-
-  try {
-    await transporter.sendMail(mailOptions);
-    return { ok: true };
-  } catch (e) {
-    console.error('Email send failed:', e.message);
-    fail(502, 'تعذر إرسال رمز التحقق إلى البريد الإلكتروني');
-  }
-}
-
 async function sendWhatsApp(phone, code) {
-  const apiKey = WPSENDER_API_KEY || WA_API_KEY || DEFAULT_WPSENDER_KEY;
-  const apiUrl = WPSENDER_API_URL || WA_API_URL || DEFAULT_WPSENDER_URL;
-  let cleanPhone = String(phone || '').replace(/\D/g, '');
-  if (cleanPhone.startsWith('00')) cleanPhone = cleanPhone.slice(2);
-  if (cleanPhone.startsWith('07')) cleanPhone = '964' + cleanPhone.slice(1);
-  else if (cleanPhone.startsWith('7') && cleanPhone.length === 10) cleanPhone = '964' + cleanPhone;
-
-  if (!cleanPhone || cleanPhone.length < 10 || cleanPhone.length > 15) {
-    fail(400, 'رقم واتساب غير صالح للإرسال');
+  if (!WA_API_KEY) {
+    if (OTP_DEBUG === 'true' && NODE_ENV !== 'production') { console.log(`[DEBUG OTP] ${phone}: ${code}`); return; }
+    throw new Error('WA_API_KEY غير مضبوط');
   }
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 6000);
-
-  try {
-    const r = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
-      body: JSON.stringify({
-        to: cleanPhone,
-        recipient: cleanPhone,
-        number: cleanPhone,
-        phone: cleanPhone,
-        message: `رمز التحقق الخاص بك هو: ${code}\nصالح لمدة 5 دقائق، لا تشاركه مع أي شخص.`,
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok || (data.status && data.status !== 'success')) {
-      const detail = data.message || `HTTP ${r.status}`;
-      console.error(`WhatsApp dispatch warning (${r.status}):`, detail);
-      fail(502, `تعذر إرسال الرمز عبر واتساب: ${detail}`);
-    }
-
-    return { ok: true, data };
-  } catch (e) {
-    clearTimeout(timeoutId);
-    if (e.name === 'AbortError') fail(504, 'انتهت مهلة الاتصال بخدمة واتساب، يرجى إعادة المحاولة');
-    if (e.http) throw e;
-    console.error('WhatsApp failed:', e.message);
-    fail(502, 'تعذر إرسال الرمز عبر واتساب');
-  }
+  const r = await fetch(WA_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-API-Key': WA_API_KEY },
+    body: JSON.stringify({
+      phone: phone.replace(/\D/g, ''),
+      message: `رمز التحقق الخاص بك هو: ${code}\nصالح لمدة 5 دقائق، لا تشاركه مع أي شخص.`,
+    }),
+  });
+  if (!r.ok) throw new Error('WhatsApp HTTP ' + r.status);
 }
 
 async function createOtp(purpose, phone, email, payload) {
-  const normP = phone ? normPhone(phone) : null;
   const recent = await pool.query(
-    `SELECT 1 FROM otps WHERE (phone = $1 OR phone = $2 OR (email IS NOT NULL AND email = $3)) AND purpose = $4 AND created_at > NOW() - INTERVAL '60 seconds'`,
-    [phone, normP, email, purpose]
-  );
+    `SELECT 1 FROM otps WHERE phone=$1 AND purpose=$2 AND created_at > NOW() - INTERVAL '60 seconds'`, [phone, purpose]);
   if (recent.rowCount) fail(429, 'انتظر 60 ثانية قبل إعادة الإرسال');
-
   const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+  await pool.query(`DELETE FROM otps WHERE phone=$1 AND purpose=$2`, [phone, purpose]);
   await pool.query(
-    `DELETE FROM otps WHERE (phone = $1 OR phone = $2 OR (email IS NOT NULL AND email = $3)) AND purpose = $4`,
-    [phone, normP, email, purpose]
-  );
-  await pool.query(
-    `INSERT INTO otps(purpose, phone, email, code_hash, payload, expires_at) VALUES($1, $2, $3, $4, $5, NOW() + INTERVAL '5 minutes')`,
-    [purpose, normP || phone, email, sha(code), payload ? JSON.stringify(payload) : null]
-  );
-
-  let emailSent = false;
-  let waSent = false;
-  let waError = '';
-
-  // Try WhatsApp first (Primary client channel)
-  if (phone) {
-    try {
-      await sendWhatsApp(normP || phone, code);
-      waSent = true;
-    } catch (e) {
-      waError = e.message;
-      console.error('WhatsApp OTP dispatch warning:', e.message);
-    }
-  }
-
-  // Try Email as secondary if configured
-  if (email && GMAIL && APP_PASS) {
-    try {
-      await sendEmailOtp(email, code);
-      emailSent = true;
-    } catch (e) {
-      console.error('Email OTP dispatch warning:', e.message);
-    }
-  }
-
-  if (!waSent && !emailSent) {
-    // Delete the failed OTP so the user is not locked out by 60s cooldown
-    await pool.query(
-      `DELETE FROM otps WHERE (phone = $1 OR phone = $2 OR (email IS NOT NULL AND email = $3)) AND purpose = $4`,
-      [phone, normP, email, purpose]
-    );
-
-    if (OTP_DEBUG === 'true' || NODE_ENV !== 'production') {
-      console.log(`[DEBUG OTP FALLBACK] Code for ${phone || email}: ${code}`);
-      return { ok: true, emailSent: false, waSent: true, debug: true };
-    }
-    fail(502, waError || 'تعذر إرسال رمز التحقق. يرجى التأكد من كتابة رقم الواتساب بالرمز الدولي.');
-  }
-
-  return { ok: true, emailSent, waSent };
+    `INSERT INTO otps(purpose,phone,email,code_hash,payload,expires_at) VALUES($1,$2,$3,$4,$5,NOW()+INTERVAL '5 minutes')`,
+    [purpose, phone, email, sha(code), payload ? JSON.stringify(payload) : null]);
+  try { await sendWhatsApp(phone, code); }
+  catch (e) { console.error('WhatsApp failed:', e.message); fail(502, 'تعذر إرسال الرمز عبر واتساب'); }
 }
 
-async function checkOtp(purpose, identifier, code) {
-  const isEmail = identifier && identifier.includes('@');
-  const normId = isEmail ? identifier : normPhone(identifier);
-  const cleanId = String(identifier || '').replace(/\D/g, '');
-  const query = isEmail
-    ? `SELECT * FROM otps WHERE email = $1 AND purpose = $2 ORDER BY id DESC LIMIT 1`
-    : `SELECT * FROM otps WHERE (phone = $1 OR phone = $2 OR phone = $3 OR email = $1) AND purpose = $4 ORDER BY id DESC LIMIT 1`;
-
-  const r = await pool.query(
-    query,
-    isEmail ? [identifier, purpose] : [identifier, normId, cleanId, purpose]
-  );
+async function checkOtp(purpose, phone, code) {
+  const r = await pool.query(`SELECT * FROM otps WHERE phone=$1 AND purpose=$2 ORDER BY id DESC LIMIT 1`, [phone, purpose]);
   const o = r.rows[0];
   if (!o) fail(400, 'اطلب رمزاً جديداً');
   if (new Date(o.expires_at) < new Date()) fail(400, 'انتهت صلاحية الرمز');
   if (o.attempts >= 5) fail(429, 'محاولات كثيرة، اطلب رمزاً جديداً');
-
-  if (sha(String(code || '').trim()) !== o.code_hash) {
-    await pool.query(`UPDATE otps SET attempts = attempts + 1 WHERE id = $1`, [o.id]);
+  if (sha(String(code || '')) !== o.code_hash) {
+    await pool.query(`UPDATE otps SET attempts=attempts+1 WHERE id=$1`, [o.id]);
     fail(400, 'الرمز غير صحيح');
   }
-
-  await pool.query(`DELETE FROM otps WHERE id = $1`, [o.id]);
+  await pool.query(`DELETE FROM otps WHERE id=$1`, [o.id]);
   return o;
 }
 
@@ -330,68 +181,32 @@ const stateOf = (s) => ({
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false });
 app.use('/api/auth', authLimiter);
 
-app.post(['/api/auth/signup/request', '/send-otp', '/api/auth/send-otp'], wrap(async (req, res) => {
+app.post('/api/auth/signup/request', wrap(async (req, res) => {
   const name = String(req.body.name || '').trim().replace(/\s+/g, ' ');
   const email = String(req.body.email || '').trim().toLowerCase();
-  const phone = normPhone(req.body.phone);
+  const phone = String(req.body.phone || '').replace(/[\s\-()]/g, '');
   const password = String(req.body.password || '');
-  const purpose = req.body.purpose || 'signup';
-
-  if (purpose === 'signup') {
-    if (name.split(' ').length < 2) fail(400, 'اكتب الاسم كاملاً (الاسم واسم الأب)');
-    if (!EM.test(email)) fail(400, 'بريد إلكتروني غير صحيح');
-    if (!PH.test(phone)) fail(400, 'رقم واتساب غير صحيح، اكتبه مع رمز الدولة مثل 07xxxxxxxxx أو +964...');
-    if (password.length < 6) fail(400, 'كلمة المرور 6 أحرف على الأقل');
-    if ((await pool.query(`SELECT 1 FROM users WHERE email=$1`, [email])).rowCount) fail(409, 'هذا البريد مسجل مسبقاً');
-    const result = await createOtp('signup', phone, email, { name, email, phone, h: await bcrypt.hash(password, 10) });
-    return res.json({ ok: true, emailSent: result.emailSent, waSent: result.waSent });
-  }
-
-  // General purpose OTP (e.g. email or phone verification)
-  if (!email && !phone) fail(400, 'يرجى إدخال البريد الإلكتروني أو رقم الهاتف');
-  if (email && !EM.test(email)) fail(400, 'بريد إلكتروني غير صحيح');
-  if (phone && !PH.test(phone)) fail(400, 'رقم هاتف غير صحيح');
-  const result = await createOtp(purpose, phone, email, req.body.payload || null);
-  res.json({ ok: true, emailSent: result.emailSent, waSent: result.waSent });
+  if (name.split(' ').length < 3) fail(400, 'اكتب الاسم الثلاثي كاملاً');
+  if (!EM.test(email)) fail(400, 'بريد إلكتروني غير صحيح');
+  if (!PH.test(phone)) fail(400, 'رقم واتساب غير صحيح، اكتبه مع رمز الدولة');
+  if (password.length < 6) fail(400, 'كلمة المرور 6 أحرف على الأقل');
+  if ((await pool.query(`SELECT 1 FROM users WHERE email=$1`, [email])).rowCount) fail(409, 'هذا البريد مسجل مسبقاً');
+  await createOtp('signup', phone, email, { name, email, phone, h: await bcrypt.hash(password, 10) });
+  res.json({ ok: true });
 }));
 
-app.post(['/api/auth/signup/verify', '/verify-otp', '/api/auth/verify-otp'], wrap(async (req, res) => {
-  const phone = req.body.phone ? normPhone(req.body.phone) : '';
-  const email = String(req.body.email || '').trim().toLowerCase();
-  const identifier = phone || email;
-  if (!identifier) fail(400, 'يرجى تقديم رقم الهاتف أو البريد الإلكتروني');
-  const purpose = req.body.purpose || 'signup';
-
-  const o = await checkOtp(purpose, identifier, req.body.code);
-
-  if (purpose === 'signup') {
-    const p = o.payload || {};
-    const ref = 'U' + crypto.randomBytes(4).toString('hex').toUpperCase();
-    let u;
-    try {
-      u = (await pool.query(
-        `INSERT INTO users(email, phone, name, pass_hash, ref_code, email_verified, phone_verified) VALUES($1, $2, $3, $4, $5, TRUE, TRUE) RETURNING *`,
-        [p.email || email, p.phone || phone, p.name || 'مستخدم', p.h, ref])).rows[0];
-    } catch (e) {
-      if (e.code === '23505') fail(409, 'هذا البريد مسجل مسبقاً');
-      throw e;
-    }
-    return res.json({ ok: true, token: sign(u), user: pub(u) });
-  }
-
-  res.json({ ok: true, verified: true });
-}));
-
-app.post('/api/admin/verify', wrap(async (req, res) => {
-  const password = String(req.body.password || '');
-  if (!password || password !== ADMIN_PASSWORD) {
-    fail(401, 'كلمة مرور لوحة التحكم غير صحيحة');
-  }
-  res.json({ ok: true, admin: true });
-}));
-
-app.get('/api/products', wrap(async (_req, res) => {
-  res.json(PR);
+app.post('/api/auth/signup/verify', wrap(async (req, res) => {
+  const phone = String(req.body.phone || '').replace(/[\s\-()]/g, '');
+  const o = await checkOtp('signup', phone, req.body.code);
+  const p = o.payload;
+  const ref = 'U' + crypto.randomBytes(4).toString('hex').toUpperCase();
+  let u;
+  try {
+    u = (await pool.query(
+      `INSERT INTO users(email,phone,name,pass_hash,ref_code) VALUES($1,$2,$3,$4,$5) RETURNING *`,
+      [p.email, p.phone, p.name, p.h, ref])).rows[0];
+  } catch (e) { if (e.code === '23505') fail(409, 'هذا البريد مسجل مسبقاً'); throw e; }
+  res.json({ token: sign(u), user: pub(u) });
 }));
 
 app.post('/api/auth/login', wrap(async (req, res) => {
@@ -399,7 +214,8 @@ app.post('/api/auth/login', wrap(async (req, res) => {
   const u = (await pool.query(`SELECT * FROM users WHERE email=$1`, [email])).rows[0];
   const ok = u && await bcrypt.compare(String(req.body.password || ''), u.pass_hash);
   if (!ok) fail(401, 'البريد أو كلمة المرور غير صحيحة');
-  res.json({ ok: true, token: sign(u), user: pub(u) });
+  if (u.banned) fail(403, 'تم إيقاف حسابك');
+  res.json({ token: sign(u), user: { ...pub(u), admin: ADMINS.includes(u.email.toLowerCase()) } });
 }));
 
 app.post('/api/auth/password', auth, wrap(async (req, res) => {
@@ -616,15 +432,212 @@ app.post('/api/fun/spin', auth, wrap(async (req, res) => {
   res.json(out);
 }));
 
-/* ---------- Health + static frontend ---------- */
-app.get('/healthz', async (_req, res) => {
-  try {
-    await pool.query('SELECT 1');
-    res.status(200).json({ status: 'healthy', database: 'connected' });
-  } catch (err) {
-    res.status(503).json({ status: 'unhealthy', database: 'disconnected', error: err.message });
+/* ---------- Admin dashboard API ---------- */
+const adm = [auth, adminOnly];
+
+app.get('/api/admin/stats', ...adm, wrap(async (_req, res) => {
+  const q = async (sql) => (await pool.query(sql)).rows[0];
+  const u = await q(`SELECT COUNT(*)::int AS users,
+      COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours')::int AS new_today,
+      COUNT(*) FILTER (WHERE banned)::int AS banned,
+      COALESCE(SUM(pts),0) AS pts, COALESCE(SUM(gems),0) AS gems, COALESCE(SUM(usd),0) AS usd FROM users`);
+  const w = await q(`SELECT COUNT(*) FILTER (WHERE status='pending')::int AS pending,
+      COALESCE(SUM(amount) FILTER (WHERE status='pending'),0) AS pending_usd,
+      COALESCE(SUM(amount) FILTER (WHERE status='paid'),0) AS paid_usd FROM withdrawals`);
+  const c = await q(`SELECT COUNT(*)::int AS active FROM counters WHERE expires_at > NOW()`);
+  const byType = (await pool.query(`SELECT idx, COUNT(*)::int AS n FROM counters WHERE expires_at > NOW() GROUP BY idx ORDER BY idx`)).rows
+    .map((r) => ({ name: CT[r.idx][0], n: r.n }));
+  const daily = (await pool.query(
+    `SELECT to_char(d::date,'MM-DD') AS day,
+       (SELECT COUNT(*)::int FROM users WHERE created_at::date=d::date) AS signups
+     FROM generate_series(NOW()-INTERVAL '6 days', NOW(), '1 day') d`)).rows;
+  res.json({
+    users: u.users, newToday: u.new_today, banned: u.banned,
+    pts: Number(u.pts), gems: Number(u.gems), usd: Number(u.usd),
+    pendingWithdrawals: w.pending, pendingUsd: Number(w.pending_usd), paidUsd: Number(w.paid_usd),
+    activeCounters: c.active, countersByType: byType, signupsDaily: daily,
+  });
+}));
+
+app.get('/api/admin/users', ...adm, wrap(async (req, res) => {
+  const s = `%${String(req.query.q || '').trim()}%`;
+  const limit = Math.min(Number(req.query.limit) || 50, 200), offset = Number(req.query.offset) || 0;
+  const r = await pool.query(
+    `SELECT id,name,email,phone,pts,gems,usd,spent,kyc,banned,ref_code,created_at,
+       (SELECT COUNT(*)::int FROM counters c WHERE c.user_id=users.id AND c.expires_at>NOW()) AS counters
+     FROM users WHERE name ILIKE $1 OR email ILIKE $1 OR phone ILIKE $1 OR ref_code ILIKE $1
+     ORDER BY id DESC LIMIT $2 OFFSET $3`, [s, limit, offset]);
+  res.json(r.rows.map((x) => ({ ...x, pts: Number(x.pts), gems: Number(x.gems), usd: Number(x.usd), spent: Number(x.spent) })));
+}));
+
+app.post('/api/admin/users/:id/adjust', ...adm, wrap(async (req, res) => {
+  const id = Number(req.params.id);
+  const pts = Math.trunc(Number(req.body.pts) || 0), gems = Math.trunc(Number(req.body.gems) || 0);
+  const usd = Math.round((Number(req.body.usd) || 0) * 100) / 100;
+  const note = String(req.body.note || '').slice(0, 200) || 'تعديل من المدير';
+  if (!pts && !gems && !usd) fail(400, 'أدخل قيمة للتعديل');
+  await tx(async (c) => {
+    const u = (await c.query(`SELECT pts,gems,usd FROM users WHERE id=$1 FOR UPDATE`, [id])).rows[0];
+    if (!u) fail(404, 'المستخدم غير موجود');
+    if (Number(u.pts) + pts < 0 || Number(u.gems) + gems < 0 || Number(u.usd) + usd < 0) fail(400, 'لا يمكن أن يصبح الرصيد سالباً');
+    await c.query(`UPDATE users SET pts=pts+$2, gems=gems+$3, usd=usd+$4 WHERE id=$1`, [id, pts, gems, usd]);
+    await log(c, id, 'admin_adjust', pts, gems, usd, `${note} (بواسطة المدير #${req.uid})`);
+  });
+  res.json({ ok: true });
+}));
+
+app.post('/api/admin/users/:id/ban', ...adm, wrap(async (req, res) => {
+  const id = Number(req.params.id);
+  if (id === req.uid) fail(400, 'لا يمكنك إيقاف حسابك');
+  const r = await pool.query(`UPDATE users SET banned=$2 WHERE id=$1`, [id, !!req.body.banned]);
+  if (!r.rowCount) fail(404, 'المستخدم غير موجود');
+  res.json({ ok: true });
+}));
+
+app.post('/api/admin/users/:id/kyc', ...adm, wrap(async (req, res) => {
+  const kyc = Number(req.body.kyc);
+  if (![0, 1, 2].includes(kyc)) fail(400, 'قيمة غير صحيحة');
+  const r = await pool.query(`UPDATE users SET kyc=$2 WHERE id=$1`, [Number(req.params.id), kyc]);
+  if (!r.rowCount) fail(404, 'المستخدم غير موجود');
+  res.json({ ok: true });
+}));
+
+app.get('/api/admin/withdrawals', ...adm, wrap(async (req, res) => {
+  const st = ['pending', 'paid', 'rejected'].includes(req.query.status) ? req.query.status : null;
+  const r = await pool.query(
+    `SELECT w.id,w.amount,w.method,w.emergency,w.status,w.created_at,u.id AS user_id,u.name,u.email,u.phone
+     FROM withdrawals w JOIN users u ON u.id=w.user_id
+     WHERE ($1::text IS NULL OR w.status=$1) ORDER BY w.id DESC LIMIT 200`, [st]);
+  res.json(r.rows.map((x) => ({ ...x, amount: Number(x.amount) })));
+}));
+
+app.post('/api/admin/withdrawals/:id', ...adm, wrap(async (req, res) => {
+  const action = req.body.action;
+  if (!['approve', 'reject'].includes(action)) fail(400, 'إجراء غير صحيح');
+  await tx(async (c) => {
+    const w = (await c.query(`SELECT * FROM withdrawals WHERE id=$1 FOR UPDATE`, [Number(req.params.id)])).rows[0];
+    if (!w) fail(404, 'الطلب غير موجود');
+    if (w.status !== 'pending') fail(409, 'تمت معالجة هذا الطلب مسبقاً');
+    if (action === 'approve') {
+      await c.query(`UPDATE withdrawals SET status='paid' WHERE id=$1`, [w.id]);
+    } else {
+      await c.query(`UPDATE withdrawals SET status='rejected' WHERE id=$1`, [w.id]);
+      await c.query(`UPDATE users SET usd=usd+$2 WHERE id=$1`, [w.user_id, w.amount]);
+      await log(c, w.user_id, 'withdraw_refund', 0, 0, Number(w.amount), `رفض طلب السحب #${w.id}`);
+    }
+  });
+  res.json({ ok: true });
+}));
+
+app.get('/api/admin/ledger', ...adm, wrap(async (req, res) => {
+  const uid = Number(req.query.user_id) || null;
+  const r = await pool.query(
+    `SELECT l.id,l.kind,l.pts,l.gems,l.usd,l.note,l.created_at,u.name FROM ledger l JOIN users u ON u.id=l.user_id
+     WHERE ($1::int IS NULL OR l.user_id=$1) ORDER BY l.id DESC LIMIT 100`, [uid]);
+  res.json(r.rows.map((x) => ({ ...x, pts: Number(x.pts), gems: Number(x.gems), usd: Number(x.usd) })));
+}));
+
+
+/* ---------- Central sync: settings + commands + account registry ---------- */
+const ADMIN_KEY = process.env.ADMIN_KEY || '';
+const keyEq = (a, b) => crypto.timingSafeEqual(
+  crypto.createHash('sha256').update(String(a)).digest(), crypto.createHash('sha256').update(String(b)).digest());
+const ctlFails = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, skipSuccessfulRequests: true, standardHeaders: true, legacyHeaders: false });
+const pubLimiter = rateLimit({ windowMs: 60 * 1000, limit: 90, standardHeaders: true, legacyHeaders: false });
+function ctlAuth(req, _res, next) {
+  if (!ADMIN_KEY) return next(Object.assign(new Error('ADMIN_KEY غير مضبوط في إعدادات Render'), { http: 503 }));
+  if (!keyEq(req.headers['x-admin-key'] || '', ADMIN_KEY)) return next(Object.assign(new Error('مفتاح الإدارة غير صحيح'), { http: 401 }));
+  next();
+}
+const ctl = [ctlFails, ctlAuth];
+const SYNC_NUM = (v, max) => { v = Number(v); return Number.isFinite(v) ? Math.min(Math.max(v, 0), max) : 0; };
+
+app.get('/api/sync', pubLimiter, wrap(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const max = Number((await pool.query('SELECT COALESCE(MAX(id),0) AS m FROM sync_cmds')).rows[0].m);
+  const cfg = (await pool.query(`SELECT val FROM sync_kv WHERE key='config'`)).rows[0];
+  let cmds = [];
+  if (req.query.since !== 'init') {
+    const since = Math.max(0, parseInt(req.query.since, 10) || 0);
+    if (since < max) cmds = (await pool.query('SELECT id, body FROM sync_cmds WHERE id>$1 ORDER BY id LIMIT 200', [since])).rows;
   }
-});
+  res.json({ config: cfg ? cfg.val : null, cmds, max });
+}));
+
+app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
+  const list = Array.isArray(req.body.accounts) ? req.body.accounts.slice(0, 20) : [];
+  for (const a of list) {
+    const email = String(a.e || '').trim().toLowerCase().slice(0, 120);
+    if (!email || /\s/.test(email)) continue;
+    await pool.query(
+      `INSERT INTO sync_accounts(email,name,phone,demo,pts,gems,usd,blk,kyc,last_seen)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+       ON CONFLICT (email) DO UPDATE SET name=EXCLUDED.name, phone=EXCLUDED.phone, demo=EXCLUDED.demo,
+         pts=EXCLUDED.pts, gems=EXCLUDED.gems, usd=EXCLUDED.usd, blk=EXCLUDED.blk, kyc=EXCLUDED.kyc, last_seen=NOW()`,
+      [email, String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), !!a.demo,
+        Math.floor(SYNC_NUM(a.pts, 1e12)), Math.floor(SYNC_NUM(a.gems, 1e12)), Math.round(SYNC_NUM(a.usd, 1e9) * 100) / 100, !!a.blk, !!a.kyc]);
+  }
+  res.json({ ok: true });
+}));
+
+app.post('/api/ctl/config', ...ctl, wrap(async (req, res) => {
+  const c = req.body.config;
+  if (!c || typeof c !== 'object' || Array.isArray(c)) fail(400, 'إعدادات غير صالحة');
+  await pool.query(
+    `INSERT INTO sync_kv(key,val,updated_at) VALUES('config',$1,NOW())
+     ON CONFLICT (key) DO UPDATE SET val=EXCLUDED.val, updated_at=NOW()`, [JSON.stringify(c)]);
+  res.json({ ok: true });
+}));
+
+function cleanCmd(b) {
+  b = b || {};
+  if (!['adj', 'set', 'rz', 'blk'].includes(b.t)) fail(400, 'نوع أمر غير صحيح');
+  const out = { t: b.t, sc: ['all', 'real', 'demo'].includes(b.sc) ? b.sc : 'all' };
+  const e = b.e ? String(b.e).trim().toLowerCase().slice(0, 120) : '';
+  if (e) out.e = e;
+  const num = (v) => { v = Number(v); if (!Number.isFinite(v) || Math.abs(v) > 1e10) fail(400, 'قيمة غير صحيحة'); return v; };
+  const pick = (src) => { const o = {}; for (const k of ['pts', 'gems', 'usd']) if (src && src[k] != null && src[k] !== '') o[k] = num(src[k]); return o; };
+  if (b.t === 'adj') {
+    out.d = pick(b.d);
+    if (!Object.values(out.d).some(Boolean)) fail(400, 'أدخل قيمة للتعديل');
+  } else if (b.t === 'set') {
+    out.v = pick(b.v);
+    if (!Object.keys(out.v).length) fail(400, 'أدخل قيمة واحدة على الأقل');
+    if (Object.values(out.v).some((x) => x < 0)) fail(400, 'الرصيد لا يكون سالباً');
+  } else if (b.t === 'rz') {
+    out.o = {};
+    for (const k of ['p', 'g', 'd', 'c', 'a']) if (b.o && b.o[k]) out.o[k] = 1;
+    if (!Object.keys(out.o).length) fail(400, 'اختر ما تريد تصفيره');
+    out.sc = 'all'; delete out.e;
+  } else if (b.t === 'blk') {
+    if (!out.e) fail(400, 'حدد الحساب');
+    out.v = b.v ? 1 : 0;
+  }
+  if (b.by) out.by = String(b.by).slice(0, 20);
+  return out;
+}
+
+app.post('/api/ctl/cmd', ...ctl, wrap(async (req, res) => {
+  const body = cleanCmd(req.body.body || req.body);
+  const r = await pool.query('INSERT INTO sync_cmds(body) VALUES($1) RETURNING id', [JSON.stringify(body)]);
+  await pool.query('DELETE FROM sync_cmds WHERE id < (SELECT MAX(id) FROM sync_cmds) - 5000');
+  res.json({ ok: true, id: r.rows[0].id });
+}));
+
+app.get('/api/ctl/accounts', ...ctl, wrap(async (_req, res) => {
+  const r = await pool.query(
+    `SELECT email,name,phone,demo,pts,gems,usd,blk,kyc,last_seen FROM sync_accounts ORDER BY last_seen DESC LIMIT 500`);
+  const t = (await pool.query(
+    `SELECT COUNT(*)::int AS n, COUNT(*) FILTER (WHERE demo)::int AS demo, COALESCE(SUM(pts),0) AS pts,
+            COALESCE(SUM(gems),0) AS gems, COALESCE(SUM(usd),0) AS usd FROM sync_accounts`)).rows[0];
+  res.json({
+    accounts: r.rows.map((x) => ({ ...x, pts: Number(x.pts), gems: Number(x.gems), usd: Number(x.usd) })),
+    totals: { n: t.n, demo: t.demo, pts: Number(t.pts), gems: Number(t.gems), usd: Number(t.usd) },
+  });
+}));
+
+/* ---------- Health + static frontend ---------- */
+app.get('/healthz', wrap(async (_req, res) => { await pool.query('SELECT 1'); res.json({ ok: true }); }));
 app.use('/api', (_req, res) => res.status(404).json({ error: 'المسار غير موجود' }));
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
@@ -632,6 +645,7 @@ app.use((err, _req, res, _next) => {
   res.status(err.http || 500).json({ error: err.http ? err.message : 'خطأ داخلي في الخادم' });
 });
 app.use(express.static(path.join(__dirname, 'public')));
+app.get('/admin', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 migrate().then(() => {
