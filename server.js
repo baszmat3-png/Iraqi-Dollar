@@ -90,28 +90,47 @@ function adminOnly(req, _res, next) {
   if (!req.isAdmin) return next(Object.assign(new Error('صلاحيات المدير مطلوبة'), { http: 403 }));
   next();
 }
-async function sendWhatsApp(phone, code) {
-  if (!WA_API_KEY) {
-    if (OTP_DEBUG === 'true' && NODE_ENV !== 'production') { console.log(`[DEBUG OTP] ${phone}: ${code}`); return; }
-    throw new Error('WA_API_KEY غير مضبوط');
-  }
-  const r = await fetch(WA_API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-API-Key': WA_API_KEY },
-    body: JSON.stringify({
-      phone: phone.replace(/\D/g, ''),
-      message: `رمز التحقق الخاص بك هو: ${code}\nصالح لمدة 5 دقائق، لا تشاركه مع أي شخص.`,
-    }),
-  });
-  if (!r.ok) throw new Error('WhatsApp HTTP ' + r.status);
+function normPhone(raw) {
+  let s = String(raw || '').trim().replace(/[\s\-()]/g, '');
+  if (s.startsWith('00')) s = '+' + s.slice(2);
+  else if (s.startsWith('07')) s = '+964' + s.slice(1);
+  else if (s.startsWith('7') && s.length === 10) s = '+964' + s;
+  else if (s.startsWith('964')) s = '+' + s;
+  else if (!s.startsWith('+') && s.length >= 9) s = '+' + s;
+  return s;
 }
 
-async function createOtp(purpose, phone, email, payload) {
+async function sendWhatsApp(phone, code, customMessage) {
+  const norm = normPhone(phone);
+  const cleanPhone = norm.replace(/\D/g, '');
+  const key = WA_API_KEY || process.env.WPSENDER_API_KEY || 'wps_7b5db2a829ff4377ad0c6c42ea7fe4af991c191992305e70eab136c8bb89f7d2';
+  const msg = customMessage || `رمز التحقق الخاص بك هو: ${code}\nصالح لمدة 5 دقائق، لا تشاركه مع أي شخص.`;
+
+  const r = await fetch(WA_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-API-Key': key },
+    body: JSON.stringify({
+      to: cleanPhone,
+      recipient: cleanPhone,
+      number: cleanPhone,
+      phone: cleanPhone,
+      message: msg,
+    }),
+  });
+  if (!r.ok) {
+    const errText = await r.text().catch(() => '');
+    console.error('WPSender send error:', r.status, errText);
+    throw new Error('WhatsApp HTTP ' + r.status);
+  }
+}
+
+async function createOtp(purpose, rawPhone, email, payload) {
+  const phone = normPhone(rawPhone);
   const recent = await pool.query(
-    `SELECT 1 FROM otps WHERE phone=$1 AND purpose=$2 AND created_at > NOW() - INTERVAL '60 seconds'`, [phone, purpose]);
+    `SELECT 1 FROM otps WHERE (phone=$1 OR phone=$2) AND purpose=$3 AND created_at > NOW() - INTERVAL '60 seconds'`, [phone, rawPhone, purpose]);
   if (recent.rowCount) fail(429, 'انتظر 60 ثانية قبل إعادة الإرسال');
   const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
-  await pool.query(`DELETE FROM otps WHERE phone=$1 AND purpose=$2`, [phone, purpose]);
+  await pool.query(`DELETE FROM otps WHERE (phone=$1 OR phone=$2) AND purpose=$3`, [phone, rawPhone, purpose]);
   await pool.query(
     `INSERT INTO otps(purpose,phone,email,code_hash,payload,expires_at) VALUES($1,$2,$3,$4,$5,NOW()+INTERVAL '5 minutes')`,
     [purpose, phone, email, sha(code), payload ? JSON.stringify(payload) : null]);
@@ -119,8 +138,9 @@ async function createOtp(purpose, phone, email, payload) {
   catch (e) { console.error('WhatsApp failed:', e.message); fail(502, 'تعذر إرسال الرمز عبر واتساب'); }
 }
 
-async function checkOtp(purpose, phone, code) {
-  const r = await pool.query(`SELECT * FROM otps WHERE phone=$1 AND purpose=$2 ORDER BY id DESC LIMIT 1`, [phone, purpose]);
+async function checkOtp(purpose, rawPhone, code) {
+  const phone = normPhone(rawPhone);
+  const r = await pool.query(`SELECT * FROM otps WHERE (phone=$1 OR phone=$2) AND purpose=$3 ORDER BY id DESC LIMIT 1`, [phone, rawPhone, purpose]);
   const o = r.rows[0];
   if (!o) fail(400, 'اطلب رمزاً جديداً');
   if (new Date(o.expires_at) < new Date()) fail(400, 'انتهت صلاحية الرمز');
@@ -181,14 +201,23 @@ const stateOf = (s) => ({
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false });
 app.use('/api/auth', authLimiter);
 
+app.post('/api/auth/send-whatsapp', wrap(async (req, res) => {
+  const phone = normPhone(req.body.to || req.body.phone || '');
+  const code = String(req.body.code || '').trim();
+  const msg = req.body.message ? String(req.body.message) : undefined;
+  if (!code && !msg) fail(400, 'الرمز مطلوب');
+  await sendWhatsApp(phone, code, msg);
+  res.json({ ok: true });
+}));
+
 app.post('/api/auth/signup/request', wrap(async (req, res) => {
   const name = String(req.body.name || '').trim().replace(/\s+/g, ' ');
   const email = String(req.body.email || '').trim().toLowerCase();
-  const phone = String(req.body.phone || '').replace(/[\s\-()]/g, '');
+  const phone = normPhone(req.body.phone || '');
   const password = String(req.body.password || '');
-  if (name.split(' ').length < 3) fail(400, 'اكتب الاسم الثلاثي كاملاً');
+  if (name.split(' ').filter(Boolean).length < 2) fail(400, 'اكتب الاسم الثنائي أو الثلاثي');
   if (!EM.test(email)) fail(400, 'بريد إلكتروني غير صحيح');
-  if (!PH.test(phone)) fail(400, 'رقم واتساب غير صحيح، اكتبه مع رمز الدولة');
+  if (!PH.test(phone)) fail(400, 'رقم واتساب غير صحيح، اكتبه مع رمز الدولة مثل +964...');
   if (password.length < 6) fail(400, 'كلمة المرور 6 أحرف على الأقل');
   if ((await pool.query(`SELECT 1 FROM users WHERE email=$1`, [email])).rowCount) fail(409, 'هذا البريد مسجل مسبقاً');
   await createOtp('signup', phone, email, { name, email, phone, h: await bcrypt.hash(password, 10) });
@@ -196,7 +225,7 @@ app.post('/api/auth/signup/request', wrap(async (req, res) => {
 }));
 
 app.post('/api/auth/signup/verify', wrap(async (req, res) => {
-  const phone = String(req.body.phone || '').replace(/[\s\-()]/g, '');
+  const phone = normPhone(req.body.phone || '');
   const o = await checkOtp('signup', phone, req.body.code);
   const p = o.payload;
   const ref = 'U' + crypto.randomBytes(4).toString('hex').toUpperCase();
