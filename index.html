@@ -50,14 +50,77 @@ nav .fab{width:64px;height:64px;transform:translateY(-16px)}nav .fab svg{width:2
 #cl~.card .ci{width:38px!important;height:38px!important}#cl~.card .ci svg.i{width:20px!important;height:20px!important}
 .spin{transform-box:view-box;transform-origin:170px 170px;animation:spin 4s linear infinite;will-change:transform}@keyframes spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.w{transition:none}}
-/* users page: compact icons */
-.us .card.row{padding:10px 12px;gap:10px;border-radius:18px}
-.us .row.card>svg.i{width:18px;height:18px;flex:none}
-.us .av{width:46px;height:46px}.us .dot{width:12px;height:12px;border-width:2px;bottom:0;inset-inline-end:0}
-.us .ib.s{width:32px;height:32px;border-radius:10px}.us .ib svg.i{width:16px;height:16px}
-.us .sp b{font-size:1rem}.us .mu{font-size:.8rem;line-height:1.5}.us .mu svg.i{width:13px;height:13px;vertical-align:-2px}
-.us .bdg{font-size:.7rem;padding:1px 8px}
-.us .btn.sm{padding:10px 14px!important;font-size:.85rem;white-space:nowrap}.us .btn svg.i{width:16px;height:16px;vertical-align:-3px}
+/* ===== قسم المستخدمين (بحث بالرمز + أصدقاء + دردشة + إبلاغ) ===== */
+.u2{display:grid;gap:12px;padding-bottom:24px}.u2>*{min-width:0}
+#u2r{display:grid;gap:12px}
+.u2-chat{position:relative;display:flex;align-items:center;gap:6px;height:42px;padding:0 14px;border-radius:14px;border:1.5px solid var(--line);background:hsl(calc(var(--h) + 6) 58% 20%);color:var(--cy);font:inherit;font-size:.85rem;font-weight:600;cursor:pointer;flex:none}
+.u2-chat svg.i{width:20px;height:20px}
+@media(max-width:370px){.u2-chat span{display:none}.u2-chat{padding:0 11px}}
+.u2-me{display:flex;align-items:center;gap:8px;padding:14px 16px;border-radius:22px;color:#fff;background:linear-gradient(135deg,hsl(calc(var(--h) + 1) 67% 42%),hsl(calc(var(--h) + 1) 74% 28%));border:1.5px solid hsl(var(--h) 63% 52%);box-shadow:0 10px 28px hsl(calc(var(--h) + -1) 76% 53% / .22)}
+.u2-me small{display:block;opacity:.85;font-size:.8rem}
+.u2-me b{display:block;font-size:1.45rem;letter-spacing:.14em;line-height:1.3;font-family:ui-monospace,Menlo,Consolas,monospace;text-align:start}
+.u2-ghost{width:42px;height:42px;border-radius:13px;border:0;background:#ffffff26;color:#fff;display:grid;place-items:center;cursor:pointer;flex:none;padding:0}
+.u2-ghost:active{background:#ffffff40}
+.u2-sb{display:flex;align-items:center;gap:10px;padding:0 16px;height:58px;border-radius:20px;background:#162231;border:1.5px solid var(--line);color:var(--mu);transition:.2s}
+.u2-sb:focus-within{border-color:var(--cy);box-shadow:0 0 0 4px hsl(calc(var(--h) + -1) 76% 53% / .16);color:var(--cy)}
+.u2-sb input{border:0;background:none;margin:0;padding:0;height:100%;flex:1;min-width:0;border-radius:0;letter-spacing:.05em}
+.u2-sb input:focus-visible{outline:0}
+.u2-sb button{width:30px;height:30px;border-radius:50%;border:0;background:#ffffff1a;color:#fff;display:grid;place-items:center;cursor:pointer;padding:0;flex:none}
+.u2-sb button[hidden]{display:none}.u2-sb button svg.i{width:15px;height:15px}
+.u2-tip{display:flex;gap:8px;align-items:flex-start;color:var(--mu);font-size:.8rem;line-height:1.6;margin-top:-4px}
+.u2-tip svg.i{width:15px;height:15px;flex:none;margin-top:4px}
+.u2-h{display:flex;align-items:center;justify-content:space-between;margin:8px 0 0;font-weight:700;font-size:1.05rem}
+.u2-h b{border-inline-start:4px solid var(--cy);padding-inline-start:10px;border-radius:2px}
+.u2-h i{font-style:normal;font-size:.78rem;font-weight:600;color:var(--cy);background:hsl(calc(var(--h) + 5) 61% 18%);border-radius:99px;padding:1px 10px}
+.u2-c{position:relative;padding:14px;border-radius:22px;border:1.5px solid hsl(calc(var(--h) + 7) 57% 34%);background:linear-gradient(160deg,hsl(calc(var(--h) + 8) 58% 25%),hsl(calc(var(--h) + 8) 55% 18%));box-shadow:0 8px 22px #0000004d;animation:u2in .35s ease both}
+@keyframes u2in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.u2-r1{display:flex;align-items:center;gap:12px}
+.u2-av{position:relative;display:grid;place-items:center;width:54px;height:54px;border-radius:50%;flex:none;color:#fff;font-weight:700;font-size:1.3rem;line-height:1;background:linear-gradient(135deg,hsl(var(--hu) 65% 48%),hsl(calc(var(--hu) + 40) 70% 32%));box-shadow:inset 0 0 0 2px #ffffff30}
+.u2-dot{position:absolute;bottom:0;inset-inline-end:0;width:14px;height:14px;border-radius:50%;background:#7b8791;border:2.5px solid hsl(calc(var(--h) + 8) 55% 20%)}
+.u2-dot.on{background:#3ddc68;box-shadow:0 0 8px #3ddc68aa}
+.u2-nm{display:flex;align-items:center;gap:6px;font-weight:700;font-size:1.08rem;line-height:1.4}
+.u2-nm span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.u2-nm svg.i{width:17px;height:17px;color:var(--cy);flex:none}
+.u2-meta{display:flex;flex-wrap:wrap;gap:4px 12px;color:#b9c8d3;font-size:.8rem;margin-top:2px;align-items:center}
+.u2-meta svg.i{width:14px;height:14px;vertical-align:-2px;margin-inline-end:4px}
+.u2-chip{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:.8rem;background:#00000033;color:#fff;border:1px solid #ffffff1f;border-radius:99px;padding:1px 10px;cursor:pointer;letter-spacing:.08em}
+.u2-chip svg.i{width:13px;height:13px;margin:0}
+.u2-tag{font-size:.7rem;font-weight:700;border-radius:99px;padding:1px 10px;background:#1f9d5540;color:#5fe58b}
+.u2-tag.w{background:#f1c40f26;color:#f1c40f}.u2-tag.b{background:hsl(calc(var(--h) + 5) 61% 18%);color:var(--cy)}
+.u2-r2{display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid #ffffff14}
+.u2-btn{flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;gap:8px;font:inherit;font-weight:700;font-size:.92rem;border-radius:14px;border:1.5px solid transparent;cursor:pointer;color:#fff;padding:0 12px;background:linear-gradient(90deg,hsl(calc(var(--h) + -5) 100% 42%),hsl(calc(var(--h) + -1) 76% 53%));box-shadow:0 6px 18px hsl(calc(var(--h) + -1) 76% 53% / .25)}
+.u2-btn svg.i{width:18px;height:18px}
+.u2-btn.w{background:#3a3820;border-color:#6f6228;color:#f1c40f;box-shadow:none}
+.u2-btn.g{background:linear-gradient(90deg,#1f9d55,#3ddc68);box-shadow:0 6px 18px #3ddc6840;color:#06210f}
+.u2-btn.x{background:#3a2025;border-color:#7a3a3a;color:#ff7a75;box-shadow:none;flex:.6}
+.u2-ib{width:44px;height:44px;flex:none;border-radius:14px;border:1.5px solid #7a3a3a;background:#3a2025;color:#ff7a75;display:grid;place-items:center;cursor:pointer;padding:0}
+.u2-btn:active,.u2-ib:active,.u2-cv:active{transform:scale(.97)}
+.u2-empty{text-align:center;padding:26px 16px;color:var(--mu);border:1.5px dashed var(--line);border-radius:22px;background:#ffffff05}
+.u2-empty .ci{margin:0 auto 10px;width:58px;height:58px}.u2-empty b{display:block;color:#fff;font-size:1.05rem}.u2-empty small{display:block;margin-top:4px;font-size:.85rem}
+.u2-empty .btn{margin-top:14px;width:auto;padding:10px 22px}
+.u2-cv{display:flex;align-items:center;gap:12px;width:100%;font:inherit;color:inherit;text-align:start;padding:12px 14px;border-radius:20px;border:1.5px solid var(--line);background:linear-gradient(160deg,hsl(calc(var(--h) + 8) 58% 23%),hsl(calc(var(--h) + 8) 55% 17%));cursor:pointer;animation:u2in .35s ease both}
+.u2-cv b{display:block;line-height:1.4}.u2-cv .pv{display:block;color:var(--mu);font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.u2-cv .mt{display:grid;justify-items:end;gap:4px;font-size:.72rem;color:var(--mu);flex:none}
+.u2-cv.sp2 .u2-av{background:hsl(calc(var(--h) + 6) 55% 17%);color:var(--cy);box-shadow:inset 0 0 0 1.5px var(--line)}
+.u2-un{min-width:22px;height:22px;border-radius:99px;background:var(--am);color:#1b1b1b;font-weight:700;font-size:.75rem;display:grid;place-items:center;padding:0 6px}
+.u2-ms{display:flex;flex-direction:column;gap:4px;min-height:calc(100vh - 210px);justify-content:flex-end;padding:8px 0 16px}
+.u2-day{text-align:center;margin:10px 0 4px}.u2-day span{font-size:.75rem;color:var(--mu);background:#ffffff0d;border-radius:99px;padding:2px 12px}
+.u2-b{max-width:80%;padding:9px 14px 6px;border-radius:18px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;animation:u2in .2s ease both}
+.u2-b small{display:block;font-size:.68rem;opacity:.7;margin-top:2px;text-align:end}
+.u2-b.o{align-self:flex-start;background:linear-gradient(135deg,hsl(calc(var(--h) + 1) 67% 44%),hsl(calc(var(--h) + 1) 74% 36%));border-end-start-radius:6px}
+.u2-b.i{align-self:flex-end;background:#25313e;border-end-end-radius:6px}
+.u2-in{position:sticky;bottom:calc(12px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;align-items:center;padding:6px 8px 6px 6px;border-radius:99px;background:#162231f2;border:1.5px solid var(--line);box-shadow:0 8px 24px #0006}
+.u2-in input{margin:0;border:0;background:none;flex:1;padding:10px 14px;min-width:0}.u2-in input:focus-visible{outline:0}
+.u2-snd{width:46px;height:46px;border-radius:50%;border:0;background:linear-gradient(135deg,hsl(calc(var(--h) + -5) 100% 42%),hsl(calc(var(--h) + -1) 76% 53%));color:#fff;display:grid;place-items:center;cursor:pointer;flex:none;padding:0}
+.u2-snd svg{transform:scaleX(-1)}
+.u2-hdn{display:flex;align-items:center;gap:10px;padding:12px 0;margin:0 -16px 8px;padding-inline:16px;border-bottom:1px solid #ffffff0d}
+.u2-hdn .sp b{display:block;font-size:1.08rem;line-height:1.4}.u2-hdn .sp small{font-size:.78rem}.u2-on{color:#3ddc68}
+.u2-rp{display:flex;align-items:center;gap:12px;padding:10px;border-radius:16px;background:#ffffff0d}
+.u2-rp small{display:block;color:var(--mu);letter-spacing:.08em}
+.u2-rs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+.u2-rc{font:inherit;font-size:.85rem;padding:7px 14px;border-radius:99px;border:1.5px solid var(--line);background:none;color:#fff;cursor:pointer}
+.u2-rc.on{background:#3a2025;border-color:#ef5350;color:#ff9a96}
+@media(prefers-reduced-motion:reduce){.u2-c,.u2-cv,.u2-b{animation:none}}
 a[data-r]{cursor:pointer}
 select,textarea{font:inherit;width:100%;background:#0b141c;color:#fff;border:1.5px solid var(--line);border-radius:18px;padding:12px 16px;margin:6px 0}
 .ft{transition:stroke-dasharray 1.5s ease-in-out}.ring{width:min(340px,90vw)}
@@ -199,6 +262,121 @@ function finishOtp(o){S.otp=null;const p=o.pl;
 if(o.p=='signup'){const m=AC.get();m[p.e]={e:p.e,p:p.p,n:p.n,h:p.h,cr:Date.now(),b:[CFG.start,CFG.startG,0]};const ok=AC.set(m);load(m[p.e]);saveSes();go('ref');return dlg(`<h2 style="text-align:center;margin-top:0;color:#3ddc68">تم إنشاء حسابك بنجاح ✓</h2><p class="mu" style="text-align:center">مرحباً ${esc(p.n)}، تم حفظ حسابك ويمكنك الدخول لاحقاً بالبريد وكلمة المرور.${ok?'':'<br><span style="color:#f4c20d">تنبيه: المتصفح الحالي يمنع الحفظ الدائم، فالحساب يعمل حتى إغلاق الصفحة فقط.</span>'}</p><button class="btn" onclick="d.close()">متابعة</button>`)}
 if(o.p=='reset'){S.rs={e:p.e,x:Date.now()+6e5};return go('resetpw')}
 if(o.p=='ph'){S.phone=p.v;S.v.ph=1}else{S.mail=p.v;S.v.ml=1}persist();if(o.p=='ml'||o.p=='mv')mlog('تم توثيق البريد '+p.v);toast('تم التوثيق بنجاح');go('profile')}
+/* ===== قسم المستخدمين: بحث برمز الإحالة + اقتراحات + أصدقاء + دردشة + إبلاغ ===== */
+const US2=(()=>{
+const st={uv:'list',pv:'list',q:'',up:'',n:-1,sig:'',dr:'',rr:'',me:''};
+const X=(d,z)=>`<svg class="i" ${z?`style="width:${z}px;height:${z}px"`:''} viewBox="0 0 24 24"><path d="${d}"/></svg>`;
+const I={copy:'M9 9h11v12H9zM5 15H4V3h11v1',share:'M12 15V3M7 8l5-5 5 5M5 13v8h14v-8',ok:'M12 21a9 9 0 100-18 9 9 0 000 18zM8 12l3 3 5-6',tip:'M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v6M12 8h.01'};
+const me=()=>S.acc?S.acc.e:'';
+const acc=e=>AC.get()[e];
+const real=()=>acs().filter(a=>a&&a.e&&a.e!==me()&&!a.demo&&!a.blk);
+const hue=s=>{let h=7;for(const c of String(s))h=(h*31+c.charCodeAt(0))%360;return h};
+const online=a=>!!a.ls&&Date.now()-a.ls<3e5;
+const seen=a=>online(a)?'متصل الآن':a.ls?'آخر ظهور '+ago(a.ls):'غير متصل';
+const avatar=(a,z)=>`<span class="u2-av" style="--hu:${hue(a.e)};${z?`width:${z}px;height:${z}px;font-size:${Math.round(z*.42)}px`:''}">${esc(String(a.n||'?').trim().charAt(0)||'?')}${z&&z<46?'':`<i class="u2-dot ${online(a)?'on':''}"></i>`}</span>`;
+const joined=a=>a.cr?new Date(a.cr).toLocaleDateString('ar-u-nu-latn',{day:'numeric',month:'long',year:'numeric'}):'';
+/* ---- الأصدقاء ---- */
+const FQ=()=>{const l=LS('frq',[]);return Array.isArray(l)?l:[]};
+const rel=o=>{const m=me(),r=FQ().find(x=>(x.f==m&&x.t==o)||(x.f==o&&x.t==m));return !r?{k:'none'}:r.s==1?{k:'friend',r}:r.f==m?{k:'sent',r}:{k:'recv',r}};
+const friends=()=>FQ().filter(x=>x.s==1&&(x.f==me()||x.t==me())).map(x=>x.f==me()?x.t:x.f).filter(e=>{const a=acc(e);return a&&!a.blk});
+const incoming=()=>FQ().filter(x=>x.s==0&&x.t==me()&&acc(x.f)&&!acc(x.f).blk);
+const outgoingN=()=>FQ().filter(x=>x.f==me()&&x.s==0).length;
+/* ---- الرسائل ---- */
+const mk=o=>'dm:'+[me(),o].sort().join('|');
+const msgs=o=>{const l=LS(mk(o),[]);return Array.isArray(l)?l:[]};
+const rk=o=>'dmr:'+me()+'|'+o;
+const unread=o=>{const t=+LS(rk(o),0)||0;return msgs(o).filter(x=>x.f==o&&x.t>t).length};
+const unreadAll=()=>friends().reduce((n,o)=>n+unread(o),0);
+const markRead=o=>{LSset(rk(o),Date.now())};
+const sig=()=>[incoming().map(x=>x.id).join(),outgoingN(),friends().length,unreadAll(),real().length].join('|');
+/* ---- أدوات ---- */
+const copy=t=>{const ok=()=>toast('تم نسخ الرمز: '+t);const fb=()=>{const x=document.createElement('textarea');x.value=t;x.style.cssText='position:fixed;opacity:0';document.body.append(x);x.select();try{document.execCommand('copy');ok()}catch(e){toast(t)}x.remove()};try{navigator.clipboard.writeText(t).then(ok,fb)}catch(e){fb()}};
+const share=t=>{if(navigator.share)navigator.share({title:document.title,text:'أضفني كصديق في التطبيق عبر رمز الإحالة: '+t,url:location.origin+location.pathname}).catch(()=>{});else copy(t)};
+const dayL=t=>{const d=new Date(t),n=new Date(),s=x=>x.toDateString();if(s(d)==s(n))return'اليوم';if(s(d)==s(new Date(n-864e5)))return'أمس';return d.toLocaleDateString('ar-u-nu-latn',{day:'numeric',month:'long'})};
+const tm2=t=>new Date(t).toLocaleTimeString('ar-u-nu-latn',{hour:'numeric',minute:'2-digit'});
+const empty=(i,t,s,btn)=>`<div class="u2-empty"><div class="ci">${ic(i,26)}</div><b>${t}</b>${s?`<small>${s}</small>`:''}${btn||''}</div>`;
+const head=(t,n)=>`<div class="u2-h"><b>${t}</b>${n!=null?`<i>${n}</i>`:''}</div>`;
+/* ---- البطاقات ---- */
+const card=a=>{const code=ucode(a),r=rel(a.e),e=esc(a.e);let tag='',act='';
+ if(r.k=='friend'){tag='<span class="u2-tag">صديق</span>';act=`<button class="u2-btn" data-a="uopen" data-v="${e}">${ic('chat')} دردشة</button>`}
+ else if(r.k=='sent'){tag='<span class="u2-tag w">بانتظار القبول</span>';act=`<button class="u2-btn w" data-a="ufcan" data-v="${e}">${ic('hour')} إلغاء الطلب</button>`}
+ else if(r.k=='recv'){tag='<span class="u2-tag b">أرسل لك طلباً</span>';act=`<button class="u2-btn g" data-a="ufacc" data-v="${e}">${ic('chk')} قبول</button><button class="u2-btn x" data-a="ufdec" data-v="${e}">رفض</button>`}
+ else act=`<button class="u2-btn" data-a="ufadd" data-v="${e}">${ic('add')} إضافة صديق</button>`;
+ return `<div class="u2-c"><div class="u2-r1">${avatar(a)}<div class="sp"><div class="u2-nm"><span>${esc(a.n)}</span>${a.kyc?ic('shield'):''}</div><div class="u2-meta"><button class="u2-chip" dir="ltr" data-a="ucopy" data-v="${code}" aria-label="نسخ الرمز">${ic('qr')}${code}</button>${tag}</div><div class="u2-meta"><span class="${online(a)?'u2-on':''}">${seen(a)}</span>${joined(a)?`<span>${ic('doc')}انضم ${joined(a)}</span>`:''}</div></div></div><div class="u2-r2">${act}<button class="u2-ib" data-a="urep" data-v="${e}" aria-label="إبلاغ">${ic('warn')}</button></div></div>`};
+const ranked=l=>l.slice().sort((p,q)=>(online(q)-online(p))||((q.ls||0)-(p.ls||0)));
+const results=()=>{const q=st.q.trim().toUpperCase().replace(/\s+/g,''),all=real();
+ if(!q){const s=ranked(all.filter(a=>rel(a.e).k!='recv')).slice(0,8);return head('مستخدمون مقترحون',s.length)+(s.length?s.map(card).join(''):empty('users','لا يوجد مستخدمون آخرون بعد','سيظهر هنا كل من ينضم إلى التطبيق'))}
+ const hit=all.filter(a=>ucode(a).includes(q)).sort((p,r)=>(ucode(r).startsWith(q)-ucode(p).startsWith(q)));
+ if(hit.length)return head('نتائج البحث',hit.length)+hit.map(card).join('');
+ const s=ranked(all).slice(0,4);return empty('search','لا يوجد مستخدم بهذا الرمز','تأكد من كتابة الرمز كما وصلك من صديقك')+(s.length?head('مقترحون لك',s.length)+s.map(card).join(''):'')};
+const paintRes=()=>{const r=$('#u2r');if(r)r.innerHTML=results()};
+/* ---- الشاشات ---- */
+const chatBtn=()=>{const n=unreadAll();return `<button class="u2-chat" data-a="uinbox" aria-label="الدردشة">${ic('chat')}<span>الدردشة</span>${n?`<b class="cnt">${n>9?'9+':n}</b>`:''}</button>`};
+const listV=()=>{const code=ucode(S.acc),inc=incoming();
+ return hd('المستخدمون','users',{back:'home',acts:chatBtn()})+`<div class="u2"><div class="u2-me"><div class="sp"><small>رمز الإحالة الخاص بك</small><b dir="ltr">${code}</b></div><button class="u2-ghost" data-a="ucopy" data-v="${code}" aria-label="نسخ الرمز">${X(I.copy,20)}</button><button class="u2-ghost" data-a="ushare" data-v="${code}" aria-label="مشاركة الرمز">${X(I.share,20)}</button></div>`
+ +(inc.length?head('طلبات الصداقة',inc.length)+inc.map(x=>card(acc(x.f))).join(''):'')
+ +`<div class="u2-sb">${ic('search')}<input id="u2q" dir="auto" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12" value="${esc(st.q)}" placeholder="ابحث برمز الإحالة..."><button type="button" id="u2c" data-a="uclr" aria-label="مسح" ${st.q?'':'hidden'}>${ic('x')}</button></div><div class="u2-tip">${X(I.tip)}<span>يتم البحث برمز الإحالة فقط. اطلب الرمز من صديقك أو اختر من المقترحين أدناه.</span></div><div id="u2r">${results()}</div></div>`};
+const inboxV=()=>{const fr=friends().map(e=>{const l=msgs(e);return{a:acc(e),e,last:l[l.length-1],u:unread(e)}}).sort((p,q)=>(q.last?q.last.t:0)-(p.last?p.last.t:0));
+ return `<div class="hd"><button class="ib" data-a="uback" aria-label="رجوع">${ic('back')}</button><div class="ci">${ic('chat')}</div><h1>الدردشات</h1></div><div class="u2"><button class="u2-cv sp2" data-a="usup"><span class="u2-av">${ic('head')}</span><div class="sp"><b>الدعم الفني</b><span class="pv">تواصل مع فريق خدمة العملاء</span></div>${ic('chev')}</button>`
+ +(fr.length?head('المحادثات',fr.length)+fr.map(o=>`<button class="u2-cv" data-a="uopen" data-v="${esc(o.e)}">${avatar(o.a)}<div class="sp"><b>${esc(o.a.n)}</b><span class="pv">${o.last?(o.last.f==me()?'أنت: ':'')+esc(o.last.x):'ابدأ المحادثة الآن'}</span></div><div class="mt">${o.last?`<span>${tm2(o.last.t)}</span>`:''}${o.u?`<span class="u2-un">${o.u>9?'9+':o.u}</span>`:''}</div></button>`).join(''):empty('chat','لا توجد محادثات بعد','أضف أصدقاء من صفحة المستخدمين لتبدأ الدردشة',`<button class="btn" data-a="uback">${ic('search')} البحث عن أصدقاء</button>`))+`</div>`};
+const bubbles=()=>{const l=msgs(st.up);if(!l.length)return empty('chat','ابدأ المحادثة','أرسل أول رسالة الآن');let last='';return l.map(x=>{const d=dayL(x.t),h=d!=last?`<div class="u2-day"><span>${d}</span></div>`:'';last=d;return h+`<div class="u2-b ${x.f==me()?'o':'i'}">${esc(x.x)}<small>${tm2(x.t)}</small></div>`}).join('')};
+const toEnd=()=>requestAnimationFrame(()=>scrollTo({top:document.body.scrollHeight}));
+const paintDm=sc=>{const c=$('#u2m');if(c)c.innerHTML=bubbles();if(sc)toEnd()};
+const dmV=()=>{const a=acc(st.up);if(!a||rel(st.up).k!='friend'){st.uv='list';return listV()}
+ markRead(st.up);st.n=msgs(st.up).length;toEnd();
+ return `<div class="u2-hdn"><button class="ib" data-a="uback" aria-label="رجوع">${ic('back')}</button>${avatar(a,44)}<div class="sp"><b>${esc(a.n)}</b><small class="${online(a)?'u2-on':'mu'}">${seen(a)}</small></div><button class="ib s r" data-a="urep" data-v="${esc(a.e)}" aria-label="إبلاغ">${ic('warn')}</button></div><div class="u2"><div class="u2-ms" id="u2m">${bubbles()}</div></div><div class="u2-in"><input id="u2i" maxlength="500" autocomplete="off" placeholder="اكتب رسالتك..." value="${esc(st.dr)}"><button class="u2-snd" data-a="usend" aria-label="إرسال">${ic('send')}</button></div>`};
+const view=()=>{if(!S.acc)return V.welcome();
+ if(st.me!=me()){st.me=me();st.uv='list';st.q='';st.dr='';st.up=''}
+ st.sig=sig();return st.uv=='inbox'?inboxV():st.uv=='dm'?dmV():listV()};
+/* ---- الإجراءات ---- */
+const upd=f=>{const l=FQ();f(l);LSset('frq',l)};
+const REAS=['إساءة أو تحرش','احتيال أو نصب','انتحال شخصية','رسائل مزعجة','محتوى غير لائق','سبب آخر'];
+const repDlg=o=>{const a=acc(o);if(!a)return;st.rr='';dlg(`<h2 style="margin-top:0">الإبلاغ عن مستخدم</h2><div class="u2-rp">${avatar(a,44)}<div class="sp"><b>${esc(a.n)}</b><small dir="ltr">${ucode(a)}</small></div></div><p class="mu" style="margin:14px 0 8px">اختر سبب الإبلاغ</p><div class="u2-rs">${REAS.map(r=>`<button type="button" class="u2-rc" data-a="urr" data-v="${r}">${r}</button>`).join('')}</div><label>تفاصيل إضافية (اختياري)<textarea id="u2t" rows="3" maxlength="300" placeholder="اشرح ما حدث باختصار..."></textarea></label><button class="btn" data-a="urs" data-v="${esc(o)}">${ic('send')} إرسال البلاغ</button><p class="mu" style="font-size:.8rem;text-align:center;margin:10px 0 0">سيراجع فريق الدعم بلاغك.</p>`)};
+const send=()=>{const x=$('#u2i');if(!x)return;const t=x.value.trim().slice(0,500),o=st.up;if(!t)return;
+ if(rel(o).k!='friend')return toast('يجب أن تكونا صديقين لبدء المحادثة');
+ const l=msgs(o),pt=+LS('dmr:'+o+'|'+me(),0)||0,pend=l.filter(m=>m.f==me()&&m.t>pt).length;
+ l.push({f:me(),x:t,t:Date.now()});LSset(mk(o),l.slice(-200));
+ if(!pend)unAddE(o,'رسالة جديدة 💬',S.name+': '+(t.length>60?t.slice(0,60)+'…':t));
+ x.value='';st.dr='';st.n=l.length;paintDm(true);x.focus()};
+const act=(a,i,v,b)=>{
+ if(['ufadd','ufacc','usend','uopen'].includes(a)&&S.acc&&S.acc.demo)return toast('الحساب التجريبي لا يمكنه الدردشة أو إضافة أصدقاء');
+ switch(a){
+ case'uinbox':st.uv='inbox';draw();scrollTo(0,0);return;
+ case'uback':st.uv=st.uv=='dm'?(st.pv||'list'):'list';draw();scrollTo(0,0);return;
+ case'uopen':{const o=acc(v);if(!o||rel(v).k!='friend')return toast('أضفه كصديق أولاً ثم ابدأ الدردشة');st.pv=st.uv;st.uv='dm';st.up=v;draw();return}
+ case'usup':return go('chat');
+ case'usend':return send();
+ case'ucopy':return copy(v);
+ case'ushare':return share(v);
+ case'uclr':{st.q='';draw();const x=$('#u2q');if(x)x.focus();return}
+ case'ufadd':{const o=acc(v);if(!o||v==me())return;const r=rel(v);if(r.k=='recv')return act('ufacc',i,v,b);if(r.k!='none')return;
+  if(outgoingN()>=30)return toast('وصلت للحد الأقصى من الطلبات المعلقة');
+  upd(l=>l.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,5),f:me(),t:v,s:0,at:Date.now()}));
+  unAddE(v,'طلب صداقة جديد 👋',S.name+' أرسل لك طلب صداقة');toast('تم إرسال طلب الصداقة إلى '+o.n);return draw()}
+ case'ufcan':{upd(l=>{const k=l.findIndex(x=>x.f==me()&&x.t==v&&x.s==0);if(k>=0)l.splice(k,1)});toast('تم إلغاء طلب الصداقة');return draw()}
+ case'ufacc':{const o=acc(v);let ok=0;upd(l=>{const x=l.find(y=>y.f==v&&y.t==me()&&y.s==0);if(x){x.s=1;x.at=Date.now();ok=1}});if(!ok||!o)return draw();
+  unAddE(v,'تم قبول طلبك ✅',S.name+' أصبح صديقك الآن، يمكنكما الدردشة');toast('أصبحت صديقاً لـ '+o.n);return draw()}
+ case'ufdec':{upd(l=>{const k=l.findIndex(x=>x.f==v&&x.t==me()&&x.s==0);if(k>=0)l.splice(k,1)});toast('تم رفض الطلب');return draw()}
+ case'urep':return repDlg(v);
+ case'urr':{st.rr=v;document.querySelectorAll('.u2-rc').forEach(x=>x.classList.toggle('on',x===b));return}
+ case'urs':{if(!st.rr)return toast('اختر سبب الإبلاغ أولاً');const o=acc(v);if(!o)return;
+  const k='rpt:'+me(),m=LS(k,{});if(m[v]&&Date.now()-m[v]<864e5){$('#d').close();return toast('سبق أن أبلغت عن هذا المستخدم، وسيراجع الفريق بلاغك')}
+  const det=(($('#u2t')||{}).value||'').trim().slice(0,300);
+  supAdd('🚩 بلاغ ضد '+o.n+' (كود: '+ucode(o)+' — '+o.e+') | السبب: '+st.rr+(det?' | التفاصيل: '+det:''));
+  m[v]=Date.now();LSset(k,m);$('#d').close();toast('تم إرسال البلاغ، شكراً لمساعدتك');return}
+ }};
+/* ---- ربط الأحداث ---- */
+document.addEventListener('input',e=>{const t=e.target;if(!t)return;if(t.id=='u2q'){st.q=t.value;const c=$('#u2c');if(c)c.hidden=!t.value;paintRes()}else if(t.id=='u2i')st.dr=t.value});
+document.addEventListener('keydown',e=>{if(e.target&&e.target.id=='u2i'&&e.key=='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();send()}});
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-r]');if(b){st.uv='list';st.q='';st.dr='';st.up=''}},true);
+const poll=()=>{if(S.r!='users'||!S.acc||document.hidden)return;
+ if(st.uv=='dm'){const n=msgs(st.up).length;if(n!=st.n){st.n=n;paintDm(true);markRead(st.up)}return}
+ const s=sig();if(s==st.sig)return;st.sig=s;const a=document.activeElement;if(a&&a.id=='u2q'){paintRes();return}draw()};
+setInterval(poll,2000);addEventListener('storage',poll);
+setInterval(()=>{if(!S.acc||S.staff||document.hidden)return;const m=AC.get(),a=m[S.acc.e];if(a&&Date.now()-(a.ls||0)>45e3){a.ls=Date.now();AC.set(m)}},6e4);
+return{view,act};
+})();
+
 const V={
 stafflogin:()=>hd('دخول الإدارة','shield',{back:'welcome'})+`<div class="card" style="padding:16px;margin-top:20px">${fld('su','اسم المستخدم','text','username','dir="ltr" autocomplete="username" autocapitalize="none"')}${pwf('sp','كلمة المرور','current-password')}<p id="er" role="alert" style="color:#ef5350;text-align:center;min-height:1.5em;margin:12px 0 0"></p><button class="btn" data-a="stfin">دخول</button></div>`,
 panel:()=>{if(!S.staff)return V.welcome();if(S.staff.role!='owner'){const s=STF().find(x=>x.u==S.staff.u&&!x.off);if(!s){S.staff=null;try{localStorage.removeItem('stf')}catch(x){}return V.welcome()}S.staff.p=s.p||[]}
@@ -215,7 +393,7 @@ otp:()=>{const o=S.otp;if(!o)return V.welcome();const s=Math.max(0,Math.ceil((o.
 ref:()=>hd('رمز الإحالة','gift',{back:'welcome'})+`<div class="card row" style="margin-top:40px;padding:26px;background:hsl(calc(var(--h) + 7) 57% 15%)"><div class="sp"><b style="font-size:1.4rem">أدخل رمز الإحالة</b><div class="mu">رمز صديقك (اختياري)</div></div><div class="ci cy" style="width:66px;height:66px;background:none">${ic('gift',40)}</div></div><input placeholder="أدخل رمز الإحالة هنا" style="padding:26px 20px"><div class="card row" style="background:#33322a;border-color:#7a6a20"><div class="sp">يمكنك المتابعة بدون رمز. الهدية الترحيبية ${CFG.gift}$ للجميع مرة واحدة فقط</div><span style="color:#f4c20d">${ic('info',30)}</span></div><button class="btn" style="margin-top:30px;padding:20px" data-a="enter">متابعة ${ic('back')}</button>`,
 home:()=>hd('الرئيسية','wallet',{acts:`<button class="ib" data-r="alerts" aria-label="الإشعارات">${ic('bell')}${bellB()}</button><button class="ib" data-r="profile" aria-label="الحساب">${ic('user')}</button>`}).replace('<div class="ci">','<div class="ci" style="order:0">')+`<div class="g2" style="margin-top:14px"><button class="tl" data-a="pay"><div class="row2"><div class="ci" style="background:#ffffff33;color:#fff">${ic('store')}</div><b style="font-size:1.2rem">الدفع للتاجر</b></div><p style="margin:14px 0 6px;opacity:.9">مسح الباركود أو التحويل</p>${ic('back')}</button><button class="tl" data-r="transfer"><div class="row2"><div class="ci" style="background:#ffffff33;color:#fff">${ic('swap')}</div><b style="font-size:1.2rem">التحويلات</b></div><p style="margin:14px 0 6px;opacity:.9">تحويل النقاط والمجوهرات</p>${ic('back')}</button></div>`+newsStrip()+calcView()+`<div style="margin-top:12px"></div>${row('wallet','سحب الرصيد (الحد الأدنى '+CFG.wMin+'$)','go','withdraw')}`+nav('home'),
 counter:()=>hd('العداد','gauge',{l:1})+bal()+`<div class="g2" style="margin-bottom:12px">${tile('مجموع النقاط',f(S.pts),'coin')}${tile('مجموع المجوهرات',S.gems,'gem')}</div><div class="ring"><svg viewBox="0 0 340 340"><circle cx="170" cy="170" r="161.5" fill="none" stroke-width="7.65" style="stroke:var(--cy2);opacity:.25"/><circle id="pa" cx="170" cy="170" r="161.5" fill="none" stroke-width="7.65" stroke-linecap="round" transform="rotate(-90 170 170)" style="stroke:var(--cy2);stroke-dasharray:0 1015"/><circle cx="170" cy="8.5" r="4.25" fill="#f2c200"/><circle id="hd" cx="170" cy="8.5" r="7.65" fill="#f2c200" stroke="#fff" stroke-width="2"/><g class="spin" style="animation-play-state:${S.run?'running':'paused'}"><path d="M 65.8 257.4 A 136 136 0 0 0 274.2 257.4" fill="none" stroke="#ff9800" stroke-width="7.65"/><circle cx="65.8" cy="257.4" r="9.35" style="fill:var(--cy2)"/><circle cx="274.2" cy="257.4" r="9.35" style="fill:var(--cy2)"/></g></svg><canvas id="mx" class="mx" width="280" height="280"></canvas><div class="in"><div class="pill">الرصيد اليومي <b id="od">${S.accr.toFixed(4)}</b> نقطة</div><div class="cy" style="font-size:.65rem;margin-top:6px">${f(yl())} نقطة ÷ 24 ساعة = ${(yl()/86400).toFixed(4)} كل ثانية${yg()?' · +'+f(yg())+' جوهرة':''}</div></div></div><div class="g2 pills"><div class="card row" style="padding:12px"><div class="ci" style="width:48px;height:48px;color:${mc()};border:2px solid ${mc()};background:hsl(calc(var(--h) + 18) 44% 11%)">${ic('gauge',28)}</div><div><small class="mu">المضاعفة</small><br><b style="color:${mc()};font-size:1.3rem">${mul()}×</b></div><button class="ib s" data-a="tolist" style="margin-inline-start:auto;border-radius:50%;background:var(--cy);color:#fff" aria-label="شراء عداد">${ic('plus')}</button></div><div class="card row" style="padding:12px"><div class="ci" style="width:42px;height:42px">${ic('timer')}</div><div class="sp"><small class="mu">الوقت المتبقي</small><br><b id="tm">${tm()}</b></div><button class="ib s" style="background:var(--cy);color:hsl(calc(var(--h) + 6) 75% 9%);border-radius:50%" data-a="run" aria-label="تشغيل">${ic(S.run?'x':'play')}</button></div></div><div class="card row2" style="margin:12px 0"><span class="mu">نقاط الدورة / إجمالي الدورة</span><b class="cy" dir="ltr">${S.accr.toFixed(2)} / ${f(yl())}</b></div><div class="mu" style="text-align:center;font-size:.85rem;margin:8px 0">يتم استلام النقاط تلقائياً عند انتهاء الـ24 ساعة</div><div id="cl"></div>${sec('قائمة العدادات',CFG.hmk?'':'<a data-r="cmarket">متجر العدادات</a>')}${CFG.hcl?'<div class="card mu" style="text-align:center">شراء العدادات متوقف مؤقتاً</div>':CT.map((c,i)=>`<div class="card row"><div class="ci" style="width:60px;height:60px;color:${c[4]};border:2px solid ${c[4]};background:hsl(calc(var(--h) + 18) 44% 11%)">${ic('gauge',32)}</div><div class="sp"><b>عداد ${c[0]}</b><div class="mu">يمنح ${f(c[3])} ${c[6]=='g'?'جوهرة':'نقطة'} كل 24 ساعة · مملوك: ${S.ctr[i]}</div><b class="cy">${f(c[2])} نقطة · ${f(c[5])} دينار</b></div><button class="btn sm" data-a="bc" data-i="${i}">شراء</button></div>`).join('')}${S.cl.length?sec('عداداتي النشطة')+S.cl.map(c=>{const k=CT[c.i],n=Math.ceil((c.e-Date.now())/864e5);return`<div class="card row2" style="padding:12px 16px"><b style="color:${k[4]}">عداد ${k[0]}</b><span class="mu">ينتهي بعد ${n} يوماً</span></div>`}).join(''):''}<button class="btn o" data-a="ad">${ic('plus')} إضافة إعلان</button>`+nav('counter'),
-users:()=>hd('المستخدمون','users',{back:'home',acts:`<button class="ib s" style="width:auto;padding:0 8px;border:0;background:none;font-size:.8rem;display:grid" data-a="chat">${ic('chat')}الدردشة</button>`})+`<div class="us"><div class="row card" style="padding:6px 16px">${ic('search')}<input id="uq" placeholder="البحث عن مستخدم بالاسم..." style="border:0;background:none;margin:0"></div><div class="row" style="margin:12px 0"><button class="btn sm" style="padding:14px 22px;border-radius:99px">${ic('user')} البحث بالاسم</button><button class="btn o sm" style="padding:14px 22px;border-radius:99px">${ic('qr')} البحث برمز الإحالة</button></div>${US.map(u=>`<div class="card row" style="background:hsl(calc(var(--h) + 8) 58% 26%);border-color:hsl(calc(var(--h) + 7) 57% 38%)"><div class="av"><span class="dot" style="background:${u[4]?'#3ddc68':'#8896a0'}"></span></div><div class="sp"><b style="font-size:1.2rem">${u[0]}</b> ${u[1]=='22 أغسطس 2023'?'<span class="bdg" style="border:1.5px solid #c7a600;color:#e6b800">في الانتظار</span>':''}<div class="mu">${ic('doc',16)} ${u[1]}</div><div class="mu">${ic('qr',16)} كود: ${u[2]}</div></div><button class="ib r s" data-a="rep">${ic('warn')}</button><button class="ib s ${u[3]=='hour'?'y':''}" data-a="u${u[3]}">${ic(u[3])}</button></div>`).join('')}</div>`,
+users:()=>US2.view(),
 store:()=>{const cs=['الكل',...new Set(PR.map(p=>p[1]))];return hd('المتجر','',{back:'home',acts:`<button class="ib" data-a="rcpt" aria-label="الفواتير">${ic('rc')}</button><button class="ib" data-r="cart" aria-label="السلة">${ic('cart')}${S.cart.length?`<b class="cnt">${S.cart.length}</b>`:''}</button>`})+`<div class="tl" style="cursor:default;display:flex;justify-content:space-between;align-items:center;padding:18px;margin-bottom:12px"><div><div style="opacity:.9">رصيدك</div><b style="font-size:1.8rem">${f(S.pts)}</b> <small>نقطة</small></div>${S.tab=='cards'?'':`<div style="text-align:end"><div style="opacity:.9;font-size:.8rem">الحد الأقصى للشراء (${CFG.lim}% من قيمة عدادك)</div><b style="font-size:1.15rem">${f(lim())}</b><div style="font-size:.8rem;opacity:.9">المتاح: ${f(Math.max(0,lim()-S.sp))}</div></div>`}</div>${S.tab=='debt'?`<div class="note">${ic('warn',18)}<span>الحد الأقصى للشراء هو ${CFG.lim}% من قيمة عدادك</span></div>`:''}<div class="seg">${STB().map(x=>`<button class="${S.tab==x[0]?'on':''}" data-a="tab" data-v="${x[0]}">${x[1]}</button>`).join('')}</div>`+(S.tab=='prod'?`<div class="chips">${cs.map(c=>`<button class="chip ${c==S.cat?'on':''}" data-a="cat" data-v="${c}">${c}</button>`).join('')}</div><div class="g2">${PR.map((p,i)=>(S.cat=='الكل'||S.cat==p[1])&&(PST()[p[0]]||{}).v!==0?`<div class="card pc"><button data-a="pv" data-i="${i}" aria-label="تفاصيل" style="display:block;width:100%;padding:0;border:0;background:none;color:inherit;font:inherit;cursor:pointer"><div class="ph" style="min-height:110px;border-radius:0;overflow:hidden">${p[3]?`<img src="${p[3]}" alt="" style="width:100%;height:110px;object-fit:cover;display:block">`:ic('img')}</div></button><div class="pb"><span class="bdg ok" style="font-size:.75rem;width:fit-content">${esc(p[1])}</span><b class="pn">${esc(p[0])}</b>${p[4]?`<div class="mu" style="font-size:.8rem;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(p[4])}</div>`:''}<div class="row2"><b class="cy">${f(p[2])}</b><button class="ib s" data-a="add" data-i="${i}" aria-label="للسلة">${ic('cart')}</button></div></div></div>`:'').join('')}</div>`:S.tab=='cards'?cardsView():debtView())},
 cart:()=>{const t=S.cart.reduce((s,i)=>s+PR[i][2],0);return hd('سلة المشتريات','cart',{back:'store'})+(S.cart.length?S.cart.map(i=>`<div class="card row2"><span>${PR[i][0]}</span><b class="cy">${f(PR[i][2])}</b></div>`).join('')+`<div class="card row2"><b>المجموع</b><b class="cy">${f(t)}</b></div><button class="btn" data-a="pay2">إتمام الشراء</button>`:'<div class="card mu" style="text-align:center">السلة فارغة</div>')},
 fun:()=>hd('التسلية','pad',{l:1})+sec('عجلة الحظ')+`<div class="card" style="text-align:center"><div style="width:min(300px,80vw);margin:8px auto;position:relative"><div style="position:absolute;top:-8px;left:50%;margin-left:-12px;border:12px solid transparent;border-top:22px solid #fff;z-index:2"></div><svg class="w" id="wh" viewBox="0 0 320 320" style="transform:rotate(${S.wr}deg)">${W.map((w,i)=>{const a=(i*45-22.5)*Math.PI/180,b=(i*45+22.5)*Math.PI/180,p=(r,t)=>`${160+r*Math.sin(t)},${160-r*Math.cos(t)}`;return`<path d="M160,160L${p(155,a)}A155,155 0 0 1 ${p(155,b)}Z" style="fill:${i%2?'hsl(calc(var(--h) + -1) 76% 53%)':'hsl(calc(var(--h) + 1) 74% 35%)'}" stroke="#0E1621" stroke-width="3"/><text transform="rotate(${i*45} 160 160)" x="160" y="52" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">${w}</text>`}).join('')}<circle cx="160" cy="160" r="18" fill="#0E1621"/></svg></div><p class="mu">يتم استقطاع ${CFG.wCost} جوهرة على كل جولة · لديك ${S.gems} جوهرة</p><button class="btn" data-a="spin" ${S.spin?'disabled':''}>تدوير العجلة</button></div>`+sec('العب معنا')+`<div class="card"><p class="mu" style="margin-top:0">يدخل 4 لاعبين بـ${CFG.gEntry} نقطة لكل لاعب (المجموع ${4*CFG.gEntry}). يُختار فائز عشوائي ويحصل على ${gp()} نقطة، ويحصل التطبيق على عمولة ${4*CFG.gEntry-gp()} نقطة. تُعرض اللعبة بملء الشاشة.</p><button class="btn" data-a="game">دخول اللعبة</button></div>`+nav('fun'),
@@ -785,7 +963,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-r],[data-a
  case'rc':if(S.rp<+v)return;S.rp-=+v;rfBuy(i);toast('تم شراء رمز الإحالة بنجاح!');break;
  case'tr':{if(S.ft=='friend'&&CFG.hft)return toast('التحويل للأصدقاء متوقف حالياً');const n=+$('#fa').value;if(!n)return toast('يرجى إدخال عدد النقاط');if(S.ft=='friend'&&!$('#fn').value.trim())return toast('يرجى اختيار صديق للتحويل');if(S.ft=='friend'&&CFG.ftmax>0&&n>CFG.ftmax)return toast('الحد الأقصى للتحويل بين الأعضاء '+f(CFG.ftmax)+' نقطة للعملية الواحدة');const fee=S.ft=='friend'?Math.ceil(n*CFG.fee/100):0;if(S.pts<n+fee)return toast('رصيد النقاط غير كافٍ');S.pts-=n+fee;txlog('تحويل نقاط',n+fee,'out');if(S.ft=='gem')S.gems+=Math.floor(n/CFG.gemRate);if(S.ft=='usd')S.usd+=n/CFG.usdRate;toast('تم تحويل النقاط بنجاح');break}
  case'faq':S.sup=S.sup==v?null:v;break;
- case'uchat':return go('chat');case'uadd':toast('تم إرسال طلب صداقة إلى خالد المنصور');return;case'uhour':toast('في انتظار قبول طلب الصداقة');return;case'rep':return dlg(`<h2>الإبلاغ عن مستخدم</h2><input placeholder="اكتب سبب الإبلاغ هنا..."><button class="btn" onclick="rptAdd(this)">إرسال البلاغ</button>`);
+ case'uinbox':case'uback':case'uopen':case'usup':case'usend':case'ucopy':case'ushare':case'uclr':case'ufadd':case'ufcan':case'ufacc':case'ufdec':case'urep':case'urr':case'urs':return US2.act(a,i,v,b);
  case'addm':{const ok=S.ctr[CT.length-1]>0;return dlg(`<h2 style="margin-top:0">إضافة تاجر جديد</h2><div class="card" style="margin-bottom:10px;padding:12px"><b>شروط الانضمام</b><div class="row" style="margin-top:8px"><span class="bdg ${ok?'ok':'no'}">${ok?'✓':'✗'}</span><span>امتلاك عداد تيتانيوم</span></div><div class="row" style="margin-top:6px"><span class="bdg no">!</span><span>دفع 1,000,000 دينار لرفع الطلب إلى لوحة التحكم</span></div><div class="mu" style="font-size:.85rem;margin-top:6px">يُعتمد التاجر بعد موافقة لوحة التحكم.</div></div>${ok?`<input id="mn" placeholder="أدخل اسم المتجر"><input id="mc2" placeholder="أدخل المدينة"><button class="btn" data-a="adm2">دفع 1,000,000 دينار وإرسال الطلب</button>`:`<button class="btn" data-a="go" data-v="counter">شراء عداد تيتانيوم</button>`}<button class="btn o" style="margin-top:8px" onclick="d.close()">إلغاء</button>`)}
  case'adm2':{const n=$('#mn').value.trim(),c=$('#mc2').value.trim();if(!n||!c)return toast('يرجى إدخال اسم المتجر والمدينة');$('#d').close();S.mq.push([n,c]);rqAdd('انضمام تاجر',{n,city:c,disc:10});toast('تم دفع 1,000,000 دينار وإرسال الطلب إلى لوحة التحكم');break}
  case'send':{const x=$('#cm'),c=$('#ch');if(!x.value.trim())return;c.insertAdjacentHTML('beforeend','<div class="bub"></div>');const m=c.lastChild;m.className='bub me';m.textContent=x.value;supAdd(x.value);x.value='';setTimeout(()=>c.insertAdjacentHTML('beforeend','<div class="bub bt">شكراً لتواصلك. سيقوم أحد ممثلي خدمة العملاء بالرد عليك في أقرب وقت ممكن.</div>'),700);return}
