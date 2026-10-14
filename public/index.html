@@ -827,7 +827,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-r],[data-a
   if(wy()>=CFG.wEm)return dlg(`<h2 style="text-align:center;margin-top:0;color:#ef5350">لا يمكن السحب</h2><p class="mu" style="text-align:center">استنفدت ${CFG.wMon} عمليات سحب هذا الشهر و${CFG.wEm} عمليات طوارئ لهذه السنة.</p>`);
   return dlg(`<h2 style="text-align:center;margin-top:0">استنفدت عمليات السحب الشهرية</h2><p class="mu" style="text-align:center">استخدمت ${CFG.wMon} من ${CFG.wMon} هذا الشهر. يمكنك السحب كحالة طوارئ، المتبقي ${CFG.wEm-wy()} من ${CFG.wEm} لهذه السنة.</p><button class="btn" data-a="wde" data-v="${q}">سحب كحالة طوارئ $${q.toFixed(2)}</button>`)}
  case'wde':{const q=+v;$('#d').close();if(q>S.usd)return toast('رصيدك غير كافٍ');S.usd-=q;S.wd.push({t:Date.now(),a:q,m:S.wm,em:1});wreqAdd(q,1);toast('تم تقديم طلب سحب طارئ $'+q.toFixed(2));break}
- case'sec':{const n=Date.now();S._st=(S._st||[]).filter(t=>n-t<4000);S._st.push(n);if(S._st.length>=5){S._st=[];return go('stafflogin')}return}
+ case'sec':return
  case'stfin':stfIn();return;
  case'stfout':try{localStorage.removeItem('stf')}catch(x){}S.staff=null;return go('welcome');
  case'pnl':return go('panel');
