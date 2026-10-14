@@ -1,4 +1,4 @@
-<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>الدولار العراقي</title>
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>الدولار العراقي</title><link rel="manifest" href="manifest.json"><meta name="theme-color" content="#0E1621"><link rel="icon" type="image/png" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--h:187;--bg:#0E1621;--card:#1F2A37;--line:hsl(calc(var(--h) + 7) 53% 26%);--cy:hsl(calc(var(--h) + -1) 76% 53%);--cy2:hsl(calc(var(--h) + -5) 100% 42%);--mu:#9AA9B5;--tx:#fff;--am:#F5A524;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -900,4 +900,4 @@ document.addEventListener('change',e=>{if(e.target.id=='am'){const fl=e.target.f
 document.addEventListener('change',e=>{const x=e.target;if(x.id=='cdm'){const fl=x.files[0];if(!fl)return;imgPack(fl,u=>{window._cimg=u;const v=$('#cdv');v.src=u;v.style.display='block'},600)}else if(x.id=='cdf'){const fl=x.files[0];if(!fl)return;const r=new FileReader();r.onload=()=>{const a=$('#cdx');a.value=(a.value?a.value+'\n':'')+r.result};r.readAsText(fl)}});
 document.addEventListener('change',e=>{const x=e.target;if(x.id!='wbc')return;const fl=x.files[0];if(!fl)return;imgPack(fl,u=>{const a=$('#wa'),c=$('#wac'),av=a?a.value:'',cv=c?c.value:'';window._wbc=u;draw();if($('#wa'))$('#wa').value=av;if($('#wac'))$('#wac').value=cv},700)});
 try{const t=+localStorage.getItem('th');if(t>=0&&t<6)S.theme=t}catch(e){}applyTheme();draw();
-</script></body></html>
+</script><script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}</script></body></html>
