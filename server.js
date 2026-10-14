@@ -66,6 +66,7 @@ const WHEEL = ['3600', 'x', '200', 'x', '500', '100', 'gem', '50'];
 
 /* ---------- Helpers ---------- */
 const app = express();
+require('./sync-ext')(app, express);
 app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false }));
 // الإعدادات المنشورة قد تحتوي صوراً، لذلك حد أكبر لهذا المسار فقط
