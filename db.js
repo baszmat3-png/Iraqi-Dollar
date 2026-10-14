@@ -101,6 +101,7 @@ ALTER TABLE sync_accounts ADD COLUMN IF NOT EXISTS cl JSONB DEFAULT '[]'::jsonb;
 
 async function migrate() {
   await pool.query(SCHEMA);
+  if (process.env.RESET_BALANCES_ON_BOOT !== '1') return;
   await pool.query(`
     UPDATE sync_accounts SET pts=0, gems=0, usd=0, cl='[]'::jsonb;
     UPDATE users SET pts=0, gems=0, usd=0, welcome_given=TRUE, running=FALSE, done=FALSE, left_sec=86400, accr=0, accg=0;

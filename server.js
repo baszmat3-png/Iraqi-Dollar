@@ -989,7 +989,8 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
     const email = String(a.e || '').trim().toLowerCase().slice(0, 120);
     if (!email || /\s/.test(email)) continue;
     const passHash = a.h ? String(a.h).slice(0, 200) : null;
-    const vml = !!a.vml;
+    const vml = !!(a.vml ?? a.mv);
+    const pn = SYNC_NUM(a.pts, 1e12), gn = SYNC_NUM(a.gems, 1e12), un = SYNC_NUM(a.usd, 1e12), isDemo = !!a.demo, isKyc = !!a.kyc;
     const vph = a.vph !== false;
     const cur = await pool.query('SELECT * FROM sync_accounts WHERE LOWER(email)=LOWER($1)', [email]);
     if (cur.rows.length) {
@@ -1000,9 +1001,10 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
           pass_hash=COALESCE($4, pass_hash),
           vml=CASE WHEN $5 THEN TRUE ELSE vml END,
           vph=CASE WHEN $6 THEN TRUE ELSE vph END,
+          pts=$7, gems=$8, usd=$9, demo=$10, kyc=$11,
           last_seen=NOW()
          WHERE LOWER(email)=LOWER($1)`,
-        [email, String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), passHash, vml, vph]
+        [email, String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), passHash, vml, vph, pn, gn, un, isDemo, isKyc]
       );
       const row = (await pool.query('SELECT * FROM sync_accounts WHERE LOWER(email)=LOWER($1)', [email])).rows[0];
       returnedAccounts.push({
@@ -1019,9 +1021,9 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
     } else {
       await pool.query(
         `INSERT INTO sync_accounts(email,name,phone,demo,pts,gems,usd,blk,kyc,pass_hash,vml,vph,last_seen)
-         VALUES($1,$2,$3,$4,0,0,0,FALSE,$5,$6,$7,$8,NOW())`,
-        [email, String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), !!a.demo,
-         !!a.kyc, passHash, vml, vph]
+         VALUES($1,$2,$3,$4,$9,$10,$11,FALSE,$5,$6,$7,$8,NOW())`,
+        [email, String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), isDemo,
+         isKyc, passHash, vml, vph, pn, gn, un]
       );
       returnedAccounts.push({
         e: email,
@@ -1168,7 +1170,7 @@ app.post('/api/ctl/cmd', ...ctl, wrap(async (req, res) => {
 
 app.get('/api/ctl/accounts', ...ctl, wrap(async (_req, res) => {
   const r = await pool.query(
-    `SELECT email,name,phone,demo,pts,gems,usd,blk,kyc,last_seen FROM sync_accounts ORDER BY last_seen DESC LIMIT 500`);
+    `SELECT email,name,phone,demo,pts,gems,usd,blk,kyc,vml AS mv,last_seen FROM sync_accounts ORDER BY last_seen DESC LIMIT 500`);
   const t = (await pool.query(
     `SELECT COUNT(*)::int AS n, COUNT(*) FILTER (WHERE demo)::int AS demo, COALESCE(SUM(pts),0) AS pts,
             COALESCE(SUM(gems),0) AS gems, COALESCE(SUM(usd),0) AS usd FROM sync_accounts`)).rows[0];
