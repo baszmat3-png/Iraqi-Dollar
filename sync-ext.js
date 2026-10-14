@@ -5,12 +5,15 @@
 const fs = require('fs'), path = require('path');
 module.exports = function (app, express) {
   const FILE = process.env.SYNC_FILE || path.join(__dirname, 'sync-data.json');
-  let DB = { seq: 0, ords: {}, wreq: {} };
-  try { const j = JSON.parse(fs.readFileSync(FILE, 'utf8')); if (j && j.ords && j.wreq) DB = j; } catch (e) {}
+  let DB = { seq: 0, ords: {}, wreq: {}, rq: {} };
+  try { const j = JSON.parse(fs.readFileSync(FILE, 'utf8')); if (j && j.ords && j.wreq) { DB = j; if (!DB.rq) DB.rq = {}; } } catch (e) {}
   let timer = null;
   const save = () => { clearTimeout(timer); timer = setTimeout(() => { try { fs.writeFileSync(FILE + '.tmp', JSON.stringify(DB)); fs.renameSync(FILE + '.tmp', FILE); } catch (e) { console.error('sync save:', e.message); } }, 800); };
   const parse = express.json({ limit: '8mb' });
-  const KINDS = ['ords', 'wreq'];
+  const KINDS = ['ords', 'wreq', 'rq'];
+  /* rq = طلبات الوكالة فقط؛ مالك السجل في الحقل e (البريد) بدل u */
+  const owner = (k, r) => email(k === 'rq' ? r.e : r.u);
+  const rqOk = (k, r) => k !== 'rq' || r.t === 'طلب وكالة';
   const email = x => String(x || '').trim().toLowerCase();
   const okId = x => /^[A-Za-z0-9_-]{2,24}$/.test(String(x));
   const touch = (k, id, rec) => { rec._mt = ++DB.seq; DB[k][id] = rec; return rec._mt; };
@@ -30,11 +33,11 @@ module.exports = function (app, express) {
       if (!r || !okId(r.id)) return;
       const id = String(r.id), ex = DB[k][id];
       if (ex) {
-        if (email(ex.u) !== e) return;
+        if (owner(k, ex) !== e) return;
         if (k === 'ords' && +r.paid > (+ex.paid || 0) && +r.paid <= 60) { ex.paid = +r.paid; touch(k, id, ex); }
         return;
       }
-      if (email(r.u) !== e || JSON.stringify(r).length > 700000) return;
+      if (owner(k, r) !== e || !rqOk(k, r) || JSON.stringify(r).length > 700000) return;
       const rec = Object.assign({}, r); delete rec._mt; touch(k, id, rec);
     }));
     trim(); save(); res.json({ ok: 1, seq: DB.seq });
@@ -44,11 +47,11 @@ module.exports = function (app, express) {
   app.get('/api/sync/mine', (req, res) => {
     const e = email(req.query.e), since = +req.query.since || 0;
     if (!e) return res.status(400).json({ error: 'e' });
-    const o = { seq: DB.seq, idx: { ords: {}, wreq: {} }, recs: { ords: [], wreq: [] } };
+    const o = { seq: DB.seq, idx: { ords: {}, wreq: {}, rq: {} }, recs: { ords: [], wreq: [], rq: [] } };
     KINDS.forEach(k => Object.values(DB[k]).forEach(r => {
-      if (email(r.u) !== e) return;
+      if (owner(k, r) !== e) return;
       o.idx[k][r.id] = +r.paid || 0;
-      if (r._mt > since) { const m = { id: r.id, _mt: r._mt, st: r.st, why: r.why }; if (k === 'ords') { m.h = r.h; m.rej = r.rej; m.paid = r.paid; } o.recs[k].push(m); }
+      if (r._mt > since) { const m = { id: r.id, _mt: r._mt, st: r.st, why: r.why }; if (k === 'rq') { m.s = r.s; m.rf = r.rf; } if (k === 'ords') { m.h = r.h; m.rej = r.rej; m.paid = r.paid; } o.recs[k].push(m); }
     }));
     res.set('Cache-Control', 'no-store'); res.json(o);
   });
@@ -59,7 +62,7 @@ module.exports = function (app, express) {
     const since = +req.query.since || 0, all = [];
     KINDS.forEach(k => Object.values(DB[k]).forEach(r => { if (r._mt > since) all.push([k, r]); }));
     all.sort((a, b) => a[1]._mt - b[1]._mt);
-    const o = { seq: DB.seq, ords: [], wreq: [], next: since, more: all.length > 100 };
+    const o = { seq: DB.seq, ords: [], wreq: [], rq: [], next: since, more: all.length > 100 };
     all.slice(0, 100).forEach(([k, r]) => { o[k].push(r); o.next = r._mt; });
     res.set('Cache-Control', 'no-store'); res.json(o);
   });
@@ -71,7 +74,7 @@ module.exports = function (app, express) {
     if (!KINDS.includes(k)) return res.status(400).json({ error: 'kind' });
     const mt = {};
     (Array.isArray(b.recs) ? b.recs : []).slice(0, 100).forEach(r => {
-      if (!r || !okId(r.id)) return;
+      if (!r || !okId(r.id) || !rqOk(k, r)) return;
       const id = String(r.id), ex = DB[k][id] || {}, rec = Object.assign({}, ex, r);
       if (k === 'ords') rec.paid = Math.max(+ex.paid || 0, +r.paid || 0) || rec.paid;
       mt[id] = touch(k, id, rec);
