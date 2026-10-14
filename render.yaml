@@ -22,11 +22,11 @@ services:
       - key: APP_PASS
         sync: false
       - key: WPSENDER_API_KEY
-        value: wps_7b5db2a829ff4377ad0c6c42ea7fe4af991c191992305e70eab136c8bb89f7d2
+        sync: false
       - key: WPSENDER_API_URL
         value: https://backendapi.wpsenderx.com/api/messages/send
       - key: WA_API_KEY
-        value: wps_7b5db2a829ff4377ad0c6c42ea7fe4af991c191992305e70eab136c8bb89f7d2
+        sync: false
       - key: WA_API_URL
         value: https://backendapi.wpsenderx.com/api/messages/send
       - key: ADMIN_PASSWORD

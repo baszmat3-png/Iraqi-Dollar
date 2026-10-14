@@ -133,7 +133,11 @@ function normPhone(raw) {
 async function sendWhatsApp(phone, code, customMessage) {
   const norm = normPhone(phone);
   const cleanPhone = norm.replace(/\D/g, '');
-  const key = WA_API_KEY || process.env.WPSENDER_API_KEY || 'wps_7b5db2a829ff4377ad0c6c42ea7fe4af991c191992305e70eab136c8bb89f7d2';
+  const key = WA_API_KEY || process.env.WPSENDER_API_KEY;
+  if (!key) {
+    console.error('Missing WA_API_KEY / WPSENDER_API_KEY in environment');
+    throw new Error('مفتاح واتساب غير مضبوط في إعدادات الخادم (يرجى إضافة WA_API_KEY في Render)');
+  }
   const msg = customMessage || `رمز التحقق الخاص بك هو: ${code}\nصالح لمدة 5 دقائق، لا تشاركه مع أي شخص.`;
 
   const r = await fetch(WA_API_URL, {
