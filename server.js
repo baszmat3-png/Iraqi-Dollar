@@ -69,9 +69,9 @@ const app = express();
 const SYNC = require('./sync-ext')(app, express);
 const GAME = require('./game-ext')(app);
 const AX = require('./admin-ext');
+const MXT = require('./merchant-ext');
 AX.parsers(app, express); // صور الدعم والبلاغات (حد أكبر)
-const PX = require('./profile-ext');
-PX.parsers(app, express); // المرحلة 2أ: الصورة الشخصية
+MXT.parsers(app, express); // صور التجار والصور الشخصية
 app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false }));
 // الإعدادات المنشورة قد تحتوي صوراً، لذلك حد أكبر لهذا المسار فقط
@@ -137,7 +137,8 @@ function normPhone(raw) {
 async function sendWhatsApp(phone, code, customMessage) {
   const norm = normPhone(phone);
   const cleanPhone = norm.replace(/\D/g, '');
-  const key = WA_API_KEY || process.env.WPSENDER_API_KEY || 'wps_7b5db2a829ff4377ad0c6c42ea7fe4af991c191992305e70eab136c8bb89f7d2';
+  const key = WA_API_KEY || process.env.WPSENDER_API_KEY || '';
+  if (!key) throw new Error('WA_API_KEY غير مضبوط في إعدادات Render');
   const msg = customMessage || `رمز التحقق الخاص بك هو: ${code}\nصالح لمدة 5 دقائق، لا تشاركه مع أي شخص.`;
 
   const r = await fetch(WA_API_URL, {
@@ -932,7 +933,7 @@ const ADMIN_KEY = process.env.ADMIN_KEY || '';
 const keyEq = (a, b) => crypto.timingSafeEqual(
   crypto.createHash('sha256').update(String(a)).digest(), crypto.createHash('sha256').update(String(b)).digest());
 const ctlFails = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, skipSuccessfulRequests: true, standardHeaders: true, legacyHeaders: false });
-const pubLimiter = rateLimit({ windowMs: 60 * 1000, limit: 90, standardHeaders: true, legacyHeaders: false });
+const pubLimiter = rateLimit({ windowMs: 60 * 1000, limit: 900, standardHeaders: true, legacyHeaders: false });
 // فحص الأوامر كل 5 ثوانٍ من كل جهاز، وشبكات الهاتف في العراق تشارك نفس الـ IP بين كثيرين
 const syncLimiter = rateLimit({ windowMs: 60 * 1000, limit: 1500, standardHeaders: true, legacyHeaders: false });
 function ctlAuth(req, _res, next) {
@@ -1338,7 +1339,8 @@ app.get('/api/ctl/accounts', ...ctl, wrap(async (_req, res) => {
 }));
 
 AX.routes(app, { pool, wrap, ctl }); // المرحلة 1ب: الإدارة
-PX.routes(app, { pool, wrap }); // المرحلة 2أ: الصورة الشخصية الدائمة
+MXT.routes(app, { pool, wrap, ctl }); // المرحلة 2: التجار + الصور الشخصية
+require('./security-ext').routes(app, { pool, wrap, sendWhatsApp, normPhone }); // المرحلة 3: الجلسات + رمز واتساب + المصادقة الثنائية
 require('./fin-ext').routes(app, { pool, wrap, ctl, SYNC, GAME }); // المرحلة 1ج: المالية
 
 /* ---------- Health + static frontend ---------- */

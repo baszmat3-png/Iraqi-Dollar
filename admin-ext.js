@@ -78,37 +78,6 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     res.json({ reports: a, support: b });
   }));
 
-  // ---- الإعدادات المتقدمة: نظرة عامة + تنبيه عام + تصدير ----
-  app.get('/api/ctl/sys/overview', ...ctl, wrap(async (_req, res) => {
-    const a = (await q(`SELECT COUNT(*) FILTER (WHERE NOT demo)::int real, COUNT(*) FILTER (WHERE demo)::int demo, COUNT(*) FILTER (WHERE blk)::int blk,
-        COUNT(*) FILTER (WHERE last_seen > NOW() - INTERVAL '5 minutes')::int online, COUNT(*) FILTER (WHERE last_seen > NOW() - INTERVAL '24 hours')::int day,
-        COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours')::int new_day, COUNT(*) FILTER (WHERE kyc)::int kyc,
-        COALESCE(SUM(pts),0)::float8 pts, COALESCE(SUM(gems),0)::float8 gems, COALESCE(SUM(usd),0)::float8 usd,
-        COALESCE(SUM(jsonb_array_length(COALESCE(cl,'[]'::jsonb))),0)::int counters FROM sync_accounts`)).rows[0];
-    const rp = (await q(`SELECT COUNT(*)::int n FROM reports WHERE status='open'`)).rows[0].n;
-    const sp = (await q(`SELECT COUNT(*)::int n FROM support_msgs WHERE NOT from_admin AND NOT read_by_admin`)).rows[0].n;
-    const av = (await q(`SELECT COUNT(*)::int n FROM user_avatars`).catch(() => ({ rows: [{ n: 0 }] }))).rows[0].n;
-    res.json({ ...a, reports: rp, support: sp, avatars: av, now: Date.now() });
-  }));
-
-  // تنبيه عام لكل الحسابات الحقيقية (يظهر في إشعارات المستخدمين)
-  app.post('/api/ctl/sys/broadcast', ...ctl, wrap(async (req, res) => {
-    const body = txt(req.body.body, 500);
-    if (!body) fail(400, 'اكتب نص التنبيه');
-    if (req.body.confirm !== true) fail(400, 'يلزم التأكيد');
-    const r = await q(`INSERT INTO notices(email,body) SELECT email,$1 FROM sync_accounts WHERE NOT demo`, [body]);
-    res.json({ ok: true, sent: r.rowCount });
-  }));
-
-  // تصدير الحسابات CSV (بدون كلمات المرور)
-  app.get('/api/ctl/sys/export', ...ctl, wrap(async (_req, res) => {
-    const r = await q(`SELECT email,name,phone,demo,pts,gems,usd,blk,kyc,last_seen,created_at FROM sync_accounts ORDER BY created_at`);
-    const c = (v) => { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
-    const head = 'email,name,phone,demo,pts,gems,usd,blocked,kyc,last_seen,created_at';
-    const lines = r.rows.map((x) => [x.email, x.name, x.phone, x.demo, x.pts, x.gems, x.usd, x.blk, x.kyc, x.last_seen && x.last_seen.toISOString(), x.created_at && x.created_at.toISOString()].map(c).join(','));
-    res.set('Content-Type', 'text/csv; charset=utf-8').set('Content-Disposition', 'attachment; filename="accounts.csv"').send('﻿' + [head, ...lines].join('\n'));
-  }));
-
   // المستخدمون
   app.get('/api/ctl/users', ...ctl, wrap(async (req, res) => {
     const s = txt(req.query.q, 100), like = '%' + s.replace(/[%_]/g, '') + '%';
