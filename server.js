@@ -67,6 +67,7 @@ const WHEEL = ['3600', 'x', '200', 'x', '500', '100', 'gem', '50'];
 /* ---------- Helpers ---------- */
 const app = express();
 require('./sync-ext')(app, express);
+const GAME = require('./game-ext')(app);
 app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false }));
 // الإعدادات المنشورة قد تحتوي صوراً، لذلك حد أكبر لهذا المسار فقط
@@ -985,9 +986,87 @@ app.get('/api/sync/account-state', wrap(async (req, res) => {
   });
 }));
 
+/* ===== إحالات حقيقية + السجل المالي ===== */
+async function refCfg() {
+  const r = (await pool.query(`SELECT val FROM sync_kv WHERE key='config'`)).rows[0];
+  const c = (r && r.val && r.val.cfg) || {};
+  const pct = Number(c.ref);
+  return {
+    pct: Number.isFinite(pct) ? Math.min(Math.max(pct, 0), 100) : 3,
+    pr: (Number(c.agRate) > 0 ? Number(c.agRate) : 300) / 1000, // دينار لكل نقطة
+  };
+}
+function finCls(label, dir) {
+  const l = String(label || '');
+  if (dir === 'out') {
+    if (/من السوق/.test(l)) return null;
+    if (/^شراء عداد/.test(l)) return ['in', 'counters'];
+    if (/^رسوم طلب وكالة/.test(l)) return ['in', 'agency'];
+    if (/^(دفعة مقدمة|قسط طلب)/.test(l)) return ['in', 'orders'];
+    if (/^تم شراء/.test(l)) return ['in', 'store'];
+    return null;
+  }
+  if (/^استلام عائد العداد/.test(l)) return ['out', 'yields'];
+  return null;
+}
+async function syncRefFin(a, email, RC, out) {
+  if (!out) return;
+  const rc = String(a.rc || '').trim().slice(0, 20);
+  if (rc) await pool.query('UPDATE sync_accounts SET rcode=$2 WHERE LOWER(email)=LOWER($1)', [email, rc]);
+  const rb = String(a.rb || '').trim().slice(0, 20);
+  if (rb) {
+    await pool.query(
+      `UPDATE sync_accounts SET ref_by=(SELECT s.email FROM sync_accounts s WHERE s.rcode=$2 AND LOWER(s.email)<>LOWER($1) ORDER BY s.created_at LIMIT 1)
+       WHERE LOWER(email)=LOWER($1) AND ref_by IS NULL`, [email, rb]);
+  }
+  const me = (await pool.query('SELECT email, ref_by FROM sync_accounts WHERE LOWER(email)=LOWER($1)', [email])).rows[0];
+  const rfa = [];
+  for (const ev of (Array.isArray(a.rfe) ? a.rfe.slice(0, 20) : [])) {
+    const id = String(ev && ev.id || '').slice(0, 60), base = Math.floor(SYNC_NUM(ev && ev.b, 1e12));
+    if (!id || !base || !me || !me.ref_by) continue; // لا يُؤكَّد الحدث قبل معرفة الداعي
+    const uid = email + ':' + id;
+    const ins = await pool.query(
+      `INSERT INTO sync_ref_ev(uid,invitee,inviter,base,pts) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING RETURNING pts`,
+      [uid, email, me.ref_by, base, Math.floor(base * RC.pct / 100)]);
+    if (ins.rows.length) {
+      const pts = Number(ins.rows[0].pts) || 0;
+      if (pts > 0) {
+        await pool.query('UPDATE sync_accounts SET rf_total=rf_total+$2 WHERE LOWER(email)=LOWER($1)', [me.ref_by, pts]);
+        await pool.query(
+          `INSERT INTO fin_ev(uid,email,kind,cat,pts,iqd,note,src) VALUES($1,$2,'out','ref',$3,$4,$5,'auto') ON CONFLICT DO NOTHING`,
+          ['r:' + uid, me.ref_by, pts, Math.round(pts * RC.pr * 100) / 100, 'عمولة إحالة من ' + email]);
+      }
+    }
+    rfa.push(id);
+  }
+  const fea = [];
+  for (const ev of (Array.isArray(a.fe) ? a.fe.slice(0, 40) : [])) {
+    const u = String(ev && ev.u || '').slice(0, 40), amt = Math.floor(SYNC_NUM(ev && ev.a, 1e12));
+    if (!u) continue;
+    const c = amt > 0 ? finCls(ev.l, ev.d === 'in' ? 'in' : 'out') : null;
+    if (c) {
+      await pool.query(
+        `INSERT INTO fin_ev(uid,email,kind,cat,pts,iqd,note,src) VALUES($1,$2,$3,$4,$5,$6,$7,'auto') ON CONFLICT DO NOTHING`,
+        ['u:' + email + ':' + u, email, c[0], c[1], amt, Math.round(amt * RC.pr * 100) / 100, String(ev.l || '').slice(0, 80)]);
+    }
+    fea.push(u);
+  }
+  const tot = (await pool.query('SELECT rf_total FROM sync_accounts WHERE LOWER(email)=LOWER($1)', [email])).rows[0];
+  out.rft = tot ? Number(tot.rf_total) || 0 : 0;
+  out.rfa = rfa;
+  out.fea = fea;
+  const fr = (await pool.query(
+    `SELECT s.name, s.email,
+            COALESCE((SELECT SUM(base) FROM sync_ref_ev e WHERE e.invitee=s.email),0)::float8 AS base,
+            COALESCE((SELECT SUM(pts) FROM sync_ref_ev e WHERE e.invitee=s.email),0)::float8 AS pts
+       FROM sync_accounts s WHERE LOWER(s.ref_by)=LOWER($1) ORDER BY s.created_at DESC LIMIT 200`, [email])).rows;
+  out.fr = fr.map((r) => [r.name || String(r.email).split('@')[0], r.base > 0 ? 1 : 0, Math.floor(r.pts)]);
+}
+
 app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
   const list = Array.isArray(req.body.accounts) ? req.body.accounts.slice(0, 20) : [];
   const returnedAccounts = [];
+  const RC = await refCfg();
   for (const a of list) {
     const email = String(a.e || '').trim().toLowerCase().slice(0, 120);
     if (!email || /\s/.test(email) || a.demo || email === 'demo@test.com') continue;
@@ -1040,6 +1119,7 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
         cl: []
       });
     }
+    await syncRefFin(a, email, RC, returnedAccounts[returnedAccounts.length - 1]);
   }
   res.json({ ok: true, accounts: returnedAccounts });
 }));
@@ -1169,6 +1249,53 @@ app.post('/api/ctl/cmd', ...ctl, wrap(async (req, res) => {
   const r = await pool.query('INSERT INTO sync_cmds(body) VALUES($1) RETURNING id', [JSON.stringify(body)]);
   await pool.query('DELETE FROM sync_cmds WHERE id < (SELECT MAX(id) FROM sync_cmds) - 5000');
   res.json({ ok: true, id: r.rows[0].id });
+}));
+
+app.get('/api/ctl/fin', ...ctl, wrap(async (_req, res) => {
+  const rows = (await pool.query(
+    `SELECT to_char(ts AT TIME ZONE 'Asia/Baghdad','YYYY-MM') AS m, kind, cat,
+            SUM(iqd)::float8 AS iqd, SUM(pts)::float8 AS pts, COUNT(*)::int AS n
+       FROM fin_ev WHERE ts > NOW() - INTERVAL '25 months' GROUP BY 1,2,3 ORDER BY 1 DESC`)).rows;
+  if (GAME) {
+    const RC = await refCfg(), gr = Number(GAME.cfg().gemRate) || 100, agg = {};
+    const add = (m, kind, cat, p) => {
+      if (!(p > 0)) return;
+      const k = m + '|' + kind + '|' + cat;
+      const o = agg[k] || (agg[k] = { m, kind, cat, iqd: 0, pts: 0, n: 0 });
+      o.pts += p; o.iqd += p * RC.pr; o.n++;
+    };
+    Object.entries(GAME.daily()).forEach(([d, b]) => {
+      const m = d.slice(0, 7);
+      add(m, 'in', 'game_comm', b.g.comm);
+      add(m, 'in', 'wheel_in', b.w.gems * gr);
+      add(m, 'out', 'wheel_prizes', b.w.pts + b.w.gout * gr);
+    });
+    rows.push(...Object.values(agg));
+  }
+  const manual = (await pool.query(
+    `SELECT uid, ts, kind, cat, iqd::float8 AS iqd, note FROM fin_ev WHERE src='manual' ORDER BY ts DESC LIMIT 100`)).rows;
+  res.json({ ok: true, rows, manual });
+}));
+
+app.post('/api/ctl/fin/add', ...ctl, wrap(async (req, res) => {
+  const b = req.body || {};
+  const kind = b.kind === 'in' ? 'in' : b.kind === 'out' ? 'out' : '';
+  const cat = String(b.cat || '').trim().slice(0, 40);
+  const iqd = Number(b.iqd);
+  if (!kind || !cat || !Number.isFinite(iqd) || iqd <= 0 || iqd > 1e13) fail(400, 'بيانات القيد غير صحيحة');
+  const auto = b.uid ? String(b.uid).slice(0, 60) : '';
+  let ts = new Date();
+  if (b.date) { const d = new Date(String(b.date) + 'T12:00:00+03:00'); if (!isNaN(d)) ts = d; }
+  const uid = auto || 'm:' + crypto.randomBytes(8).toString('hex');
+  await pool.query(
+    `INSERT INTO fin_ev(uid,ts,kind,cat,iqd,note,src) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING`,
+    [uid, ts, kind, cat, Math.round(iqd * 100) / 100, String(b.note || '').slice(0, 200), auto ? 'auto' : 'manual']);
+  res.json({ ok: true, uid });
+}));
+
+app.post('/api/ctl/fin/del', ...ctl, wrap(async (req, res) => {
+  await pool.query(`DELETE FROM fin_ev WHERE uid=$1 AND src='manual'`, [String((req.body || {}).uid || '')]);
+  res.json({ ok: true });
 }));
 
 app.get('/api/ctl/accounts', ...ctl, wrap(async (_req, res) => {

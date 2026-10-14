@@ -97,6 +97,32 @@ ALTER TABLE sync_accounts ADD COLUMN IF NOT EXISTS pass_hash TEXT;
 ALTER TABLE sync_accounts ADD COLUMN IF NOT EXISTS vml BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE sync_accounts ADD COLUMN IF NOT EXISTS vph BOOLEAN NOT NULL DEFAULT TRUE;
 ALTER TABLE sync_accounts ADD COLUMN IF NOT EXISTS cl JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE sync_accounts ADD COLUMN IF NOT EXISTS rcode TEXT;
+ALTER TABLE sync_accounts ADD COLUMN IF NOT EXISTS ref_by TEXT;
+ALTER TABLE sync_accounts ADD COLUMN IF NOT EXISTS rf_total BIGINT NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS sync_accounts_rcode_idx ON sync_accounts(rcode);
+CREATE TABLE IF NOT EXISTS sync_ref_ev (
+  uid TEXT PRIMARY KEY,
+  invitee TEXT NOT NULL,
+  inviter TEXT NOT NULL,
+  base BIGINT NOT NULL,
+  pts BIGINT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS sync_ref_ev_inviter_idx ON sync_ref_ev(inviter);
+CREATE INDEX IF NOT EXISTS sync_ref_ev_invitee_idx ON sync_ref_ev(invitee);
+CREATE TABLE IF NOT EXISTS fin_ev (
+  uid TEXT PRIMARY KEY,
+  ts TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  email TEXT,
+  kind TEXT NOT NULL,
+  cat TEXT NOT NULL,
+  pts BIGINT NOT NULL DEFAULT 0,
+  iqd NUMERIC(16,2) NOT NULL DEFAULT 0,
+  note TEXT,
+  src TEXT NOT NULL DEFAULT 'auto'
+);
+CREATE INDEX IF NOT EXISTS fin_ev_ts_idx ON fin_ev(ts);
 `;
 
 async function migrate() {
