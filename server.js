@@ -927,6 +927,8 @@ const keyEq = (a, b) => crypto.timingSafeEqual(
   crypto.createHash('sha256').update(String(a)).digest(), crypto.createHash('sha256').update(String(b)).digest());
 const ctlFails = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, skipSuccessfulRequests: true, standardHeaders: true, legacyHeaders: false });
 const pubLimiter = rateLimit({ windowMs: 60 * 1000, limit: 90, standardHeaders: true, legacyHeaders: false });
+// فحص الأوامر كل 5 ثوانٍ من كل جهاز، وشبكات الهاتف في العراق تشارك نفس الـ IP بين كثيرين
+const syncLimiter = rateLimit({ windowMs: 60 * 1000, limit: 1500, standardHeaders: true, legacyHeaders: false });
 function ctlAuth(req, _res, next) {
   if (!ADMIN_KEY) return next(Object.assign(new Error('ADMIN_KEY غير مضبوط في إعدادات Render'), { http: 503 }));
   if (!keyEq(req.headers['x-admin-key'] || '', ADMIN_KEY)) return next(Object.assign(new Error('مفتاح الإدارة غير صحيح'), { http: 401 }));
@@ -935,10 +937,10 @@ function ctlAuth(req, _res, next) {
 const ctl = [ctlFails, ctlAuth];
 const SYNC_NUM = (v, max) => { v = Number(v); return Number.isFinite(v) ? Math.min(Math.max(v, 0), max) : 0; };
 
-app.get('/api/sync', pubLimiter, wrap(async (req, res) => {
+app.get('/api/sync', syncLimiter, wrap(async (req, res) => {
   res.set('Cache-Control', 'no-store');
   const max = Number((await pool.query('SELECT COALESCE(MAX(id),0) AS m FROM sync_cmds')).rows[0].m);
-  const cfg = (await pool.query(`SELECT val FROM sync_kv WHERE key='config'`)).rows[0];
+  const cfg = req.query.nocfg ? null : (await pool.query(`SELECT val FROM sync_kv WHERE key='config'`)).rows[0];
   let cmds = [];
   if (req.query.since !== 'init') {
     const since = Math.max(0, parseInt(req.query.since, 10) || 0);
@@ -1052,7 +1054,7 @@ app.post('/api/ctl/config', ...ctl, wrap(async (req, res) => {
 
 function cleanCmd(b) {
   b = b || {};
-  if (!['adj', 'set', 'rz', 'blk'].includes(b.t)) fail(400, 'نوع أمر غير صحيح');
+  if (!['adj', 'set', 'rz', 'blk', 'cfg'].includes(b.t)) fail(400, 'نوع أمر غير صحيح');
   const out = { t: b.t, sc: ['all', 'real', 'demo'].includes(b.sc) ? b.sc : 'all' };
   const e = b.e ? String(b.e).trim().toLowerCase().slice(0, 120) : '';
   if (e) out.e = e;
