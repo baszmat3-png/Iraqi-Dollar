@@ -225,7 +225,7 @@ const DEMO_LOGIN=false,DA={e:'demo@test.com',pw:'123456',n:'مستخدم تجر�
 const isDemo=()=>DEMO_LOGIN&&S.acc&&S.acc.e==DA.e,DEMO_BLOCK=new Set(['wd','wde','dreq','tr','pay2','buyc','cbuy','cpay','mp','dn','bc','bcc','mb','mbc','sl','slc','pb','pbc','ab','abc']);
 const DGRP={wd:'wd',wde:'wd',dreq:'debt',tr:'tr',pay2:'store',buyc:'store',cbuy:'store',cpay:'store',mp:'pay',dn:'pay',bc:'ctr',bcc:'ctr',mb:'mkt',mbc:'mkt',sl:'mkt',slc:'mkt',pb:'buyp',pbc:'buyp',ab:'buyp',abc:'buyp'};
 const DMD={wd:0,debt:0,tr:0,store:0,pay:0,ctr:0,mkt:0,buyp:0,keep:0};
-const DM=()=>Object.assign({},DMD,LS('demo',window._rdemo||{}));
+const DM=()=>Object.assign({},DMD,window._rdemo||LS('demo',{}));
 const demoBlk=a=>{const g=DGRP[a];return !!g&&!DM()[g]};
 const MEM={};
 
@@ -235,7 +235,7 @@ const hp=async s=>{try{const b=await crypto.subtle.digest('SHA-256',new TextEnco
 const fld=(id,l,t,p,x='')=>`<label style="display:block;margin-top:12px;font-weight:600;font-size:.95rem">${l}<input id="${id}" type="${t}" placeholder="${p}" ${x}></label>`;
 const pwf=(id,l,ac)=>`<label style="display:block;margin-top:12px;font-weight:600;font-size:.95rem">${l}<span style="position:relative;display:block"><input id="${id}" type="password" placeholder="••••••••" autocomplete="${ac}" style="padding-left:48px"><button type="button" class="ib s" data-a="eye" data-v="${id}" aria-label="إظهار كلمة المرور" style="position:absolute;left:8px;top:50%;margin-top:-16px;border:0;background:none">${ic('eye',18)}</button></span></label>`;
 /* ===== WP Sender (واتساب) ===== */
-const WA={url:'https://backendapi.wpsenderx.com/api/messages/send',key:''};
+const WA={url:'/api/otp/send-whatsapp',key:''};
 /* ===== إرسال البريد (EmailJS): أنشئ حساباً مجانياً على emailjs.com وضع المفاتيح هنا. القالب يستخدم {{to_email}} و{{code}} ===== */
 const EMC={url:'https://api.emailjs.com/api/v1.0/email/send',svc:'',tpl:'',key:''};
 const mlog=x=>{const l=LS('alog',[]);l.unshift({t:Date.now(),u:'مستخدم: '+(S.acc?S.acc.e:'-'),x});LSset('alog',l.slice(0,200))};
@@ -433,7 +433,7 @@ const setPreset=v=>{$('#np').innerHTML=permBoxes(PRESET[v]||[])};
 const supAdd=t=>{LSset('sup',[...LS('sup',[]),{u:S.acc?S.acc.e:'guest',n:S.acc?S.name:'زائر',x:t,t:Date.now(),r:''}])};
 const chatHist=()=>LS('sup',[]).filter(x=>x.u==(S.acc?S.acc.e:'guest')).map(x=>`<div class="bub me">${esc(x.x)}</div>${x.r?`<div class="bub bt">${esc(x.r)}</div>`:''}`).join('');
 const wreqAdd=(a,em)=>{const l=LS('wreq',[]),fee=+(a*CFG.wfee/100).toFixed(2);l.push({id:'W'+(1000+l.length+1),u:S.acc?S.acc.e:'',n:S.name,a,fee,net:+(a-fee).toFixed(2),ac:(($('#wac')||{}).value||'').trim(),m:['زين كاش','ماستر كارد'][S.wm],em,bc:window._wbc||'',t:Date.now(),st:'p'});if(!LSset('wreq',l)){S.usd+=a;S.wd.pop();return}window._wbc=undefined};
-const ann=()=>LS('ann',window._rann||[]);
+const ann=()=>window._rann||LS('ann',[]);
 const dt=t=>new Date(t).toLocaleString('ar-IQ');
 const CF=[['base','العائد اليومي الأساسي','نقطة/24س'],['gift','الهدية الترحيبية','$'],['ref','عمولة الإحالة','%'],['fee','رسوم التحويل للصديق','%'],['ftmax','أقصى تحويل بين الأعضاء للعملية الواحدة (0 = بدون حد)','نقطة'],['gemRate','نقاط لكل جوهرة',''],['usdRate','نقاط لكل دولار',''],['lim','حد الشراء من قيمة العداد','%'],['mk','أعلى زيادة لبيع العداد','%'],['gEntry','دخول لعبة العب معنا','نقطة'],['gComm','عمولة اللعبة','%'],['gWin','نسبة فوز اللاعب باللعبة','%'],['wCost','تكلفة عجلة الحظ','جوهرة'],['wJack','نسبة الجائزة الكبرى بالعجلة','%'],['wLose','نسبة حظ أوفر بالعجلة','%'],['wMin','أقل مبلغ سحب','$'],['wMon','سحوبات شهرية','عملية'],['wEm','سحوبات طوارئ سنوية','عملية'],['dLim','حد الاستدانة من قيمة العداد','%'],['dRate','فائدة الاستدانة الشهرية','%'],['dGrace','مهلة التأخير قبل الحظر','يوم']];
 /* ===== لوحة الإدارة الموسعة: طبقة البيانات ===== */
@@ -461,10 +461,10 @@ function kycSync(){const pk=S.kyc;if(!S.acc)return;{const r0=AC.get()[S.acc.e];i
 const cycOn=()=>{const c=LS('cyc',null);return !!(c&&c.start>0)};
 /* ===== محتوى قابل للإدارة ===== */
 const RFD=[['EXTRA20',200,14,1],['BONUS50',100,31,1],['VIP2023',500,3,1],['FRIEND10',150,22,1]];
-const RFC=()=>LS('rfc',window._rrfc||RFD.map(x=>x.slice()));
+const RFC=()=>window._rrfc||LS('rfc',RFD.map(x=>x.slice()));
 const rfBuy=code=>{const l=RFC(),x=l.find(c=>c[0]==code);if(x){x[2]++;LSset('rfc',l)}};
 const NWD=[{t:'عروض جديدة هذا الأسبوع',b:'استمتع بخصم 50% على جميع المنتجات الجديدة! لا تفوت الفرصة، العرض ساري حتى نهاية الشهر.',d:'منذ 2 ساعة',to:'all',k:'n'},{t:'تحديث جديد للتطبيق',b:'تم إطلاق تحديث جديد يتضمن ميزات جديدة وتحسينات في الأداء.',d:'أمس',to:'all',k:'n'}];
-const NEWS=()=>LS('news',window._rnews||NWD.map(x=>Object.assign({},x)));
+const NEWS=()=>window._rnews||LS('news',NWD.map(x=>Object.assign({},x)));
 const okTo=x=>(!x.x||x.x>Date.now())&&(!x.to||x.to=='all'||(x.to=='v'&&S.kyc==2)||(x.to=='g'&&S.pts>=30000));
 const newsL=()=>NEWS().filter(okTo).map(x=>[(x.k=='o'?'🔥 عرض: ':'')+esc(x.t),esc(x.b)]);
 const newsStrip=()=>{const l=NEWS().filter(okTo).sort((p,q)=>(q.k=='o')-(p.k=='o')).slice(0,2);return l.length?`<div class="sec"><b>آخر الأخبار والعروض</b><a data-r="news">عرض الكل</a></div>`+l.map(x=>`<button class="ic" data-r="news" style="display:block;text-align:start;padding:12px 14px;margin-bottom:8px"><span class="bdg ${x.k=='o'?'ok':'no'}" style="margin-inline-end:6px">${x.k=='o'?'عرض':'خبر'}</span>${imgTag(x.img,'width:100%;max-height:140px;object-fit:cover;border-radius:10px;margin-bottom:8px;display:block')}<b>${esc(x.t)}</b><div class="mu" style="font-size:.85rem;margin-top:4px">${esc(x.b)}</div></button>`).join(''):''};
@@ -549,7 +549,7 @@ function kycPop(){if(!S.acc||S.kyc||S.r=='panel')return;const r=kycRej();if(!r||
 function kycView(i){const x=RQ()[i];if(!x)return;const F=KF(x.id),blk=(k,tt)=>{const o=F&&F[k];if(!o)return`<div class="card mu" style="margin-top:10px">${tt}: غير متوفر</div>`;return`<div class="card" style="padding:12px;margin-top:10px"><b>${tt}</b>${o.t.startsWith('image/')?`<img src="${o.d}" alt="" style="width:100%;border-radius:12px;margin-top:8px;background:#fff">`:`<div class="mu" style="margin:8px 0;word-break:break-all">ملف PDF: ${esc(o.n||'')}</div>`}<div class="g2" style="margin-top:8px"><button class="btn o s" data-a="p_kycop" data-i="${i}" data-v="${k}">فتح</button><button class="btn s" data-a="p_kycd" data-i="${i}" data-v="${k}">تنزيل</button></div></div>`};
  return ppd(`<h2 style="margin-top:0">مستندات التوثيق</h2><div><b>${esc(x.u)}</b></div><div class="mu" dir="ltr" style="text-align:end;font-size:.8rem">${esc(x.e)}</div>${blk('c','الملف الموقّع (العقد)')}${blk('i','صورة الهوية')}${x.s?'':`<div class="g2" style="margin-top:12px"><button class="btn gn" data-a="p_kycok" data-i="${i}">قبول</button><button class="btn r" data-a="p_rqno" data-i="${i}">رفض</button></div>`}`)}
 const TMD={t:'شروط الاستخدام',p:['من خلال استخدام التطبيق فإنك توافق على الالتزام بشروط الاستخدام وجميع القوانين المعمول بها.','نحتفظ بالحق في تعديل هذه الشروط في أي وقت.']};
-const TMS=()=>{const j=LS('terms',null)||window._rterms||TMD;return{t:String(j.t||TMD.t),p:Array.isArray(j.p)?j.p.map(String):[]}};
+const TMS=()=>{const j=window._rterms||LS('terms',null)||TMD;return{t:String(j.t||TMD.t),p:Array.isArray(j.p)?j.p.map(String):[]}};
 const tmHtml=T=>{T=T||TMS();const p=T.p.map(x=>x.trim()).filter(Boolean);return`<h2>${esc(T.t||TMD.t)}</h2><div style="margin:8px 0 14px">${p.map((x,k)=>`<div style="display:flex;gap:10px;margin:0 0 12px"><b class="cy" style="flex:none">${k+1}.</b><span class="mu" style="white-space:pre-wrap">${esc(x)}</span></div>`).join('')||'<p class="mu">لا توجد شروط حالياً.</p>'}</div><button class="btn" onclick="d.close()">موافق</button>`};
 const tmRead=()=>({t:(($('#tmt')||{}).value)||TMD.t,p:[...document.querySelectorAll('.tmx')].map(e=>e.value)});
 PT2.terms=()=>{const T=TMS();return`<div class="card"><h3 style="margin:0 0 6px">شروط الاستخدام (تظهر للمستخدم في الإعدادات)</h3><label>عنوان النافذة<input id="tmt" value="${esc(T.t)}"></label>${T.p.map((x,k)=>`<div class="card" style="padding:10px;margin-top:8px"><div class="rw"><b class="cy">${k+1}</b><span class="sp"></span><button class="ib s" data-a="p_tmup" data-i="${k}" aria-label="أعلى">↑</button><button class="ib s" data-a="p_tmdn" data-i="${k}" aria-label="أسفل">↓</button><button class="ib r s" data-a="p_tmdel" data-i="${k}" aria-label="حذف">${ic('x')}</button></div><textarea class="tmx" rows="3" placeholder="نص النقطة">${esc(x)}</textarea></div>`).join('')||'<div class="mu" style="margin-top:8px">لا توجد نقاط، أضف نقطة جديدة.</div>'}<button class="btn o" style="margin-top:10px" data-a="p_tmadd">${ic('plus')} إضافة نقطة</button><div class="g2" style="margin-top:8px"><button class="btn" data-a="p_tmsave">💾 حفظ</button><button class="btn o" data-a="p_tmprev">معاينة</button></div><button class="btn o sm" style="width:100%;margin-top:8px" data-a="p_tmrst">استعادة الافتراضي</button><div class="mu" style="font-size:.78rem;margin-top:8px">الحفظ يطبَّق على هذا الجهاز فوراً، ولكي يصل للجميع اضغط «نشر للجميع» أسفل الصفحة.</div></div>`};
@@ -673,7 +673,7 @@ setInterval(cyTick,1000);
 ['input','change'].forEach(t=>document.addEventListener(t,e=>{const x=e.target;if(x&&x.dataset&&x.dataset.a=='p_prev')chgPrev()}));
 
 /* ===== أكواد الخصم (عدادات / وكالات) ===== */
-const DCS=()=>LS('dcs',window._rdcs||[]),DCU=()=>LS('dcu',{});
+const DCS=()=>window._rdcs||LS('dcs',[]),DCU=()=>LS('dcu',{});
 function dcChk(code,sc,ag){code=String(code||'').trim().toUpperCase();if(!code)return null;const l=DCS(),x=l.find(d=>d.c==code);if(!x||x.on===0)return{err:'كود الخصم غير صحيح'};if(x.sc!=sc)return{err:sc=='c'?'هذا الكود لا يخص شراء العدادات':'هذا الكود لا يخص الوكالات'};if(x.ag&&x.ag!=ag)return{err:'هذا الكود خاص بوكالة أخرى'};if(x.mx>0&&(x.u||0)>=x.mx)return{err:'انتهى عدد استخدامات الكود'};const e=S.acc?S.acc.e:'';if((DCU()[code]||[]).includes(e))return{err:'استخدمت هذا الكود من قبل'};return{x,code,pct:x.p,price:n=>Math.max(1,Math.ceil(n*(1-x.p/100))),commit(){const l2=DCS(),y=l2.find(d=>d.c==code);if(y){y.u=(y.u||0)+1;LSset('dcs',l2)}const u=DCU();(u[code]=u[code]||[]).push(e);LSset('dcu',u)}}}
 const dcCost=(n,pct)=>Math.round(n*CFG.agRate/1000*(1-(pct||0)/100));
 const dcBox=(sc,i)=>`<div class="row" style="gap:8px;margin:10px 0 4px"><input id="dcc" dir="ltr" autocapitalize="characters" placeholder="كود الخصم (اختياري)" style="margin:0"><button class="btn o" style="width:auto;padding:10px 16px" data-a="p_dcap" data-v="${sc}" data-i="${i}">تطبيق</button></div><div id="dcm" class="mu" style="min-height:1.4em;margin-bottom:8px;font-size:.88rem"></div>`;
@@ -701,7 +701,7 @@ const CTRD={on:1,v:1,title:'عقد استخدام وشروط الخدمة',owner
 ['الخصوصية','يجمع الطرف الأول بيانات المستخدم لأغراض إدارة الحساب والتحقق والدعم، ولا يشاركها مع جهة أخرى إلا بما يوجبه القانون.'],
 ['التعديل والإنهاء','للطرف الأول تعديل بنود هذا العقد بإعلان داخل التطبيق، وقد يُطلب من المستخدم الموافقة على النسخة الجديدة. وللمستخدم التوقف عن الاستخدام في أي وقت.'],
 ['القانون والنزاعات','تُحلّ أي خلاف ودياً أولاً، وإلا فيُحال إلى الجهة القضائية المختصة وفق القوانين النافذة.']]};
-const CTR=()=>Object.assign({},CTRD,LS('ctrt',window._rctr||{})),CTF=()=>LS('ctrfile',window._rctrf||null),ctrSave=c=>LSset('ctrt',c);
+const CTR=()=>Object.assign({},CTRD,window._rctr||LS('ctrt',{})),CTF=()=>window._rctrf||LS('ctrfile',null),ctrSave=c=>LSset('ctrt',c);
 const ctrStat=()=>{const g=myCtr(),c=CTR();if(g&&g.v==c.v)return'موقّع ✓';const a=S.acc&&AC.get()[S.acc.e];return'غير موقّع'+(c.on&&a?' · يُحذف الحساب بعد '+ctrLeft(a)+' يوم':'')};
 const myCtr=()=>{const a=(S.acc&&AC.get()[S.acc.e])||{};return a.ctr||null};
 
@@ -848,7 +848,7 @@ staff:()=>{const l=STF(),g=LS('alog',[]);return`<div class="card"><h3 style="mar
 };
 /* ===== بطاقات الأرصدة والألعاب + بنك الأكواد التسلسلية ===== */
 const CARD0=[{id:'c1',n:'بطاقة شحن زين',t:'bal',p:5000,img:'',d:''},{id:'c2',n:'بطاقة شحن آسياسيل',t:'bal',p:10000,img:'',d:''},{id:'c3',n:'بطاقة شحن كورك',t:'bal',p:25000,img:'',d:''}];
-const CDS=()=>LS('cards',window._rcards||CARD0),CCODES=()=>LS('ccodes',{}),CTY={bal:'رصيد',game:'بطاقة ألعاب'},cuk=()=>S.acc?S.acc.e:'guest';
+const CDS=()=>window._rcards||LS('cards',CARD0),CCODES=()=>LS('ccodes',{}),CTY={bal:'رصيد',game:'بطاقة ألعاب'},cuk=()=>S.acc?S.acc.e:'guest';
 const cSold=()=>Object.keys(localStorage).filter(k=>k.startsWith('cbuy:')).reduce((a,k)=>a.concat(LS(k,[])),[]).sort((x,y)=>y.at-x.at);
 const cThumb=c=>`<div class="ci" style="overflow:hidden;border-radius:14px">${c.img?`<img src="${c.img}" alt="" style="width:100%;height:100%;object-fit:cover;display:block">`:ic('card')}</div>`;
 function cardsView(){const cs=CDS(),st=CCODES(),F=S.cfl||'all',my=LS('cbuy:'+cuk(),[]);
@@ -877,7 +877,7 @@ else{body=hist.map(x=>`<div class="card"><div class="row2"><b>${esc(x.n||nmOf(x.
 return`<div class="g2">${tile('المقروض الكلي',f(lent),'hand')}${tile('المتبقي (أصل)',f(owed),'coin')}${tile('الأرباح المحققة',f(pr),'coin')}${tile('الأرباح المتوقعة',f(pa),'coin')}${tile('المتأخرون',late.length,'lock')}${tile('المسددون',hist.length,'shield')}</div><div class="chips" style="margin-top:10px">${tl.map(x=>`<button class="chip ${F==x[0]?'on':''}" data-a="dtab" data-v="${x[0]}">${x[1]}</button>`).join('')}</div>`+body};
 const TFT=()=>{const l=[['friend','لصديق'],['gem','إلى جواهر'],['usd','إلى دولار']].filter(x=>!(x[0]=='friend'&&CFG.hft));if(!l.some(x=>x[0]==S.ft))S.ft=l[0][0];return l};
 const STB=()=>{const l=[['prod','المنتجات'],['cards','بطاقات الشحن'],['debt','الاستدانة']].filter(x=>!(x[0]=='cards'&&CFG.hcards)&&!(x[0]=='debt'&&CFG.hdebt));if(l.length&&!l.some(x=>x[0]==S.tab))S.tab=l[0][0];return l};
-const pubBar=()=>`<div style="position:sticky;bottom:0;z-index:5;padding:12px 0 8px;margin-top:8px;background:linear-gradient(transparent,#0E1621 28%)"><button class="btn" data-a="cfgp">📤 نشر للجميع (تنزيل config.json)</button></div>`;
+const pubBar=()=>`<div style="position:sticky;bottom:0;z-index:5;padding:12px 0 8px;margin-top:8px;background:linear-gradient(transparent,#0E1621 28%)"><button class="btn" data-a="cfgp">📤 نشر للجميع</button></div>`;
 const cfgBar=()=>`<div style="position:sticky;bottom:0;z-index:5;padding:12px 0 8px;margin-top:8px;background:linear-gradient(transparent,#0E1621 28%)"><button class="btn" data-a="cfgs">💾 حفظ الإعدادات</button><div class="g2" style="margin-top:8px"><button class="btn o sm" style="width:100%" data-a="cfgp">نشر للجميع</button><button class="btn o sm" style="width:100%" data-a="cfgr">استعادة الافتراضي</button></div></div>`;
 /* ===== مزامنة مركزية: إعدادات + أوامر + سجل الحسابات (من الخادم) ===== */
 const CID=LS('cid',null)||(()=>{const c=Math.random().toString(36).slice(2,10);LSset('cid',c);return c})(),SYNK='cmdv';
@@ -915,7 +915,23 @@ return `<div class="card"><h3 style="margin:0 0 6px">🌐 التحكم المر�
 +sec('الحسابات المسجلة'+(T?' ('+T.n+' · تجريبي '+T.demo+')':''),`<a data-a="p_ctlld">تحديث</a>`)
 +(R.length?R.map((r,i)=>`<div class="card" style="padding:10px 12px"><div class="row2"><b>${esc(r.name||r.email)}</b><span class="bdg ${r.demo?'no':'ok'}">${r.demo?'تجريبي':'حقيقي'}</span></div><div class="mu" dir="ltr" style="font-size:.78rem;text-align:start">${esc(r.email)}</div><div style="font-size:.85rem">${f(r.pts)} نقطة · ${f(r.gems)} جوهرة · $${(+r.usd).toFixed(2)} · ${ago(Date.parse(r.last_seen))}${r.blk?' · محظور':''}${r.mv==null?'':(r.mv?' · بريد موثق':' · بريد غير موثق')}</div><div class="g2" style="margin-top:6px"><button class="btn o sm" style="width:100%" data-a="p_ctlpick" data-v="${esc(r.email)}">اختيار</button><button class="btn o sm" style="width:100%" data-a="p_ctlblk" data-i="${i}">${r.blk?'فك الحظر':'حظر'}</button></div></div>`).join(''):'<div class="card mu" style="text-align:center">اضغط «تحديث» لعرض الحسابات (تظهر بعد فتح كل حساب للتطبيق)</div>')}
 
-syncFetch().then(window._cfgH=j=>{if(!j||typeof j!='object')return;if(j.cfg&&localStorage.getItem('cfg')==null){Object.assign(CFG,j.cfg);if(!CFG.ct||typeof CFG.ct!='object')CFG.ct={};applyCT();W[0]=String(CFG.jack)}if(Array.isArray(j.cards))window._rcards=j.cards;if(Array.isArray(j.news))window._rnews=j.news;if(Array.isArray(j.ann))window._rann=j.ann;if(Array.isArray(j.prods)&&j.prods.length&&localStorage.getItem('prods')==null)PR=j.prods;if(j.demo&&typeof j.demo=='object')window._rdemo=j.demo;if(Array.isArray(j.rfc))window._rrfc=j.rfc;if(j.terms&&typeof j.terms=='object'&&Array.isArray(j.terms.p))window._rterms=j.terms;if(Array.isArray(j.dcs))window._rdcs=j.dcs;if(Array.isArray(j.mrs)&&localStorage.getItem('mrs')==null)MR.splice(0,MR.length,...j.mrs);if(Array.isArray(j.agents)&&localStorage.getItem('agents')==null)AG.splice(0,AG.length,...j.agents);draw()}).catch(()=>{});
+window._cfgH=j=>{if(!j||typeof j!='object')return;
+if(j.cfg&&typeof j.cfg=='object'){Object.assign(CFG,j.cfg);if(!CFG.ct||typeof CFG.ct!='object')CFG.ct={};applyCT();W[0]=String(CFG.jack)}
+if(Array.isArray(j.cards))window._rcards=j.cards;
+if(Array.isArray(j.news))window._rnews=j.news;
+if(Array.isArray(j.ann))window._rann=j.ann;
+if(Array.isArray(j.prods)&&j.prods.length)PR=j.prods;
+if(j.demo&&typeof j.demo=='object')window._rdemo=j.demo;
+if(j.agp&&typeof j.agp=='object')window._ragp=j.agp;
+if(j.ctr&&typeof j.ctr=='object')window._rctr=j.ctr;
+if(j.ctrf&&j.ctrf.d)window._rctrf=j.ctrf;
+if(Array.isArray(j.rfc))window._rrfc=j.rfc;
+if(j.terms&&typeof j.terms=='object'&&Array.isArray(j.terms.p))window._rterms=j.terms;
+if(Array.isArray(j.dcs))window._rdcs=j.dcs;
+if(Array.isArray(j.mrs))MR.splice(0,MR.length,...j.mrs);
+if(Array.isArray(j.agents))AG.splice(0,AG.length,...j.agents);
+const ae=document.activeElement;if(!(ae&&ae.closest&&ae.closest('#app')&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)))draw()};
+syncFetch().then(j=>{if(j)window._cfgH(j)}).catch(()=>{});
 PT.cards=()=>{const cs=CDS(),st=CCODES(),sold=cSold();
 return`<div class="card"><h3 style="margin:0 0 6px" id="cdh">إضافة / تعديل بطاقة</h3><input type="hidden" id="cdi" value=""><select id="cdt"><option value="bal">رصيد (بطاقة شحن)</option><option value="game">بطاقة ألعاب</option></select><input id="cdn" placeholder="اسم البطاقة (مثال: بطاقة شحن زين)"><input id="cdp" type="number" inputmode="numeric" placeholder="السعر بالنقاط"><label>وصف (اختياري)<textarea id="cdd" rows="2" placeholder="وصف مختصر..."></textarea></label><label>صورة البطاقة (اختياري)<input id="cdm" type="file" accept="image/*"></label><img id="cdv" alt="" style="display:none;width:100%;max-height:200px;object-fit:cover;border-radius:16px;margin:6px 0"><button class="btn" data-a="cdsv">حفظ البطاقة</button></div>`
 +sec('البطاقات ('+cs.length+')')+(cs.length?cs.map(c=>{const n=(st[c.id]||[]).length,s=sold.filter(x=>x.id==c.id).length;return`<div class="card" style="padding:10px 12px"><div class="row">${cThumb(c)}<div class="sp"><b>${esc(c.n)}</b> <span class="bdg ok" style="font-size:.7rem">${CTY[c.t]||''}</span><div class="mu" style="font-size:.8rem">${f(c.p)} نقطة · المتوفر: <b class="${n?'cy':''}">${n}</b> · المباع: ${s}</div></div><button class="ib s" data-a="ced" data-v="${esc(c.id)}" aria-label="تعديل">${ic('doc')}</button><button class="ib r s" data-a="cdl" data-v="${esc(c.id)}" aria-label="حذف">${ic('x')}</button></div><button class="btn o sm" style="width:100%;margin-top:8px" data-a="cco" data-v="${esc(c.id)}">${ic('plus')} إضافة أكواد تسلسلية</button></div>`}).join(''):'<div class="card mu" style="text-align:center">لا توجد بطاقات</div>')
