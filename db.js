@@ -101,6 +101,8 @@ ALTER TABLE sync_accounts ADD COLUMN IF NOT EXISTS cl JSONB DEFAULT '[]'::jsonb;
 
 async function migrate() {
   await pool.query(SCHEMA);
+  await pool.query("DELETE FROM sync_accounts WHERE demo=TRUE OR LOWER(email)='demo@test.com'").catch(()=>{});
+  await pool.query("DELETE FROM users WHERE LOWER(email)='demo@test.com'").catch(()=>{});
   if (process.env.RESET_BALANCES_ON_BOOT !== '1') return;
   await pool.query(`
     UPDATE sync_accounts SET pts=0, gems=0, usd=0, cl='[]'::jsonb;

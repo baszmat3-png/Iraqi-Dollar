@@ -987,7 +987,7 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
   const returnedAccounts = [];
   for (const a of list) {
     const email = String(a.e || '').trim().toLowerCase().slice(0, 120);
-    if (!email || /\s/.test(email)) continue;
+    if (!email || /\s/.test(email) || a.demo || email === 'demo@test.com') continue;
     const passHash = a.h ? String(a.h).slice(0, 200) : null;
     const vml = !!(a.vml ?? a.mv);
     const pn = SYNC_NUM(a.pts, 1e12), gn = SYNC_NUM(a.gems, 1e12), un = SYNC_NUM(a.usd, 1e12), isDemo = !!a.demo, isKyc = !!a.kyc;
