@@ -81,4 +81,5 @@ module.exports = function (app, express) {
     });
     save(); res.json({ ok: 1, mt, seq: DB.seq });
   });
+  return { ords: () => DB.ords };
 };

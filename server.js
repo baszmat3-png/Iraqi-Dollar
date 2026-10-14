@@ -66,8 +66,12 @@ const WHEEL = ['3600', 'x', '200', 'x', '500', '100', 'gem', '50'];
 
 /* ---------- Helpers ---------- */
 const app = express();
-require('./sync-ext')(app, express);
+const SYNC = require('./sync-ext')(app, express);
 const GAME = require('./game-ext')(app);
+const AX = require('./admin-ext');
+AX.parsers(app, express); // صور الدعم والبلاغات (حد أكبر)
+const PX = require('./profile-ext');
+PX.parsers(app, express); // المرحلة 2أ: الصورة الشخصية
 app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false }));
 // الإعدادات المنشورة قد تحتوي صوراً، لذلك حد أكبر لهذا المسار فقط
@@ -1002,6 +1006,8 @@ function finCls(label, dir) {
     if (/من السوق/.test(l)) return null;
     if (/^شراء عداد/.test(l)) return ['in', 'counters'];
     if (/^رسوم طلب وكالة/.test(l)) return ['in', 'agency'];
+    if (/^رسوم طلب تجارة/.test(l)) return ['in', 'trade'];
+    if (/^تسديد قسط استدانة/.test(l)) return ['in', 'debt'];
     if (/^(دفعة مقدمة|قسط طلب)/.test(l)) return ['in', 'orders'];
     if (/^تم شراء/.test(l)) return ['in', 'store'];
     return null;
@@ -1078,12 +1084,12 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
     if (cur.rows.length) {
       await pool.query(
         `UPDATE sync_accounts SET
-          name=COALESCE($2, name),
+          name=CASE WHEN COALESCE(name,'')='' THEN $2 ELSE name END,
           phone=COALESCE($3, phone),
           pass_hash=COALESCE($4, pass_hash),
           vml=CASE WHEN $5 THEN TRUE ELSE vml END,
           vph=CASE WHEN $6 THEN TRUE ELSE vph END,
-          pts=$7, gems=$8, usd=$9, demo=$10, kyc=$11,
+          pts=$7, gems=$8, usd=$9, demo=$10, kyc=(kyc OR $11::boolean),
           last_seen=NOW()
          WHERE LOWER(email)=LOWER($1)`,
         [email, String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), passHash, vml, vph, pn, gn, un, isDemo, isKyc]
@@ -1091,6 +1097,7 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
       const row = (await pool.query('SELECT * FROM sync_accounts WHERE LOWER(email)=LOWER($1)', [email])).rows[0];
       returnedAccounts.push({
         e: row.email,
+        n: row.name,
         pts: Number(row.pts) || 0,
         gems: Number(row.gems) || 0,
         usd: Number(row.usd) || 0,
@@ -1109,6 +1116,7 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
       );
       returnedAccounts.push({
         e: email,
+        n: String(a.n || '').slice(0, 80),
         pts: 0,
         gems: 0,
         usd: 0,
@@ -1135,7 +1143,7 @@ app.post('/api/ctl/config', ...ctl, wrap(async (req, res) => {
 
 function cleanCmd(b) {
   b = b || {};
-  if (!['adj', 'set', 'rz', 'blk', 'cfg'].includes(b.t)) fail(400, 'نوع أمر غير صحيح');
+  if (!['adj', 'set', 'rz', 'blk', 'cfg', 'nm', 'kyc', 'vf'].includes(b.t)) fail(400, 'نوع أمر غير صحيح');
   const out = { t: b.t, sc: ['all', 'real', 'demo'].includes(b.sc) ? b.sc : 'all' };
   const e = b.e ? String(b.e).trim().toLowerCase().slice(0, 120) : '';
   if (e) out.e = e;
@@ -1153,6 +1161,17 @@ function cleanCmd(b) {
     for (const k of ['p', 'g', 'd', 'c', 'a']) if (b.o && b.o[k]) out.o[k] = 1;
     if (!Object.keys(out.o).length) fail(400, 'اختر ما تريد تصفيره');
     out.sc = 'all'; delete out.e;
+  } else if (b.t === 'nm') {
+    if (!out.e) fail(400, 'حدد الحساب');
+    out.n = String(b.n || '').trim().replace(/\s+/g, ' ').slice(0, 80);
+    if (out.n.length < 2) fail(400, 'الاسم قصير');
+  } else if (b.t === 'kyc') {
+    if (!out.e) fail(400, 'حدد الحساب');
+    out.v = b.v ? 1 : 0;
+  } else if (b.t === 'vf') {
+    if (!out.e) fail(400, 'حدد الحساب');
+    out.k = b.k === 'ph' ? 'ph' : 'ml';
+    out.v = b.v ? 1 : 0;
   } else if (b.t === 'blk') {
     if (!out.e) fail(400, 'حدد الحساب');
     out.v = b.v ? 1 : 0;
@@ -1240,6 +1259,14 @@ app.post('/api/ctl/cmd', ...ctl, wrap(async (req, res) => {
       await pool.query(`DELETE FROM counters`);
       await pool.query(`UPDATE users SET running=false, done=false, left_sec=86400, accr=0, accg=0`);
     }
+  } else if (body.t === 'nm') {
+    await pool.query(`UPDATE sync_accounts SET name=$2 WHERE LOWER(email)=LOWER($1)`, [body.e, body.n]);
+    await pool.query(`UPDATE users SET name=$2 WHERE LOWER(email)=LOWER($1)`, [body.e, body.n]);
+  } else if (body.t === 'kyc') {
+    await pool.query(`UPDATE sync_accounts SET kyc=$2 WHERE LOWER(email)=LOWER($1)`, [body.e, !!body.v]);
+    await pool.query(`UPDATE users SET kyc=$2 WHERE LOWER(email)=LOWER($1)`, [body.e, body.v ? 2 : 0]);
+  } else if (body.t === 'vf') {
+    await pool.query(`UPDATE sync_accounts SET ${body.k === 'ph' ? 'vph' : 'vml'}=$2 WHERE LOWER(email)=LOWER($1)`, [body.e, !!body.v]);
   } else if (body.t === 'blk') {
     const isBlk = !!body.v;
     await pool.query(`UPDATE sync_accounts SET blk=$2 WHERE LOWER(email)=LOWER($1)`, [body.e, isBlk]);
@@ -1309,6 +1336,10 @@ app.get('/api/ctl/accounts', ...ctl, wrap(async (_req, res) => {
     totals: { n: t.n, demo: t.demo, pts: Number(t.pts), gems: Number(t.gems), usd: Number(t.usd) },
   });
 }));
+
+AX.routes(app, { pool, wrap, ctl }); // المرحلة 1ب: الإدارة
+PX.routes(app, { pool, wrap }); // المرحلة 2أ: الصورة الشخصية الدائمة
+require('./fin-ext').routes(app, { pool, wrap, ctl, SYNC, GAME }); // المرحلة 1ج: المالية
 
 /* ---------- Health + static frontend ---------- */
 app.get('/healthz', wrap(async (_req, res) => { await pool.query('SELECT 1'); res.json({ ok: true }); }));
