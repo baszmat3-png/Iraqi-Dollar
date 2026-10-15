@@ -70,8 +70,10 @@ const SYNC = require('./sync-ext')(app, express);
 const GAME = require('./game-ext')(app);
 const AX = require('./admin-ext');
 const MXT = require('./merchant-ext');
+const SOC = require('./social-ext');
 AX.parsers(app, express); // صور الدعم والبلاغات (حد أكبر)
 MXT.parsers(app, express); // صور التجار والصور الشخصية
+SOC.parsers(app, express); // الأصدقاء والرسائل
 app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false }));
 // الإعدادات المنشورة قد تحتوي صوراً، لذلك حد أكبر لهذا المسار فقط
@@ -1083,6 +1085,16 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
     const vph = a.vph !== false;
     const cur = await pool.query('SELECT * FROM sync_accounts WHERE LOWER(email)=LOWER($1)', [email]);
     if (cur.rows.length) {
+      // الرصيد المرسل يُقبل فقط من جهاز صاحب الحساب نفسه (بصمة كلمة المرور) وبعد أن يكون قد طبّق كل أوامر الإدارة؛
+      // وإلا فقد كانت تقارير لوحة الإدارة أو أجهزة لم تتزامن بعد تمسح الشحن/التصفير بالرصيد القديم.
+      const stored = cur.rows[0].pass_hash, own = !!passHash && (!stored || stored === passHash);
+      let pending = false;
+      const cv = parseInt(req.body.cv, 10) || 0;
+      if (own && cv > 0) {
+        pending = (await pool.query(
+          `SELECT 1 FROM sync_cmds WHERE id>$1 AND body->>'t' IN ('adj','set','rz') AND (body->>'e' IS NULL OR LOWER(body->>'e')=LOWER($2)) LIMIT 1`, [cv, email])).rows.length > 0;
+      }
+      const wb = own && !pending;
       await pool.query(
         `UPDATE sync_accounts SET
           name=CASE WHEN COALESCE(name,'')='' THEN $2 ELSE name END,
@@ -1090,10 +1102,11 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
           pass_hash=COALESCE($4, pass_hash),
           vml=CASE WHEN $5 THEN TRUE ELSE vml END,
           vph=CASE WHEN $6 THEN TRUE ELSE vph END,
-          pts=$7, gems=$8, usd=$9, demo=$10, kyc=(kyc OR $11::boolean),
+          pts=CASE WHEN $12::boolean THEN $7 ELSE pts END, gems=CASE WHEN $12::boolean THEN $8 ELSE gems END, usd=CASE WHEN $12::boolean THEN $9 ELSE usd END,
+          demo=$10, kyc=(kyc OR $11::boolean),
           last_seen=NOW()
          WHERE LOWER(email)=LOWER($1)`,
-        [email, String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), passHash, vml, vph, pn, gn, un, isDemo, isKyc]
+        [email, String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), passHash, vml, vph, pn, gn, un, isDemo, isKyc, wb]
       );
       const row = (await pool.query('SELECT * FROM sync_accounts WHERE LOWER(email)=LOWER($1)', [email])).rows[0];
       returnedAccounts.push({
@@ -1340,6 +1353,7 @@ app.get('/api/ctl/accounts', ...ctl, wrap(async (_req, res) => {
 
 AX.routes(app, { pool, wrap, ctl }); // المرحلة 1ب: الإدارة
 MXT.routes(app, { pool, wrap, ctl }); // المرحلة 2: التجار + الصور الشخصية
+SOC.routes(app, { pool, wrap, ctl }); // المرحلة 4: الأصدقاء + الرسائل + الإشعارات الفورية
 require('./security-ext').routes(app, { pool, wrap, sendWhatsApp, normPhone }); // المرحلة 3: الجلسات + رمز واتساب + المصادقة الثنائية
 require('./fin-ext').routes(app, { pool, wrap, ctl, SYNC, GAME }); // المرحلة 1ج: المالية
 

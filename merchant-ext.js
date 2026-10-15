@@ -26,6 +26,10 @@ exports.routes = (app, { pool, wrap, ctl }) => {
       services TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', received BIGINT NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
     await q(`CREATE INDEX IF NOT EXISTS merchants_owner_idx ON merchants(LOWER(owner))`);
+    await q(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS area TEXT NOT NULL DEFAULT ''`);
+    await q(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS ref_code TEXT NOT NULL DEFAULT ''`);
+    await q(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS fee BIGINT NOT NULL DEFAULT 0`);
+    await q(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS reject_note TEXT NOT NULL DEFAULT ''`);
     await q(`CREATE TABLE IF NOT EXISTS merchant_tx(
       id BIGSERIAL PRIMARY KEY, merchant_id INT NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
       payer TEXT NOT NULL, payer_name TEXT, pts BIGINT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
@@ -42,9 +46,9 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     if (!r.rows[0]) fail(401, 'غير مسجّل الدخول');
     return { email: String(r.rows[0].email).toLowerCase(), name: r.rows[0].name || e.split('@')[0] };
   }
-  const cols = `id, owner, name, province, discount, daily_cap, status, details, address, landmark, services, phone, received, updated_at, created_at, (image IS NOT NULL AND image<>'') AS has_img`;
+  const cols = `id, owner, name, province, area, ref_code, fee, reject_note, discount, daily_cap, status, details, address, landmark, services, phone, received, updated_at, created_at, (image IS NOT NULL AND image<>'') AS has_img`;
   const pub = (m) => ({
-    id: m.id, name: m.name, province: m.province, discount: m.discount, details: m.details, address: m.address,
+    id: m.id, name: m.name, province: m.province, area: m.area || '', discount: m.discount, details: m.details, address: m.address,
     landmark: m.landmark, services: m.services, phone: m.phone, cap: Number(m.daily_cap) || 0, owner: String(m.owner).toLowerCase(),
     img: m.has_img ? `/api/m/img/${m.id}?v=${new Date(m.updated_at).getTime()}` : '',
   });
@@ -76,39 +80,48 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     const mine = (await q(`SELECT ${cols} FROM merchants WHERE LOWER(owner)=$1 ORDER BY id DESC LIMIT 1`, [u.email])).rows[0];
     let me = null;
     if (mine) {
-      me = { ...pub(mine), status: mine.status, total: Number(mine.received) || 0, today: await today(mine.id), tx: [] };
+      me = { ...pub(mine), status: mine.status, fee: Number(mine.fee) || 0, note: mine.reject_note || '', total: Number(mine.received) || 0, today: await today(mine.id), tx: [] };
       if (mine.status === 'active') me.tx = (await q(`SELECT payer_name n, pts, created_at t FROM merchant_tx WHERE merchant_id=$1 ORDER BY id DESC LIMIT 60`, [mine.id])).rows.map((r) => ({ n: r.n, pts: Number(r.pts), t: r.t }));
     }
     const av = {};
     (await q(`SELECT email, (EXTRACT(EPOCH FROM updated_at)*1000)::bigint v FROM avatars`)).rows.forEach((r) => { av[r.email] = Number(r.v); });
     const agents = {};
     (await q(`SELECT email, description d, methods m FROM agent_profiles`)).rows.forEach((r) => { agents[String(r.email).toLowerCase()] = { d: r.d, m: r.m }; });
-    res.json({ ok: true, merchants: list.map(pub), me, av, agents });
+    // حالة الوكالة من الإعدادات المنشورة: مصدر ثابت يصل للمستخدم خلال 5 ثوانٍ حتى لو تعطّلت مزامنة الإعدادات العامة
+    let agent = null, agp = null;
+    try {
+      const cfg = (await q(`SELECT val FROM sync_kv WHERE key='config'`)).rows[0], v = cfg && cfg.val;
+      const ags = v && Array.isArray(v.agents) ? v.agents : [];
+      agent = ags.find((o) => Array.isArray(o) && !o[6] && String(o[8] || '').toLowerCase() === u.email) || null;
+      if (agent && v.agx && v.agx[agent[0]] != null) agp = String(v.agx[agent[0]]);
+    } catch (e) {}
+    res.json({ ok: true, merchants: list.map(pub), me, av, agents, agent, agentCode: agp });
   }));
 
   app.post('/api/m/apply', wLim, wrap(async (req, res) => {
-    const u = await who(req.body);
-    const name = txt(req.body.name, 80);
+    const u = await who(req.body), b = req.body;
+    const name = txt(b.name, 80), phone = txt(b.phone, 25).replace(/[^\d+]/g, ''), province = txt(b.province, 40), area = txt(b.area, 80), landmark = txt(b.landmark, 160);
     if (!name) fail(400, 'اسم المتجر مطلوب');
+    if (phone.replace(/\D/g, '').length < 9) fail(400, 'رقم الهاتف غير صحيح');
+    if (!province) fail(400, 'اختر المحافظة');
+    if (!area) fail(400, 'اكتب المنطقة');
+    if (!landmark) fail(400, 'اكتب أقرب نقطة دالة');
     const ex = (await q(`SELECT id FROM merchants WHERE LOWER(owner)=$1 AND status IN ('pending','active')`, [u.email])).rows[0];
     if (ex) return res.json({ ok: true, dup: true });
-    const ins = await q(`INSERT INTO merchants(owner,name,province,discount) VALUES($1,$2,$3,$4) RETURNING id`, [u.email, name, txt(req.body.province, 40), Math.min(100, Math.round(num(req.body.discount, 100)) || 10)]);
-    // رسوم الانضمام (200,000 دينار) تُحسب ربحاً في المالية ضمن «رسوم تجارة»
-    await q(`INSERT INTO fin_ev(uid,email,kind,cat,pts,iqd,note,src) VALUES($1,$2,'in','trade',0,200000,$3,'auto') ON CONFLICT DO NOTHING`, ['trade:' + ins.rows[0].id, u.email, 'رسوم انضمام تاجر: ' + name]).catch(() => {});
+    // الرسوم تُستقطع مقدماً من رصيد المستخدم على جهازه (تُسجَّل في المالية ضمن «رسوم تجارة» تلقائياً)
+    await q(`INSERT INTO merchants(owner,name,province,area,landmark,phone,ref_code,fee,discount) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [u.email, name, province, area, landmark, phone, txt(b.ref_code, 20), Math.floor(num(b.fee, 1e10)), Math.min(100, Math.round(num(b.discount, 100)) || 10)]);
     res.json({ ok: true });
   }));
 
+  // التاجر المعتمد يعدّل الوصف ونسبة الخصم فقط (بقية البيانات من لوحة التحكم)
   app.post('/api/m/profile', wLim, wrap(async (req, res) => {
     const u = await who(req.body);
     const m = (await q(`SELECT id FROM merchants WHERE LOWER(owner)=$1 AND status='active'`, [u.email])).rows[0];
     if (!m) fail(403, 'لا تملك متجراً معتمداً');
-    const b = req.body; let im = null;
-    if (b.image) { if (!isImg(b.image)) fail(400, 'الصورة غير صالحة أو كبيرة'); im = b.image; }
-    const nm = txt(b.name, 80), dc = Number(b.discount);
-    if (!nm) fail(400, 'اسم المتجر مطلوب');
+    const dc = Number(req.body.discount);
     if (!Number.isFinite(dc) || dc < 0 || dc > 100) fail(400, 'نسبة الخصم بين 0 و100');
-    await q(`UPDATE merchants SET name=$8,discount=$9,details=$2,address=$3,landmark=$4,services=$5,phone=$6,image=COALESCE($7,image),updated_at=NOW() WHERE id=$1`,
-      [m.id, txt(b.details, 600), txt(b.address, 200), txt(b.landmark, 200), txt(b.services, 400), txt(b.phone, 25), im, nm, Math.round(dc)]);
+    await q(`UPDATE merchants SET discount=$2,details=$3,updated_at=NOW() WHERE id=$1`, [m.id, Math.round(dc), txt(req.body.details, 600)]);
     res.json({ ok: true });
   }));
 
@@ -160,15 +173,34 @@ exports.routes = (app, { pool, wrap, ctl }) => {
   app.get('/api/ctl/merchants', ...ctl, wrap(async (_req, res) => {
     const r = (await q(`SELECT ${cols} FROM merchants ORDER BY (status='pending') DESC, id DESC`)).rows;
     const out = [];
-    for (const m of r) out.push({ ...pub(m), status: m.status, total: Number(m.received) || 0, today: await today(m.id) });
+    const nm = {}; (await q(`SELECT LOWER(email) e, name FROM sync_accounts`)).rows.forEach((x) => { nm[x.e] = x.name; });
+    for (const m of r) out.push({ ...pub(m), status: m.status, ref_code: m.ref_code, fee: Number(m.fee) || 0, owner_name: nm[String(m.owner).toLowerCase()] || '', total: Number(m.received) || 0, today: await today(m.id) });
     res.json({ merchants: out });
   }));
   app.post('/api/ctl/merchants/save', ...ctl, wrap(async (req, res) => {
     const b = req.body, id = parseInt(b.id, 10) || 0;
+    const prev = (await q(`SELECT * FROM merchants WHERE id=$1`, [id])).rows[0];
+    if (!prev) fail(404, 'غير موجود');
+    // رفض الطلب: تُعاد الرسوم المستقطعة مقدماً للمستخدم فوراً
+    if (b.status === 'rejected') {
+      if (prev.status === 'pending' && Number(prev.fee) > 0) {
+        const fee = Number(prev.fee), owner = String(prev.owner).toLowerCase();
+        await q(`UPDATE sync_accounts SET pts=COALESCE(pts,0)+$2 WHERE LOWER(email)=$1`, [owner, fee]);
+        await q(`UPDATE users SET pts=pts+$2 WHERE LOWER(email)=$1`, [owner, fee]).catch(() => {});
+        await q(`INSERT INTO sync_cmds(body) VALUES($1)`, [JSON.stringify({ t: 'adj', sc: 'all', e: owner, d: { pts: fee }, by: 'srv' })]);
+        const cfg = (await q(`SELECT val FROM sync_kv WHERE key='config'`)).rows[0], c = (cfg && cfg.val && cfg.val.cfg) || {};
+        const pr = (Number(c.agRate) > 0 ? Number(c.agRate) : 300) / 1000;
+        await q(`INSERT INTO fin_ev(uid,email,kind,cat,pts,iqd,note,src) VALUES($1,$2,'out','trade',$3,$4,$5,'auto') ON CONFLICT DO NOTHING`,
+          ['trade-refund:' + id, owner, fee, Math.round(fee * pr * 100) / 100, 'استرجاع رسوم طلب تجارة (رفض): ' + prev.name]).catch(() => {});
+      }
+      await q(`UPDATE merchants SET status='rejected',reject_note=$2,updated_at=NOW() WHERE id=$1`, [id, txt(b.note, 200)]);
+      await q(`INSERT INTO notices(email,body) VALUES($1,$2)`, [prev.owner, 'تم رفض طلب التاجر' + (b.note ? ': ' + txt(b.note, 200) : '') + '. أُعيدت الرسوم إلى رصيدك.']).catch(() => {});
+      return res.json({ ok: true });
+    }
     const st = ['pending', 'active', 'suspended'].includes(b.status) ? b.status : null;
-    const r = await q(`UPDATE merchants SET status=COALESCE($2,status), daily_cap=COALESCE($3,daily_cap), discount=COALESCE($4,discount), name=COALESCE($5,name), province=COALESCE($6,province), updated_at=NOW() WHERE id=$1 RETURNING id`,
+    await q(`UPDATE merchants SET status=COALESCE($2,status), daily_cap=COALESCE($3,daily_cap), discount=COALESCE($4,discount), name=COALESCE($5,name), province=COALESCE($6,province), updated_at=NOW() WHERE id=$1`,
       [id, st, b.daily_cap == null || b.daily_cap === '' ? null : Math.floor(num(b.daily_cap)), b.discount == null || b.discount === '' ? null : Math.min(100, Math.floor(num(b.discount, 100))), b.name ? txt(b.name, 80) : null, b.province ? txt(b.province, 40) : null]);
-    if (!r.rowCount) fail(404, 'غير موجود');
+    if (st === 'active' && prev.status !== 'active') await q(`INSERT INTO notices(email,body) VALUES($1,$2)`, [prev.owner, '🎉 أنت تاجر الآن! تم اعتماد متجرك ' + prev.name]).catch(() => {});
     res.json({ ok: true });
   }));
   app.post('/api/ctl/merchants/add', ...ctl, wrap(async (req, res) => {
