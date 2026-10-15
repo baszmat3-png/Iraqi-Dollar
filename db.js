@@ -123,6 +123,12 @@ CREATE TABLE IF NOT EXISTS fin_ev (
   src TEXT NOT NULL DEFAULT 'auto'
 );
 CREATE INDEX IF NOT EXISTS fin_ev_ts_idx ON fin_ev(ts);
+CREATE TABLE IF NOT EXISTS ref_owned (
+  code TEXT PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  price BIGINT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 `;
 
 async function migrate() {

@@ -51,17 +51,29 @@ if (!process.env.DATABASE_URL) { console.error('Missing env DATABASE_URL'); proc
 
 /* ---------- Game data (source of truth, mirrors index.html) ---------- */
 // [name, price(pts), yield per day, type p=points g=gems]
+// Pricing rule: 600,000 pts = 79,200 IQD (1 pt = 0.132 IQD). Price = daily yield x 300 days (10 months payback);
+// counter lifetime = 360 days (+60 days = 20% platform profit).
 const CT = [
-  ['بسيط', 8750, 50, 'p'], ['الاعتيادي', 17500, 100, 'g'], ['برونزي', 18000, 100, 'p'],
-  ['الفضي', 86000, 500, 'g'], ['الذهبي', 87500, 500, 'p'], ['الماسي', 172500, 1000, 'p'],
-  ['الناري', 777500, 5000, 'p'], ['عشرة آلاف', 1500000, 10000, 'p'], ['تيتانيوم', 14000000, 100000, 'p'],
+  ['بسيط', 15000, 50, 'p'],
+  ['الاعتيادي', 30000, 100, 'g'],
+  ['برونزي', 30000, 100, 'p'],
+  ['الفضي', 150000, 500, 'g'],
+  ['الذهبي', 150000, 500, 'p'],
+  ['الماسي', 300000, 1000, 'p'],
+  ['الناري', 1500000, 5000, 'p'],
+  ['عشرة آلاف', 3000000, 10000, 'p'],
+  ['تيتانيوم', 30000000, 100000, 'p'],
 ];
 const PR = [
   ['لابتوب ماك بوك برو', 6500000], ['لابتوب ديل XPS 15', 5000000], ['آيفون 15 برو', 4500000],
   ['سامسونج جالاكسي S24', 3800000], ['سيارة تويوتا كامري 2023', 90000000], ['آيباد برو 2023', 5200000],
 ];
+// تسعير النقاط: المستخدم 132,000 د.ع للمليون (0.132 للنقطة)، الوكيل 120,000 د.ع للمليون (0.12 للنقطة)
+const PT_IQD = 0.132;                                  // دينار لكل نقطة (للمستخدم: شراء وسحب)
+const AGENT_PT_IQD = 0.12;                             // دينار لكل نقطة (للوكيل)
+const IQD_PER_USD = Number(process.env.IQD_PER_USD) || 1620; // سعر الدولار بالدينار
 const DAY = 86400;
-const YEAR_MS = 365 * 864e5;
+const YEAR_MS = 360 * 864e5; // مدة العداد: 12 شهراً = 360 يوماً
 const WHEEL = ['3600', 'x', '200', 'x', '500', '100', 'gem', '50'];
 
 /* ---------- Helpers ---------- */
@@ -71,9 +83,11 @@ const GAME = require('./game-ext')(app);
 const AX = require('./admin-ext');
 const MXT = require('./merchant-ext');
 const SOC = require('./social-ext');
+const EXT5 = require('./extras-ext');
 AX.parsers(app, express); // صور الدعم والبلاغات (حد أكبر)
 MXT.parsers(app, express); // صور التجار والصور الشخصية
 SOC.parsers(app, express); // الأصدقاء والرسائل
+EXT5.parsers(app, express); // صور حملات التبرع
 app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false }));
 // الإعدادات المنشورة قد تحتوي صوراً، لذلك حد أكبر لهذا المسار فقط
@@ -762,7 +776,7 @@ app.post('/api/transfer', auth, wrap(async (req, res) => {
       const s = await settle(c, req.uid);
       if (Number(s.pts) < n) fail(400, 'رصيد النقاط غير كافٍ');
       const gems = type === 'gem' ? Math.floor(n / 100) : 0;
-      const usd = type === 'usd' ? n / 1000 : 0;
+      const usd = type === 'usd' ? Math.floor((n * PT_IQD / IQD_PER_USD) * 100) / 100 : 0; // النقاط -> دولار عبر 0.132 د.ع للنقطة
       if (type === 'gem' && !gems) fail(400, 'الحد الأدنى 100 نقطة');
       await c.query(`UPDATE users SET pts=pts-$2, gems=gems+$3, usd=usd+$4 WHERE id=$1`, [req.uid, n, gems, usd]);
       await log(c, req.uid, 'convert_' + type, -n, gems, usd);
@@ -1000,7 +1014,7 @@ async function refCfg() {
   const pct = Number(c.ref);
   return {
     pct: Number.isFinite(pct) ? Math.min(Math.max(pct, 0), 100) : 3,
-    pr: (Number(c.agRate) > 0 ? Number(c.agRate) : 300) / 1000, // دينار لكل نقطة
+    pr: (Number(c.agRate) > 0 ? Number(c.agRate) : 132) / 1000, // دينار لكل نقطة
   };
 }
 function finCls(label, dir) {
@@ -1020,12 +1034,16 @@ function finCls(label, dir) {
 }
 async function syncRefFin(a, email, RC, out) {
   if (!out) return;
-  const rc = String(a.rc || '').trim().slice(0, 20);
+  let rc = String(a.rc || '').trim().slice(0, 20);
+  // الرمز المشتَرى هو المرجع دائماً، ولا يُسمح لحساب آخر بالإبلاغ عن رمز مملوك لغيره
+  const own = (await pool.query('SELECT code FROM ref_owned WHERE LOWER(email)=LOWER($1)', [email]).catch(() => ({ rows: [] }))).rows[0];
+  if (own) rc = own.code;
+  else if (rc && (await pool.query('SELECT 1 FROM ref_owned WHERE UPPER(code)=UPPER($1) LIMIT 1', [rc]).catch(() => ({ rows: [] }))).rows[0]) rc = '';
   if (rc) await pool.query('UPDATE sync_accounts SET rcode=$2 WHERE LOWER(email)=LOWER($1)', [email, rc]);
   const rb = String(a.rb || '').trim().slice(0, 20);
   if (rb) {
     await pool.query(
-      `UPDATE sync_accounts SET ref_by=(SELECT s.email FROM sync_accounts s WHERE s.rcode=$2 AND LOWER(s.email)<>LOWER($1) ORDER BY s.created_at LIMIT 1)
+      `UPDATE sync_accounts SET ref_by=(SELECT s.email FROM sync_accounts s WHERE UPPER(s.rcode)=UPPER($2) AND LOWER(s.email)<>LOWER($1) ORDER BY s.created_at LIMIT 1)
        WHERE LOWER(email)=LOWER($1) AND ref_by IS NULL`, [email, rb]);
   }
   const me = (await pool.query('SELECT email, ref_by FROM sync_accounts WHERE LOWER(email)=LOWER($1)', [email])).rows[0];
@@ -1341,7 +1359,7 @@ app.post('/api/ctl/fin/del', ...ctl, wrap(async (req, res) => {
 
 app.get('/api/ctl/accounts', ...ctl, wrap(async (_req, res) => {
   const r = await pool.query(
-    `SELECT email,name,phone,demo,pts,gems,usd,blk,kyc,vml AS mv,last_seen FROM sync_accounts ORDER BY last_seen DESC LIMIT 500`);
+    `SELECT email,name,phone,demo,pts,gems,usd,blk,kyc,vml AS mv,last_seen FROM sync_accounts ORDER BY last_seen DESC LIMIT 5000`);
   const t = (await pool.query(
     `SELECT COUNT(*)::int AS n, COUNT(*) FILTER (WHERE demo)::int AS demo, COALESCE(SUM(pts),0) AS pts,
             COALESCE(SUM(gems),0) AS gems, COALESCE(SUM(usd),0) AS usd FROM sync_accounts`)).rows[0];
@@ -1353,6 +1371,7 @@ app.get('/api/ctl/accounts', ...ctl, wrap(async (_req, res) => {
 
 AX.routes(app, { pool, wrap, ctl }); // المرحلة 1ب: الإدارة
 MXT.routes(app, { pool, wrap, ctl }); // المرحلة 2: التجار + الصور الشخصية
+EXT5.routes(app, { pool, wrap, ctl, SYNC }); // المرحلة 5: شراء رموز الإحالة + حملات التبرع
 SOC.routes(app, { pool, wrap, ctl }); // المرحلة 4: الأصدقاء + الرسائل + الإشعارات الفورية
 require('./security-ext').routes(app, { pool, wrap, sendWhatsApp, normPhone }); // المرحلة 3: الجلسات + رمز واتساب + المصادقة الثنائية
 require('./fin-ext').routes(app, { pool, wrap, ctl, SYNC, GAME }); // المرحلة 1ج: المالية

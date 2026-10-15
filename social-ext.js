@@ -97,11 +97,11 @@ exports.routes = (app, { pool, wrap, ctl }) => {
          SELECT CASE WHEN f=$1 THEN t ELSE f END AS o, body, created_at, f, id FROM soc_msgs WHERE f=$1 OR t=$1
        ) m ORDER BY o, id DESC`, [u.email])).rows;
 
-    // المقترحون: مستخدمون حقيقيون (حتى 100) — المتصلون أولاً
+    // المقترحون: ترتيب ثابت بحسب تاريخ الانضمام (الأقدم أولاً) — الجديد في الذيل، ولا يتأثر بآخر ظهور
     const sug = (await q(
       `SELECT a.email,a.name,a.uid,a.last_seen,(SELECT (EXTRACT(EPOCH FROM v.updated_at)*1000)::bigint FROM avatars v WHERE v.email=LOWER(a.email)) AS av
        FROM sync_accounts a WHERE a.demo=FALSE AND COALESCE(a.blk,FALSE)=FALSE AND LOWER(a.email)<>$1
-       ORDER BY (a.last_seen > NOW() - INTERVAL '5 minutes') DESC, a.last_seen DESC NULLS LAST LIMIT 100`, [u.email])).rows;
+       ORDER BY a.created_at ASC, LOWER(a.email) ASC LIMIT 100`, [u.email])).rows;
     // أصدقاء/مراسلون/طلبات خارج أول 100 يجب أن يظهروا أيضاً
     const have = new Set(sug.map((r) => String(r.email).toLowerCase()));
     const extra = [...new Set([...emails, ...conv.map((c) => c.o)])].filter((e) => !have.has(e));

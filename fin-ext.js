@@ -22,7 +22,7 @@ exports.routes = (app, { pool, wrap, ctl, SYNC, GAME }) => {
   async function ptRate() { // دينار لكل نقطة
     const r = (await q(`SELECT val FROM sync_kv WHERE key='config'`)).rows[0];
     const c = (r && r.val && r.val.cfg) || {};
-    return (num(c.agRate) > 0 ? num(c.agRate) : 300) / 1000;
+    return (num(c.agRate) > 0 ? num(c.agRate) : 132) / 1000;
   }
 
   async function compute() {
