@@ -75,12 +75,19 @@ exports.routes = (app, { pool, wrap, ctl, SYNC }) => {
       if (taken) fail(409, 'هذا الرمز مباع بالفعل');
       const used = (await cl.query(`SELECT 1 FROM sync_accounts WHERE UPPER(rcode)=$1 AND LOWER(email)<>$2 LIMIT 1`, [code, email])).rows[0];
       if (used) fail(409, 'هذا الرمز مستخدم من حساب آخر');
+      // الدفع من الرصيد الحقيقي (على السيرفر) قبل تثبيت الرمز
+      const bal = (await cl.query(`SELECT pts FROM sync_accounts WHERE LOWER(email)=$1 FOR UPDATE`, [email])).rows[0];
+      if (!bal || Number(bal.pts) < price) fail(400, 'عذرا، رصيدك غير كافٍ');
+      await cl.query(`UPDATE sync_accounts SET pts=pts-$2 WHERE LOWER(email)=$1`, [email, price]);
       await cl.query(`DELETE FROM ref_owned WHERE LOWER(email)=$1`, [email]); // يُستبدل الرمز السابق
       await cl.query(`INSERT INTO ref_owned(code,email,price) VALUES($1,$2,$3)`, [code, email, price]);
       await cl.query(`UPDATE sync_accounts SET rcode=$2 WHERE LOWER(email)=$1`, [email, code]);
       await cl.query('COMMIT');
     } catch (e) { await cl.query('ROLLBACK').catch(() => {}); throw e; }
     finally { cl.release(); }
+    await q(`UPDATE users SET pts=GREATEST(0,pts-$2) WHERE LOWER(email)=$1`, [email, price]).catch(() => {});
+    // أمر مزامنة: يخصم المبلغ على بقية أجهزة الحساب (جهاز الشراء يتخطاه عبر by)
+    await q(`INSERT INTO sync_cmds(body) VALUES($1)`, [JSON.stringify({ t: 'adj', e: email, sc: 'all', d: { pts: -price }, by: txt(req.body.cid, 64) || 'srv' })]).catch(() => {});
     res.json({ ok: true, code, price });
   }));
 
