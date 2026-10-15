@@ -84,6 +84,18 @@ const AX = require('./admin-ext');
 const MXT = require('./merchant-ext');
 const SOC = require('./social-ext');
 const EXT5 = require('./extras-ext');
+
+// أعمدة العدادات (عدد العدادات + هل تعمل) تُخزَّن على السيرفر ليراها المالك لكل المستخدمين
+const colsReady = (async () => {
+  for (let i = 0; i < 20; i++) {
+    try {
+      await pool.query(`ALTER TABLE sync_accounts ADD COLUMN IF NOT EXISTS ncl INT NOT NULL DEFAULT 0`);
+      await pool.query(`ALTER TABLE sync_accounts ADD COLUMN IF NOT EXISTS nrun INT NOT NULL DEFAULT 0`);
+      return true;
+    } catch (e) { await new Promise((r) => setTimeout(r, 3000)); }
+  }
+  return false;
+})();
 AX.parsers(app, express); // صور الدعم والبلاغات (حد أكبر)
 MXT.parsers(app, express); // صور التجار والصور الشخصية
 SOC.parsers(app, express); // الأصدقاء والرسائل
@@ -1110,7 +1122,7 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
       const cv = parseInt(req.body.cv, 10) || 0;
       if (own && cv > 0) {
         pending = (await pool.query(
-          `SELECT 1 FROM sync_cmds WHERE id>$1 AND body->>'t' IN ('adj','set','rz') AND (body->>'e' IS NULL OR LOWER(body->>'e')=LOWER($2)) LIMIT 1`, [cv, email])).rows.length > 0;
+          `SELECT 1 FROM sync_cmds WHERE id>$1 AND body->>'t' IN ('adj','set','rz','rc') AND (body->>'e' IS NULL OR LOWER(body->>'e')=LOWER($2)) LIMIT 1`, [cv, email])).rows.length > 0;
       }
       const wb = own && !pending;
       await pool.query(
@@ -1126,6 +1138,10 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
          WHERE LOWER(email)=LOWER($1)`,
         [email, String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), passHash, vml, vph, pn, gn, un, isDemo, isKyc, wb]
       );
+      if (wb && a.ncl != null && (await colsReady)) {
+        const nc = Math.max(0, Math.min(100000, Math.floor(Number(a.ncl)) || 0));
+        await pool.query(`UPDATE sync_accounts SET ncl=$2, nrun=$3 WHERE LOWER(email)=LOWER($1)`, [email, nc, a.nrun ? 1 : 0]).catch(() => {});
+      }
       const row = (await pool.query('SELECT * FROM sync_accounts WHERE LOWER(email)=LOWER($1)', [email])).rows[0];
       returnedAccounts.push({
         e: row.email,
@@ -1175,7 +1191,7 @@ app.post('/api/ctl/config', ...ctl, wrap(async (req, res) => {
 
 function cleanCmd(b) {
   b = b || {};
-  if (!['adj', 'set', 'rz', 'blk', 'cfg', 'nm', 'kyc', 'vf'].includes(b.t)) fail(400, 'نوع أمر غير صحيح');
+  if (!['adj', 'set', 'rz', 'rc', 'blk', 'cfg', 'nm', 'kyc', 'vf'].includes(b.t)) fail(400, 'نوع أمر غير صحيح');
   const out = { t: b.t, sc: ['all', 'real', 'demo'].includes(b.sc) ? b.sc : 'all' };
   const e = b.e ? String(b.e).trim().toLowerCase().slice(0, 120) : '';
   if (e) out.e = e;
@@ -1193,6 +1209,9 @@ function cleanCmd(b) {
     for (const k of ['p', 'g', 'd', 'c', 'a']) if (b.o && b.o[k]) out.o[k] = 1;
     if (!Object.keys(out.o).length) fail(400, 'اختر ما تريد تصفيره');
     out.sc = 'all'; delete out.e;
+  } else if (b.t === 'rc') {
+    if (!out.e) fail(400, 'حدد الحساب');
+    out.sc = 'all';
   } else if (b.t === 'nm') {
     if (!out.e) fail(400, 'حدد الحساب');
     out.n = String(b.n || '').trim().replace(/\s+/g, ' ').slice(0, 80);
@@ -1291,6 +1310,11 @@ app.post('/api/ctl/cmd', ...ctl, wrap(async (req, res) => {
       await pool.query(`DELETE FROM counters`);
       await pool.query(`UPDATE users SET running=false, done=false, left_sec=86400, accr=0, accg=0`);
     }
+  } else if (body.t === 'rc') {
+    // تصفير عدادات حساب واحد: يُحدَّث السيرفر فوراً ثم يطبّقه جهاز المستخدم عبر أمر المزامنة
+    await colsReady;
+    await pool.query(`UPDATE sync_accounts SET cl='[]'::jsonb, ncl=0, nrun=0 WHERE LOWER(email)=LOWER($1)`, [body.e]);
+    await pool.query(`UPDATE users SET running=false, done=false, left_sec=86400, accr=0, accg=0 WHERE LOWER(email)=LOWER($1)`, [body.e]).catch(() => {});
   } else if (body.t === 'nm') {
     await pool.query(`UPDATE sync_accounts SET name=$2 WHERE LOWER(email)=LOWER($1)`, [body.e, body.n]);
     await pool.query(`UPDATE users SET name=$2 WHERE LOWER(email)=LOWER($1)`, [body.e, body.n]);
@@ -1307,7 +1331,9 @@ app.post('/api/ctl/cmd', ...ctl, wrap(async (req, res) => {
 
   const r = await pool.query('INSERT INTO sync_cmds(body) VALUES($1) RETURNING id', [JSON.stringify(body)]);
   await pool.query('DELETE FROM sync_cmds WHERE id < (SELECT MAX(id) FROM sync_cmds) - 5000');
-  res.json({ ok: true, id: r.rows[0].id });
+  // بث فوري (SSE) للأجهزة المتصلة بعد أن طُبّق التعديل على قاعدة البيانات
+  const delivered = app.locals.broadcastCmd ? app.locals.broadcastCmd(r.rows[0].id, body) : 0;
+  res.json({ ok: true, id: r.rows[0].id, delivered });
 }));
 
 app.get('/api/ctl/fin', ...ctl, wrap(async (_req, res) => {
@@ -1369,6 +1395,27 @@ app.get('/api/ctl/accounts', ...ctl, wrap(async (_req, res) => {
   });
 }));
 
+// كل المستخدمين بتفاصيلهم: الاسم والصورة والبريد والرصيد والجواهر والنقاط والعدادات
+app.get('/api/ctl/people', ...ctl, wrap(async (_req, res) => {
+  await colsReady;
+  const cols = `a.email,a.name,a.phone,a.demo,a.pts,a.gems,a.usd,a.blk,a.kyc,a.vml AS mv,a.rcode,a.last_seen,a.created_at`;
+  let rows;
+  try {
+    rows = (await pool.query(
+      `SELECT ${cols},COALESCE(a.ncl,0) AS ncl,COALESCE(a.nrun,0) AS nrun,
+              (SELECT (EXTRACT(EPOCH FROM v.updated_at)*1000)::bigint FROM avatars v WHERE v.email=LOWER(a.email)) AS av
+       FROM sync_accounts a ORDER BY a.last_seen DESC NULLS LAST LIMIT 5000`)).rows;
+  } catch (e) {
+    rows = (await pool.query(`SELECT ${cols},0 AS ncl,0 AS nrun,NULL AS av FROM sync_accounts a ORDER BY a.last_seen DESC NULLS LAST LIMIT 5000`)).rows;
+  }
+  res.json({
+    users: rows.map((x) => ({
+      ...x, pts: Number(x.pts) || 0, gems: Number(x.gems) || 0, usd: Number(x.usd) || 0,
+      ncl: Number(x.ncl) || 0, nrun: Number(x.nrun) || 0, av: x.av ? Number(x.av) : 0,
+    })),
+  });
+}));
+
 AX.routes(app, { pool, wrap, ctl }); // المرحلة 1ب: الإدارة
 require('./pricing-ext').migrate(pool); // المرحلة 5: توحيد التسعيرة المنشورة
 MXT.routes(app, { pool, wrap, ctl }); // المرحلة 2: التجار + الصور الشخصية
@@ -1376,6 +1423,8 @@ EXT5.routes(app, { pool, wrap, ctl, SYNC }); // المرحلة 5: شراء رم�
 SOC.routes(app, { pool, wrap, ctl }); // المرحلة 4: الأصدقاء + الرسائل + الإشعارات الفورية
 require('./security-ext').routes(app, { pool, wrap, sendWhatsApp, normPhone }); // المرحلة 3: الجلسات + رمز واتساب + المصادقة الثنائية
 require('./fin-ext').routes(app, { pool, wrap, ctl, SYNC, GAME }); // المرحلة 1ج: المالية
+require('./instant-sync')(app, express, { pool, wrap, ctl, fail }); // بث فوري SSE + البحث بكود الإحالة
+require('./security-server')(app, express, { pool, wrap, ctl, fail }); // الحماية: بصمة الجهاز + VPN + تلاعب الوقت
 
 /* ---------- Health + static frontend ---------- */
 app.get('/healthz', wrap(async (_req, res) => { await pool.query('SELECT 1'); res.json({ ok: true }); }));

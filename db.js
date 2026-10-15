@@ -123,12 +123,27 @@ CREATE TABLE IF NOT EXISTS fin_ev (
   src TEXT NOT NULL DEFAULT 'auto'
 );
 CREATE INDEX IF NOT EXISTS fin_ev_ts_idx ON fin_ev(ts);
-CREATE TABLE IF NOT EXISTS ref_owned (
-  code TEXT PRIMARY KEY,
-  email TEXT NOT NULL UNIQUE,
-  price BIGINT NOT NULL DEFAULT 0,
+CREATE TABLE IF NOT EXISTS user_devices (
+  id SERIAL PRIMARY KEY,
+  email TEXT NOT NULL,
+  fingerprint TEXT NOT NULL,
+  first_seen TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ua TEXT, ip TEXT, country TEXT, tz TEXT,
+  is_vpn BOOLEAN NOT NULL DEFAULT FALSE,
+  banned BOOLEAN NOT NULL DEFAULT FALSE,
+  UNIQUE(email, fingerprint)
+);
+CREATE INDEX IF NOT EXISTS user_devices_email_idx ON user_devices(email);
+CREATE TABLE IF NOT EXISTS security_alerts (
+  id SERIAL PRIMARY KEY,
+  kind TEXT NOT NULL,
+  email TEXT,
+  meta JSONB,
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE INDEX IF NOT EXISTS security_alerts_created_idx ON security_alerts(created_at DESC);
 `;
 
 async function migrate() {
