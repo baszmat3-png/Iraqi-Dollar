@@ -189,7 +189,7 @@ exports.routes = (app, { pool, wrap, ctl }) => {
         await q(`UPDATE users SET pts=pts+$2 WHERE LOWER(email)=$1`, [owner, fee]).catch(() => {});
         await q(`INSERT INTO sync_cmds(body) VALUES($1)`, [JSON.stringify({ t: 'adj', sc: 'all', e: owner, d: { pts: fee }, by: 'srv' })]);
         const cfg = (await q(`SELECT val FROM sync_kv WHERE key='config'`)).rows[0], c = (cfg && cfg.val && cfg.val.cfg) || {};
-        const pr = (Number(c.agRate) > 0 ? Number(c.agRate) : 300) / 1000;
+        const pr = (Number(c.agRate) > 0 ? Number(c.agRate) : 132) / 1000;
         await q(`INSERT INTO fin_ev(uid,email,kind,cat,pts,iqd,note,src) VALUES($1,$2,'out','trade',$3,$4,$5,'auto') ON CONFLICT DO NOTHING`,
           ['trade-refund:' + id, owner, fee, Math.round(fee * pr * 100) / 100, 'استرجاع رسوم طلب تجارة (رفض): ' + prev.name]).catch(() => {});
       }

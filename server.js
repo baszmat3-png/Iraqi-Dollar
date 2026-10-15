@@ -55,9 +55,9 @@ if (!process.env.DATABASE_URL) { console.error('Missing env DATABASE_URL'); proc
 // counter lifetime = 360 days (+60 days = 20% platform profit).
 const CT = [
   ['بسيط', 15000, 50, 'p'],
-  ['الاعتيادي', 30000, 100, 'g'],
+  ['الاعتيادي', 30000, 100, 'p'],
   ['برونزي', 30000, 100, 'p'],
-  ['الفضي', 150000, 500, 'g'],
+  ['الفضي', 150000, 500, 'p'],
   ['الذهبي', 150000, 500, 'p'],
   ['الماسي', 300000, 1000, 'p'],
   ['الناري', 1500000, 5000, 'p'],
@@ -1370,6 +1370,7 @@ app.get('/api/ctl/accounts', ...ctl, wrap(async (_req, res) => {
 }));
 
 AX.routes(app, { pool, wrap, ctl }); // المرحلة 1ب: الإدارة
+require('./pricing-ext').migrate(pool); // المرحلة 5: توحيد التسعيرة المنشورة
 MXT.routes(app, { pool, wrap, ctl }); // المرحلة 2: التجار + الصور الشخصية
 EXT5.routes(app, { pool, wrap, ctl, SYNC }); // المرحلة 5: شراء رموز الإحالة + حملات التبرع
 SOC.routes(app, { pool, wrap, ctl }); // المرحلة 4: الأصدقاء + الرسائل + الإشعارات الفورية
