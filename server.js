@@ -1438,7 +1438,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, p) => { if (/\.(html|json)$/.test(p)) res.setHeader('Cache-Control', 'no-cache, must-revalidate'); },
 }));
 app.get('/admin', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
-app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get(/.*/, (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 migrate().then(() => {
   app.listen(PORT, '0.0.0.0', () => console.log('Listening on', PORT));
