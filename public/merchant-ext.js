@@ -49,6 +49,8 @@
       `<div class="g2"><div class="card row" style="padding:10px 14px"><div class="ci" style="width:40px;height:40px">${ic('globe')}</div><div class="sp"><small class="mu">البلد</small><br><b>العراق</b></div></div><div class="card row" style="padding:10px 14px"><div class="ci" style="width:40px;height:40px">${ic('bld')}</div><div class="sp"><small class="mu">المحافظة</small><select id="mprov" aria-label="المحافظة" style="margin:2px 0 0;padding:6px 8px;border-radius:10px;font-size:.9rem">${provOpts(S.mprov || '', 'كل المحافظات')}</select></div></div></div>` +
       (me && me.status === 'active'
         ? `<button class="ic" style="background:hsl(calc(var(--h) + 7) 64% 25%);padding:18px" data-a="go" data-v="mxdash"><div class="ci">${ic('store')}</div><b class="sp" style="font-size:1.2rem">لوحة متجري: ${esc(me.name)}</b>${ic('chev')}</button>`
+        : me && me.status === 'rejected' && !MX.rejHide
+          ? `<div class="card" style="padding:12px;border-color:#ef5350"><b style="color:#ef5350">تم رفض طلب التاجر السابق</b><div class="mu" style="margin-top:4px">${esc(me.note || '')} أُعيدت الرسوم إلى رصيدك، ويمكنك تقديم طلب جديد.</div></div><button class="ic" style="background:hsl(calc(var(--h) + 7) 64% 25%);padding:18px" data-a="addm"><div class="ci">${ic('store')}</div><b class="sp" style="font-size:1.2rem">إضافة تاجر جديد</b>${ic('chev')}</button>`
         : me && me.status === 'pending'
           ? `<div class="card row2" style="padding:12px 16px"><div><b>${esc(me.name)}</b><div class="mu">${esc(me.province)}</div></div><span class="bdg no">بانتظار موافقة لوحة التحكم</span></div>`
           : `<button class="ic" style="background:hsl(calc(var(--h) + 7) 64% 25%);padding:18px" data-a="addm"><div class="ci">${ic('store')}</div><b class="sp" style="font-size:1.2rem">إضافة تاجر جديد</b>${ic('chev')}</button>`) +
@@ -60,7 +62,7 @@
     const m = MX.merchants.find((x) => x.id == mid); if (!m) return;
     const own = S.acc && m.owner === S.acc.e.toLowerCase();
     dlg(`<h2 style="margin-top:0">${esc(m.name)}</h2>${m.img ? `<img src="${m.img}" style="width:100%;max-height:200px;object-fit:cover;border-radius:14px;margin-bottom:8px">` : ''}
-<span class="bdg ok">خصم ${m.discount}%</span>${det('المحافظة', m.province)}${det('التفاصيل', m.details)}${det('العنوان', m.address)}${det('أقرب نقطة دالة', m.landmark)}${det('الخدمات', m.services)}${det('الهاتف', m.phone)}
+<span class="bdg ok">خصم ${m.discount}%</span>${det('المحافظة', m.province)}${det('المنطقة', m.area)}${det('التفاصيل', m.details)}${det('العنوان', m.address)}${det('أقرب نقطة دالة', m.landmark)}${det('الخدمات', m.services)}${det('الهاتف', m.phone)}
 ${own ? '<div class="card mu" style="margin-top:12px">هذا متجرك. حسابك للاستقبال فقط ولا يمكنك التحويل إليه.</div>'
         : `<label style="display:block;margin-top:12px">عدد النقاط<input id="mxa" type="number" inputmode="numeric"></label><button class="btn" data-a="mxpay" data-v="${m.id}">تحويل النقاط</button>`}`);
   }
@@ -81,32 +83,92 @@ ${own ? '<div class="card mu" style="margin-top:12px">هذا متجرك. حسا�
     const m = MX.me;
     if (!m || m.status !== 'active') return hd('لوحة المتجر', 'store', { back: 'home' }) + '<div class="card mu" style="text-align:center">لا تملك متجراً معتمداً</div>';
     const cap = m.cap, left = cap > 0 ? Math.max(0, cap - m.today) : null, pc = cap > 0 ? Math.min(100, Math.round(m.today * 100 / cap)) : 0;
-    const inp = (i, l, v, ph) => `<label style="display:block;margin-top:8px"><span class="mu">${l}</span><input id="${i}" value="${esc(v || '')}" placeholder="${ph || ''}"></label>`;
+    const ro = (l, v) => (v ? `<div style="display:flex;justify-content:space-between;gap:10px;margin-top:6px"><span class="mu">${l}</span><b style="text-align:end">${esc(v)}</b></div>` : '');
     return hd('لوحة المتجر', 'store', { back: 'home' }) +
       `<div class="card"><div class="row2"><b style="font-size:1.3rem">${esc(m.name)}</b><span class="bdg ok">معتمد · استقبال فقط</span></div>
 <div class="g2" style="margin-top:10px"><div class="card" style="text-align:center"><div class="mu">استلمت اليوم</div><b class="cy" style="font-size:1.3rem">${nf(m.today)}</b></div><div class="card" style="text-align:center"><div class="mu">إجمالي المستلم</div><b class="cy" style="font-size:1.3rem">${nf(m.total)}</b></div></div>
 <div style="margin-top:8px">السقف اليومي: <b>${cap > 0 ? nf(cap) + ' نقطة' : 'غير محدد'}</b>${left != null ? ` · المتبقي: <b>${nf(left)}</b>` : ''}</div>
 ${cap > 0 ? `<div style="height:8px;border-radius:99px;background:#0003;margin-top:6px;overflow:hidden"><div style="height:100%;width:${pc}%;background:var(--cy)"></div></div>` : ''}
 <div class="mu" style="font-size:.85rem;margin-top:6px">السقف يحدده مدير لوحة التحكم. المستخدمون يحوّلون إليك، ولا يمكنك التحويل من هذه اللوحة.</div></div>
-<div class="card"><h3 style="margin:0 0 6px">بيانات المتجر</h3>
-${inp('mxn', 'اسم المتجر', m.name)}${inp('mxdc', 'نسبة الخصم %', m.discount)}
-<label class="btn o sm" style="display:block;text-align:center;margin-top:8px">${m.img ? 'تغيير صورة المتجر' : 'رفع صورة المتجر'}<input id="mxim" type="file" accept="image/*" hidden></label><div id="mxin" class="mu" style="font-size:.85rem"></div>
-<label style="display:block;margin-top:8px"><span class="mu">الوصف</span><textarea id="mxd" rows="3" style="width:100%;box-sizing:border-box">${esc(m.details)}</textarea></label>
-${inp('mxad', 'العنوان', m.address)}${inp('mxlm', 'أقرب نقطة دالة', m.landmark)}${inp('mxsv', 'الخدمات التي يقدمها المتجر', m.services, 'مثال: توصيل، تقسيط، صيانة')}${inp('mxph', 'رقم الهاتف', m.phone)}
-<button class="btn" style="margin-top:10px" data-a="mxsave">حفظ</button></div>
+<div class="card"><h3 style="margin:0 0 6px">بيانات المتجر</h3>${ro('المحافظة', m.province)}${ro('المنطقة', m.area)}${ro('أقرب نقطة دالة', m.landmark)}${ro('الهاتف', m.phone)}
+<div class="mu" style="font-size:.8rem;margin-top:8px">هذه البيانات تُغيَّر من لوحة التحكم فقط.</div></div>
+<div class="card"><h3 style="margin:0 0 6px">ما يمكنك تعديله</h3>
+<label style="display:block;margin-top:8px"><span class="mu">نسبة الخصم % (0 - 100)</span><input id="mxdc" type="number" inputmode="numeric" min="0" max="100" value="${esc(m.discount)}"></label>
+<label style="display:block;margin-top:8px"><span class="mu">وصف المتجر</span><textarea id="mxd" rows="4" maxlength="600" style="width:100%;box-sizing:border-box" placeholder="اكتب وصفاً يظهر للمستخدمين...">${esc(m.details)}</textarea></label>
+<button class="btn" style="margin-top:10px" data-a="mxsave">حفظ الوصف والنسبة</button></div>
 <h3>آخر عمليات الاستلام</h3>${m.tx.length ? m.tx.map((t) => `<div class="card row2" style="padding:10px 14px"><div><b>${esc(t.n || '—')}</b><div class="mu" style="font-size:.8rem">${dt(t.t)}</div></div><b class="cy">+${nf(t.pts)}</b></div>`).join('') : '<div class="card mu" style="text-align:center">لا توجد عمليات بعد</div>'}`;
-  }
-  let mxImg = null;
-  window.addEventListener('change', async (ev) => {
-    if (!ev.target || ev.target.id !== 'mxim' || !ev.target.files[0]) return;
-    try { mxImg = await shrink(ev.target.files[0], 900, 0.75); const n = document.querySelector('#mxin'); if (n) n.textContent = 'تم اختيار الصورة، اضغط حفظ'; } catch (e) { say('تعذر قراءة الصورة'); }
-  }, true);
+  };
   async function saveShop() {
     const me = id(), g = (i) => (document.querySelector(i) || {}).value || '';
+    const dc = Number(g('#mxdc'));
+    if (!Number.isFinite(dc) || dc < 0 || dc > 100) return say('نسبة الخصم بين 0 و100');
     try {
-      await post('/api/m/profile', { ...me, name: g('#mxn'), discount: g('#mxdc'), image: mxImg, details: g('#mxd'), address: g('#mxad'), landmark: g('#mxlm'), services: g('#mxsv'), phone: g('#mxph') });
-      mxImg = null; say('تم حفظ بيانات المتجر'); poll(true);
+      await post('/api/m/profile', { ...me, discount: dc, details: g('#mxd') });
+      say('تم حفظ الوصف ونسبة الخصم'); poll(true);
     } catch (e) { say(e.message); }
+  }
+
+  /* ---------- طلب الانضمام كتاجر (يُستقطع المبلغ مقدماً ويُرسل للوحة التحكم) ---------- */
+  const mrFee = () => { try { return Math.max(0, Math.floor(+CFG.mrFee || 200000)); } catch (e) { return 200000; } };
+  const hasCounter = () => { try { return S.ctr.slice(5).some((n) => n > 0); } catch (e) { return false; } };
+  function applyDlg() {
+    if (!S.acc) return say('سجّل الدخول أولاً');
+    if (MX.me && MX.me.status === 'active') { try { document.querySelector('#d').close(); } catch (e) {} return go('mxdash'); }
+    const ok = hasCounter(), fee = mrFee(), enough = S.pts >= fee, code = code_();
+    const cond = (good, t) => `<div class="row" style="margin-top:6px"><span class="bdg ${good ? 'ok' : 'no'}">${good ? '✓' : '✗'}</span><span>${t}</span></div>`;
+    const fld = (i, l, ph, v, ex) => `<label style="display:block;margin-top:6px"><span class="mu">${l}</span><input id="${i}" placeholder="${ph}" value="${esc(v || '')}" ${ex || ''}></label>`;
+    dlg(`<h2 style="margin-top:0">إضافة تاجر جديد</h2>
+<div class="card" style="margin-bottom:10px;padding:12px"><b>شروط الانضمام</b>
+${cond(ok, 'امتلاك عداد 50,000 نقطة (الماسي فما فوق)')}
+${cond(enough, 'رصيد يكفي للرسوم: ' + nf(fee) + ' نقطة تُستقطع مقدماً')}
+<div class="mu" style="font-size:.85rem;margin-top:6px">يُرسل الطلب إلى لوحة التحكم للموافقة، وتُعاد الرسوم إلى رصيدك إن رُفض الطلب.</div></div>
+${ok ? `${fld('mxan', 'اسم المتجر', 'أدخل اسم المتجر')}
+${fld('mxap', 'رقم الهاتف', 'أدخل رقم الهاتف', S.phone && !/123 4567/.test(S.phone) ? S.phone : '', 'type="tel" inputmode="tel" dir="ltr"')}
+<label style="display:block;margin-top:6px"><span class="mu">المحافظة</span><select id="mxapv" style="width:100%;background:#0b141c;color:#fff;border:1.5px solid var(--line);border-radius:18px;padding:14px 16px;font:inherit;margin:6px 0">${provOpts('', 'اختر المحافظة')}</select></label>
+${fld('mxaa', 'المنطقة', 'أدخل المنطقة')}
+${fld('mxal', 'أقرب نقطة دالة', 'مثال: مقابل مدرسة، قرب جسر...')}
+${fld('mxar', 'رمز الإحالة', '', code, 'readonly dir="ltr" style="opacity:.8"')}
+<button class="btn" style="margin-top:10px" data-a="mxapply" ${enough ? '' : 'disabled style="opacity:.5;margin-top:10px"'}>دفع ${nf(fee)} نقطة وإرسال الطلب</button>`
+        : '<button class="btn" data-a="go" data-v="counter">شراء عداد 50,000 نقطة</button>'}
+<button class="btn o" style="margin-top:8px" onclick="d.close()">إلغاء</button>`);
+  }
+  const code_ = () => { try { return String(ucode({ e: S.acc.e })); } catch (e) { return ''; } };
+  let applying = false;
+  async function applyMerchant() {
+    if (applying) return; const me = id(); if (!me) return say('سجّل الدخول أولاً');
+    const g = (i) => ((document.querySelector(i) || {}).value || '').trim();
+    const name = g('#mxan'), phone = g('#mxap'), province = g('#mxapv'), area = g('#mxaa'), landmark = g('#mxal');
+    if (!hasCounter()) return say('تحتاج عداداً من فئة 50,000 نقطة (الماسي فما فوق)');
+    if (!name) return say('أدخل اسم المتجر');
+    if (phone.replace(/\D/g, '').length < 9) return say('أدخل رقم هاتف صحيحاً');
+    if (!province) return say('اختر المحافظة');
+    if (!area) return say('أدخل المنطقة');
+    if (!landmark) return say('أدخل أقرب نقطة دالة');
+    const fee = mrFee();
+    if (S.pts < fee) return say('رصيدك غير كافٍ، المطلوب ' + nf(fee) + ' نقطة');
+    applying = true;
+    try {
+      const j = await post('/api/m/apply', { ...me, name, phone, province, area, landmark, ref_code: code_(), fee });
+      if (j.dup) { say('لديك طلب قائم بالفعل'); }
+      else {
+        try { lrs('رسوم طلب تجارة', 'المبلغ ' + nf(fee) + ' · يُعاد عند رفض الطلب'); } catch (e) {}
+        S.pts -= fee; try { txlog('رسوم طلب تجارة', fee, 'out'); } catch (e) {}
+        try { save(); } catch (e) {}
+        say('تم استقطاع ' + nf(fee) + ' نقطة وإرسال طلبك إلى لوحة التحكم');
+      }
+      try { document.querySelector('#d').close(); } catch (e) {}
+      await poll(true); draw();
+    } catch (e) { say(e.message); } finally { applying = false; }
+  }
+
+  /* نافذة «أنت تاجر الآن» تظهر مرة واحدة بعد الموافقة */
+  function merchantPop() {
+    try {
+      const m = MX.me; if (!m || m.status !== 'active' || !S.acc || S.r === 'panel') return;
+      const d = document.querySelector('#d'); if (!d || d.open) return;
+      const k = 'mxseen:' + S.acc.e + ':' + m.id; if (localStorage.getItem(k)) return; localStorage.setItem(k, '1');
+      dlg(`<h2 style="margin-top:0;color:#3ddc68">🎉 أنت تاجر الآن</h2><div class="card" style="padding:12px;line-height:2">✓ اسم متجرك <b>${esc(m.name)}</b> مثبّت في أعلى التطبيق<br>✓ يحوّل لك المستخدمون النقاط مباشرة<br>✓ تعدّل وصف المتجر ونسبة الخصم من قسم التجار<br>✓ لوحة متجر خاصة داخل التطبيق<br><span class="mu">السقف اليومي: <b>${m.cap > 0 ? nf(m.cap) : 'غير محدد'}</b> نقطة</span></div><button class="btn" data-a="go" data-v="mxdash">فتح لوحة المتجر</button>`);
+    } catch (e) {}
   }
 
   /* شريط اسم المتجر المثبت في الأعلى */
@@ -160,6 +222,8 @@ ${methodsOf().map((x, i) => `<div class="row" style="margin-top:8px;gap:8px"><in
     const a = t.dataset.a, v = t.dataset.v;
     if (a === 'ag') { setTimeout(() => agentPublic(t.dataset.i), 80); return; }
     if (a === 'rcopy') { setTimeout(inviteDlg, 120); return; } // النسخ الأصلي يعمل ثم تظهر الكليشة
+    if (a === 'addm' || a === 'adm2') { ev.stopImmediatePropagation(); ev.preventDefault(); applyDlg(); return; }
+    if (a === 'mxapply') { ev.stopImmediatePropagation(); ev.preventDefault(); applyMerchant(); return; }
     if (!/^mx/.test(a)) return;
     ev.stopImmediatePropagation(); ev.preventDefault();
     if (a === 'mxo') openMerchant(v);
@@ -186,14 +250,18 @@ ${methodsOf().map((x, i) => `<div class="row" style="margin-top:8px;gap:8px"><in
 
   /* ---------- مزامنة كل 5 ثوانٍ ---------- */
   const applied = new Set(JSON.parse(localStorage.getItem('mxapplied') || '[]'));
-  async function mirrorRequests() {
-    const me = id(); if (!me || (MX.me && MX.me.status !== 'suspended')) return false;
-    let did = false;
-    for (const x of RQ()) {
-      if (x.t !== 'انضمام تاجر' || x.e !== S.acc.e || x.s || applied.has(x.id)) continue;
-      try { await post('/api/m/apply', { ...me, name: x.n, province: x.city || '', discount: x.disc || 10 }); applied.add(x.id); did = true; localStorage.setItem('mxapplied', JSON.stringify([...applied])); } catch (e) {}
-    }
-    return did;
+  async function mirrorRequests() { return false; } // الطلب يُرسل الآن مباشرة من نافذة الإضافة
+  /* وكيل معتمد: تثبيت الصف في قائمة الوكلاء محلياً فور ظهوره على السيرفر، فيختفي «طلب وكالة» وتظهر «لوحة الوكيل» */
+  function syncAgent(j) {
+    try {
+      if (!S.acc || !j.agent) return;
+      const el = S.acc.e.toLowerCase(), i = AG.findIndex((o) => o && !o[6] && String(o[8] || '').toLowerCase() === el);
+      let ch = false;
+      if (i < 0) { AG.push(j.agent.slice()); LSset('agents', AG); ch = true; }
+      if (j.agentCode) { const m = Object.assign({}, AGC()); if (String(m[j.agent[0]]) !== j.agentCode) { m[j.agent[0]] = j.agentCode; window._ragx = m; try { localStorage.setItem('agxc', JSON.stringify(m)); } catch (e) {} ch = true; } }
+      for (const x of RQ()) if (x.t === 'طلب وكالة' && String(x.e).toLowerCase() === el && !x.s) { const l = RQ(), o = l.find((y) => y.id === x.id); if (o) { o.s = 1; LSset('rq', l); ch = true; } }
+      if (ch) { try { agyPop(); } catch (e) {} if (!typing() && ['agents', 'home', 'agdash'].includes(S.r)) draw(); }
+    } catch (e) {}
   }
   let busy = false;
   async function poll(force) {
@@ -206,7 +274,9 @@ ${methodsOf().map((x, i) => `<div class="row" style="margin-top:8px;gap:8px"><in
       MX.merchants = j.merchants; MX.me = j.me; MX.av = j.av || {}; MX.agents = j.agents || {};
       const mine = myAv(); if (mine && S.av !== mine) { S.av = mine; }
       if (j.me && j.me.status === 'active') for (const x of RQ()) if (x.t === 'انضمام تاجر' && x.e === S.acc.e && !x.s) { const l = RQ(); const o = l.find((y) => y.id === x.id); if (o) { o.s = 1; LSset('rq', l); } }
-      if (sig !== MX.sig) { MX.sig = sig; if (!typing() && ['merchants', 'mxdash', 'profile', 'users', 'home'].includes(S.r)) draw(); else bar(); }
+      syncAgent(j);
+      merchantPop();
+      if (sig !== MX.sig) { MX.sig = sig; if (!typing() && ['merchants', 'mxdash', 'profile', 'home', 'agents', 'agdash'].includes(S.r)) draw(); else bar(); }
     } catch (e) {} finally { busy = false; }
   }
   window.mxPoll = poll;

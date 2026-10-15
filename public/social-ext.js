@@ -1,0 +1,249 @@
+/* قسم المستخدمين الحقيقي — اقتراحات حتى 100 مستخدم · طلبات صداقة فورية · إشعارات · مراسلة أي شخص
+   كل البيانات من السيرفر (قاعدة البيانات) فتتزامن بين كل الأجهزة. */
+(function () {
+  if (typeof S === 'undefined' || typeof V === 'undefined') return;
+
+  const css = document.createElement('style');
+  css.textContent = `
+  #scbn{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));left:50%;transform:translate(-50%,-140%);width:min(480px,94vw);z-index:100000;
+    background:linear-gradient(135deg,hsl(calc(var(--h) + 8) 58% 24%),hsl(calc(var(--h) + 8) 55% 16%));border:1.5px solid var(--cy);border-radius:18px;padding:12px 16px;
+    color:#fff;box-shadow:0 10px 34px #000b;transition:transform .35s cubic-bezier(.2,.9,.3,1.2);cursor:pointer;direction:rtl}
+  #scbn.on{transform:translate(-50%,0)}#scbn b{display:block;color:var(--cy);margin-bottom:2px}#scbn span{font-size:.92rem;opacity:.95}
+  .sc-st{display:flex;gap:6px;align-items:center;margin-top:2px}
+  .sc-nm{font-weight:700;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sc-bar{display:flex;align-items:center;gap:8px;justify-content:space-between;background:#2c2a18;border:1.5px solid #6f6228;color:#f1c40f;border-radius:14px;padding:8px 12px;margin:8px 0;font-size:.88rem}
+  .sc-bar button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:6px 12px;background:#f1c40f;color:#2a2200;cursor:pointer}
+  .sc-sec{display:flex;align-items:center;justify-content:space-between;margin:16px 2px 4px;font-weight:700}.sc-sec i{font-style:normal;font-size:.8rem;background:var(--cy);color:#06232a;border-radius:99px;padding:0 9px}
+  `;
+  document.head.appendChild(css);
+
+  const SO = (window.SOC = { people: [], friends: [], incoming: [], sent: [], convos: [], unread: 0, me: '', peer: null, msgs: [], last: 0,
+    uv: 'list', up: '', q: '', dr: '', rr: '', loaded: false, sig: '', who: '' });
+  const idn = () => (S.acc && S.acc.e && S.acc.h ? { e: S.acc.e, h: S.acc.h } : null);
+  const say = (m) => { try { toast(m); } catch (e) { alert(m); } };
+  const post = async (p, b) => {
+    const r = await fetch(p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || 'تعذر الاتصال بالخادم');
+    return j;
+  };
+  const X = (d, z) => `<svg class="i" ${z ? `style="width:${z}px;height:${z}px"` : ''} viewBox="0 0 24 24"><path d="${d}"/></svg>`;
+  const IC = { copy: 'M9 9h11v12H9zM5 15H4V3h11v1', share: 'M12 15V3M7 8l5-5 5 5M5 13v8h14v-8' };
+  const hue = (s) => { let h = 7; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
+  const seen = (p) => (p.on ? 'متصل الآن' : p.ls ? 'آخر ظهور ' + ago(p.ls) : 'غير متصل');
+  const tm = (t) => new Date(t).toLocaleTimeString('ar-u-nu-latn', { hour: 'numeric', minute: '2-digit' });
+  const dayL = (t) => { const d = new Date(t), n = new Date(), s = (x) => x.toDateString(); if (s(d) === s(n)) return 'اليوم'; if (s(d) === s(new Date(n - 864e5))) return 'أمس'; return d.toLocaleDateString('ar-u-nu-latn', { day: 'numeric', month: 'long' }); };
+  const avatar = (p, z) => {
+    const img = p.av ? `background:url('/api/soc/avatar/${p.uid}?v=${p.av}') center/cover;color:transparent;` : '';
+    const sz = z ? `width:${z}px;height:${z}px;font-size:${Math.round(z * 0.42)}px` : '';
+    return `<span class="u2-av" style="--hu:${hue(p.uid)};${img}${sz}">${esc(String(p.name || '?').trim().charAt(0) || '?')}${z && z < 46 ? '' : `<i class="u2-dot ${p.on ? 'on' : ''}"></i>`}</span>`;
+  };
+  const empty = (i, t, s, b) => `<div class="u2-empty"><div class="ci">${ic(i, 26)}</div><b>${t}</b>${s ? `<small>${s}</small>` : ''}${b || ''}</div>`;
+  const head = (t, n) => `<div class="u2-h"><b>${t}</b>${n != null ? `<i>${n}</i>` : ''}</div>`;
+  const find = (uid) => [...SO.people, ...SO.friends, ...SO.incoming, ...SO.sent, ...SO.convos].find((p) => p.uid === uid) || (SO.peer && SO.peer.uid === uid ? SO.peer : null);
+  const setRel = (uid, rel) => { [SO.people, SO.friends, SO.incoming, SO.sent, SO.convos].forEach((l) => l.forEach((p) => { if (p.uid === uid) p.rel = rel; })); if (SO.peer && SO.peer.uid === uid) SO.peer.rel = rel; };
+
+  /* ---------- إشعار فوري منبثق ---------- */
+  let bnT = 0;
+  function banner(title, body, tap) {
+    let b = document.querySelector('#scbn');
+    if (!b) { b = document.createElement('div'); b.id = 'scbn'; document.body.append(b); }
+    b.innerHTML = `<b>${esc(title)}</b><span>${esc(body)}</span>`;
+    b.onclick = () => { b.classList.remove('on'); try { tap && tap(); } catch (e) {} };
+    requestAnimationFrame(() => b.classList.add('on'));
+    clearTimeout(bnT); bnT = setTimeout(() => b.classList.remove('on'), 5500);
+    try { navigator.vibrate && navigator.vibrate(60); } catch (e) {}
+  }
+  function handleNotes(notes) {
+    if (!notes || !notes.length) return false;
+    let fresh = false;
+    notes.forEach((n) => {
+      try { typeof unAddE === 'function' && S.acc && unAddE(S.acc.e, n.title, n.body); } catch (e) {}
+      if (n.kind === 'dm') {
+        if (S.r === 'users' && SO.uv === 'dm') return; // المحادثة مفتوحة، لا حاجة للمنبثق
+        banner(n.title, n.body, () => { SO.uv = 'inbox'; go('users'); });
+      } else if (n.kind === 'friend_ok') { banner('تمت الموافقة ✅', n.body, () => { SO.uv = 'list'; go('users'); }); say('تمت الموافقة ✅'); }
+      else if (n.kind === 'friend_req') banner(n.title, n.body, () => { SO.uv = 'list'; go('users'); });
+      else say(n.title);
+      fresh = true;
+    });
+    return fresh;
+  }
+
+  /* ---------- التحميل الدوري ---------- */
+  let busy = false;
+  async function load(mode, force) {
+    const me = idn(); if (!me || (busy && !force)) return; busy = true;
+    try {
+      if (SO.who !== me.e) { Object.assign(SO, { people: [], friends: [], incoming: [], sent: [], convos: [], unread: 0, peer: null, msgs: [], last: 0, uv: 'list', up: '', q: '', dr: '', loaded: false, sig: '', who: me.e }); }
+      const dm = S.r === 'users' && SO.uv === 'dm' && SO.up;
+      const j = await post('/api/soc/state', { ...me, mode, peer: dm ? SO.up : undefined, after: dm ? SO.last : undefined });
+      const fresh = handleNotes(j.notes);
+      const prevUnread = SO.unread; SO.unread = j.unread || 0;
+      if (mode === 'light') { if (prevUnread !== SO.unread && S.r === 'users') render(true); return; }
+      SO.people = j.people || []; SO.friends = j.friends || []; SO.incoming = j.incoming || []; SO.sent = j.sent || []; SO.convos = j.convos || []; SO.loaded = true;
+      let newMsgs = false;
+      if (dm && j.msgs) {
+        if (j.peer) SO.peer = j.peer;
+        const have = new Set(SO.msgs.map((m) => m.id));
+        j.msgs.forEach((m) => { if (!have.has(m.id)) { SO.msgs.push(m); newMsgs = true; } SO.last = Math.max(SO.last, m.id); });
+        SO.msgs.sort((a, b) => a.id - b.id);
+      }
+      if (S.r !== 'users') return;
+      if (SO.uv === 'dm') { if (newMsgs) paintDm(true); }
+      else render(fresh);
+    } catch (e) { /* صامت: المحاولة التالية بعد ثوانٍ */ } finally { busy = false; }
+  }
+
+  /* ---------- العرض ---------- */
+  const sigOf = () => JSON.stringify([SO.people.map((p) => [p.uid, p.rel, p.on, p.av, p.name]), SO.incoming.map((p) => p.uid), SO.sent.map((p) => p.uid), SO.friends.map((p) => p.uid), SO.convos.map((c) => [c.uid, c.lt, c.unread]), SO.unread, SO.uv]);
+  function render(force) {
+    if (S.r !== 'users') return;
+    const s = sigOf(); if (!force && s === SO.sig) return; SO.sig = s;
+    const a = document.activeElement;
+    if (a && a.id === 'scq') { paintRes(); return; }
+    if (a && a.id === 'sci') return;
+    try { draw(); } catch (e) {}
+  }
+  function card(p) {
+    const u = esc(p.uid); let tag = '', act = '';
+    if (p.rel === 'friend') { tag = '<span class="u2-tag">صديق</span>'; }
+    else if (p.rel === 'sent') { tag = '<span class="u2-tag w">بانتظار القبول</span>'; act = `<button class="u2-btn w" data-a="sccan" data-v="${u}">${ic('hour')} إلغاء الطلب</button>`; }
+    else if (p.rel === 'recv') { tag = '<span class="u2-tag b">أرسل لك طلباً</span>'; act = `<button class="u2-btn g" data-a="scacc" data-v="${u}">${ic('chk')} قبول</button><button class="u2-btn x" data-a="scdec" data-v="${u}">رفض</button>`; }
+    else act = `<button class="u2-btn" data-a="scadd" data-v="${u}">${ic('add')} إضافة صديق</button>`;
+    const un = p.unread ? `<b class="cnt" style="position:static;display:inline-grid">${p.unread > 9 ? '9+' : p.unread}</b>` : '';
+    return `<div class="u2-c"><div class="u2-r1">${avatar(p)}<div class="sp"><div class="sc-nm">${esc(p.name)}</div><div class="sc-st">${tag}<span class="${p.on ? 'u2-on' : 'mu'}" style="font-size:.8rem">${seen(p)}</span></div></div></div>
+<div class="u2-r2">${act}<button class="u2-btn ${p.rel === 'friend' ? '' : 'w'}" style="${p.rel === 'friend' ? '' : 'background:#1c2a36;border-color:var(--line);color:var(--cy);box-shadow:none;flex:.8'}" data-a="scdm" data-v="${u}">${ic('chat')} مراسلة ${un}</button><button class="u2-ib" data-a="screp" data-v="${u}" aria-label="إبلاغ">${ic('warn')}</button></div></div>`;
+  }
+  const list = () => {
+    const q = SO.q.trim().toLowerCase();
+    const base = SO.people.filter((p) => !q || String(p.name).toLowerCase().includes(q));
+    if (!SO.loaded) return empty('users', 'جارٍ تحميل المستخدمين...', 'لحظات');
+    if (!base.length) return q ? empty('search', 'لا يوجد مستخدم بهذا الاسم', 'جرّب اسماً آخر') : empty('users', 'لا يوجد مستخدمون آخرون بعد', 'سيظهر هنا كل من ينضم إلى التطبيق');
+    return `<div class="sc-sec"><span>${q ? 'نتائج البحث' : 'مستخدمون مقترحون'}</span><i>${base.length}</i></div><div class="u2" style="padding-bottom:0">${base.map(card).join('')}</div>`;
+  };
+  function paintRes() { const r = document.querySelector('#scr'); if (r) r.innerHTML = list(); }
+  const chatBtn = () => `<button class="u2-chat" data-a="scinbox" aria-label="الدردشة">${ic('chat')}<span>الدردشة</span>${SO.unread ? `<b class="cnt">${SO.unread > 9 ? '9+' : SO.unread}</b>` : ''}</button>`;
+  const listV = () => {
+    const code = (() => { try { return ucode(S.acc); } catch (e) { return ''; } })(), inc = SO.incoming;
+    return hd('المستخدمون', 'users', { back: 'home', acts: chatBtn() }) +
+      `<div class="u2"><div class="u2-me"><div class="sp"><small>رمز الإحالة الخاص بك</small><b dir="ltr">${esc(code)}</b></div><button class="u2-ghost" data-a="ucopy" data-v="${esc(code)}" aria-label="نسخ الرمز">${X(IC.copy, 20)}</button><button class="u2-ghost" data-a="ushare" data-v="${esc(code)}" aria-label="مشاركة الرمز">${X(IC.share, 20)}</button></div>` +
+      (inc.length ? `<div class="sc-sec"><span>طلبات الصداقة</span><i>${inc.length}</i></div>${inc.map(card).join('')}` : '') +
+      `<div class="u2-sb">${ic('search')}<input id="scq" dir="auto" autocomplete="off" spellcheck="false" maxlength="30" value="${esc(SO.q)}" placeholder="ابحث بالاسم..."><button type="button" id="scc" data-a="scclr" aria-label="مسح" ${SO.q ? '' : 'hidden'}>${ic('x')}</button></div><div id="scr">${list()}</div></div>`;
+  };
+  const inboxV = () => {
+    const cv = SO.convos, ids = new Set(cv.map((c) => c.uid)), fr = SO.friends.filter((f) => !ids.has(f.uid));
+    const row = (o, last) => `<button class="u2-cv" data-a="scdm" data-v="${esc(o.uid)}">${avatar(o)}<div class="sp"><b>${esc(o.name)}</b><span class="pv">${last ? (o.mine ? 'أنت: ' : '') + esc(o.last) : 'ابدأ المحادثة الآن'}</span></div><div class="mt">${last ? `<span>${tm(o.lt)}</span>` : ''}${o.unread ? `<span class="u2-un">${o.unread > 9 ? '9+' : o.unread}</span>` : ''}</div></button>`;
+    return `<div class="hd"><button class="ib" data-a="scback" aria-label="رجوع">${ic('back')}</button><div class="ci">${ic('chat')}</div><h1>الدردشات</h1></div><div class="u2"><button class="u2-cv sp2" data-a="go" data-v="chat"><span class="u2-av">${ic('head')}</span><div class="sp"><b>الدعم الفني</b><span class="pv">تواصل مع فريق خدمة العملاء</span></div>${ic('chev')}</button>` +
+      (cv.length ? head('المحادثات', cv.length) + cv.map((o) => row(o, 1)).join('') : '') +
+      (fr.length ? head('أصدقاؤك', fr.length) + fr.map((o) => row(o, 0)).join('') : '') +
+      (!cv.length && !fr.length ? empty('chat', 'لا توجد محادثات بعد', 'يمكنك مراسلة أي مستخدم حتى لو لم يكن صديقاً', `<button class="btn" data-a="scback">${ic('search')} تصفّح المستخدمين</button>`) : '') + '</div>';
+  };
+  const bubbles = () => {
+    if (!SO.msgs.length) return empty('chat', 'ابدأ المحادثة', 'أرسل أول رسالة الآن');
+    let last = '';
+    return SO.msgs.map((m) => { const d = dayL(m.t), h = d !== last ? `<div class="u2-day"><span>${d}</span></div>` : ''; last = d; return h + `<div class="u2-b ${m.mine ? 'o' : 'i'}">${esc(m.x)}<small>${tm(m.t)}</small></div>`; }).join('');
+  };
+  const dmV = () => {
+    const p = find(SO.up) || SO.peer || { uid: SO.up, name: '...', on: false, av: 0, rel: 'none' };
+    return `<div class="u2-hdn"><button class="ib" data-a="scback" aria-label="رجوع">${ic('back')}</button>${avatar(p, 44)}<div class="sp"><b>${esc(p.name)}</b><small class="${p.on ? 'u2-on' : 'mu'}">${seen(p)}</small></div><button class="ib s r" data-a="screp" data-v="${esc(p.uid)}" aria-label="إبلاغ">${ic('warn')}</button></div>` +
+      (p.rel === 'none' ? `<div class="sc-bar"><span>لستما أصدقاء بعد، لكن يمكنك مراسلته.</span><button data-a="scadd" data-v="${esc(p.uid)}">إضافة صديق</button></div>` : p.rel === 'sent' ? `<div class="sc-bar"><span>تم إرسال طلب الصداقة وبانتظار القبول</span></div>` : p.rel === 'recv' ? `<div class="sc-bar"><span>أرسل لك طلب صداقة</span><button data-a="scacc" data-v="${esc(p.uid)}">قبول</button></div>` : '') +
+      `<div class="u2"><div class="u2-ms" id="scm">${bubbles()}</div></div><div class="u2-in"><input id="sci" maxlength="500" autocomplete="off" placeholder="اكتب رسالتك..." value="${esc(SO.dr)}"><button class="u2-snd" data-a="scsend" aria-label="إرسال">${ic('send')}</button></div>`;
+  };
+  const toEnd = () => requestAnimationFrame(() => scrollTo({ top: document.body.scrollHeight }));
+  function paintDm(sc) { const c = document.querySelector('#scm'); if (c) c.innerHTML = bubbles(); if (sc) toEnd(); }
+
+  V.users = () => {
+    if (!S.acc) return V.welcome();
+    try { US2.view(); } catch (e) {} // يضبط توقيع المستخدمين القديم فلا يُعاد الرسم بلا داعٍ
+    if (SO.who !== S.acc.e) { load('full', true); }
+    SO.sig = sigOf();
+    if (SO.uv === 'dm') return dmV();
+    if (SO.uv === 'inbox') return inboxV();
+    return listV();
+  };
+
+  /* ---------- الإجراءات ---------- */
+  const demoBlock = () => { if (S.acc && S.acc.demo) { say('الحساب التجريبي لا يمكنه الدردشة أو إضافة أصدقاء'); return true; } return false; };
+  async function act(a, v) {
+    const me = idn(); if (!me) return say('سجّل الدخول أولاً');
+    switch (a) {
+      case 'scinbox': SO.uv = 'inbox'; draw(); scrollTo(0, 0); load('full', true); return;
+      case 'scback': SO.uv = SO.uv === 'dm' ? 'inbox' : 'list'; SO.up = ''; SO.msgs = []; SO.last = 0; draw(); scrollTo(0, 0); return;
+      case 'scclr': { SO.q = ''; paintRes(); const x = document.querySelector('#scq'); if (x) { x.value = ''; x.focus(); } const c = document.querySelector('#scc'); if (c) c.hidden = true; return; }
+      case 'scdm': {
+        if (demoBlock()) return;
+        SO.uv = 'dm'; SO.up = v; SO.msgs = []; SO.last = 0; SO.dr = ''; SO.peer = find(v); draw(); toEnd();
+        load('full', true); return;
+      }
+      case 'scsend': {
+        const x = document.querySelector('#sci'); if (!x) return; const t = x.value.trim().slice(0, 500); if (!t) return;
+        if (demoBlock()) return;
+        x.value = ''; SO.dr = '';
+        const tmp = { id: -Date.now(), mine: true, x: t, t: Date.now() }; SO.msgs.push(tmp); paintDm(true); x.focus();
+        try {
+          const j = await post('/api/soc/dm/send', { ...me, to: SO.up, body: t });
+          SO.msgs = SO.msgs.filter((m) => m.id !== tmp.id); if (!SO.msgs.some((m) => m.id === j.msg.id)) SO.msgs.push(j.msg); SO.msgs.sort((p, q) => p.id - q.id); paintDm(true);
+        } catch (e) { SO.msgs = SO.msgs.filter((m) => m.id !== tmp.id); paintDm(); x.value = t; say(e.message); }
+        return;
+      }
+      case 'scadd': {
+        if (demoBlock()) return; const p = find(v); const was = p ? p.rel : 'none';
+        setRel(v, was === 'recv' ? 'friend' : 'sent'); SO.sig = ''; draw();
+        try { const j = await post('/api/soc/friend/request', { ...me, to: v }); setRel(v, j.rel); say(j.rel === 'friend' ? 'أصبحتما صديقين ✅' : 'تم إرسال طلب الصداقة' + (p ? ' إلى ' + p.name : '')); }
+        catch (e) { setRel(v, was); say(e.message); }
+        SO.sig = ''; draw(); load('full', true); return;
+      }
+      case 'sccan': { setRel(v, 'none'); SO.sig = ''; draw(); try { await post('/api/soc/friend/cancel', { ...me, to: v }); say('تم إلغاء طلب الصداقة'); } catch (e) { say(e.message); } load('full', true); return; }
+      case 'scacc': {
+        const p = find(v); setRel(v, 'friend'); SO.incoming = SO.incoming.filter((x) => x.uid !== v); SO.sig = ''; draw();
+        try { await post('/api/soc/friend/respond', { ...me, from: v, accept: true }); say('أصبحت صديقاً' + (p ? ' لـ ' + p.name : '') + ' ✅'); } catch (e) { say(e.message); }
+        load('full', true); return;
+      }
+      case 'scdec': { setRel(v, 'none'); SO.incoming = SO.incoming.filter((x) => x.uid !== v); SO.sig = ''; draw(); try { await post('/api/soc/friend/respond', { ...me, from: v, accept: false }); say('تم رفض الطلب'); } catch (e) { say(e.message); } load('full', true); return; }
+      case 'screp': repDlg(v); return;
+      case 'scrr': return;
+      case 'scrs': {
+        if (!SO.rr) return say('اختر سبب الإبلاغ أولاً');
+        const det = ((document.querySelector('#sct') || {}).value || '').trim().slice(0, 300);
+        try { await post('/api/soc/report', { ...me, to: v, reason: SO.rr, details: det }); document.querySelector('#d').close(); say('تم إرسال البلاغ إلى الإدارة، شكراً لمساعدتك'); }
+        catch (e) { say(e.message); }
+        return;
+      }
+    }
+  }
+  const REAS = ['إساءة أو تحرش', 'احتيال أو نصب', 'انتحال شخصية', 'رسائل مزعجة', 'محتوى غير لائق', 'سبب آخر'];
+  function repDlg(uid) {
+    const p = find(uid); if (!p) return; SO.rr = '';
+    dlg(`<h2 style="margin-top:0">الإبلاغ عن مستخدم</h2><div class="u2-rp">${avatar(p, 44)}<div class="sp"><b>${esc(p.name)}</b></div></div><p class="mu" style="margin:14px 0 8px">اختر سبب الإبلاغ</p><div class="u2-rs">${REAS.map((r) => `<button type="button" class="u2-rc" data-a="scrr" data-v="${r}">${r}</button>`).join('')}</div><label>تفاصيل إضافية (اختياري)<textarea id="sct" rows="3" maxlength="300" placeholder="اشرح ما حدث باختصار..."></textarea></label><button class="btn" data-a="scrs" data-v="${esc(uid)}">${ic('send')} إرسال البلاغ</button><p class="mu" style="font-size:.8rem;text-align:center;margin:10px 0 0">يصل البلاغ إلى قسم البلاغات لدى الإدارة وليس إلى الدعم.</p>`);
+  }
+
+  window.addEventListener('click', (ev) => {
+    const b = ev.target.closest && ev.target.closest('[data-a^="sc"]'); if (!b) return;
+    const a = b.dataset.a; if (!/^sc[a-z]+$/.test(a)) return;
+    ev.stopImmediatePropagation(); ev.preventDefault();
+    if (a === 'scrr') { SO.rr = b.dataset.v; document.querySelectorAll('.u2-rc').forEach((x) => x.classList.toggle('on', x === b)); return; }
+    act(a, b.dataset.v);
+  }, true);
+  // الرجوع من أي زر data-r يعيد الشاشة للقائمة الرئيسية
+  document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('[data-r]'); if (b) { SO.uv = 'list'; SO.q = ''; SO.dr = ''; SO.up = ''; SO.msgs = []; SO.last = 0; } }, true);
+  document.addEventListener('input', (e) => {
+    const t = e.target; if (!t) return;
+    if (t.id === 'scq') { SO.q = t.value; const c = document.querySelector('#scc'); if (c) c.hidden = !t.value; paintRes(); }
+    else if (t.id === 'sci') SO.dr = t.value;
+  });
+  document.addEventListener('keydown', (e) => { if (e.target && e.target.id === 'sci' && e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); act('scsend'); } });
+
+  /* ---------- المؤقت: شاشة المستخدمين كل 2.5 ثانية، وباقي التطبيق كل 5 ثوانٍ (إشعارات فورية) ---------- */
+  let n = 0;
+  setInterval(() => {
+    if (!idn() || document.hidden) return; n++;
+    if (S.r === 'users') load('full'); else if (n % 2 === 0) load('light');
+  }, 2500);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && idn()) load(S.r === 'users' ? 'full' : 'light'); });
+  setTimeout(() => { if (idn()) load('light'); }, 1500);
+  // عند فتح شاشة المستخدمين نحمّل فوراً
+  const _draw = window.draw;
+  let lastR = '';
+  window.draw = function () { const r = _draw.apply(this, arguments); if (S.r === 'users' && lastR !== 'users' && idn()) load('full', true); lastR = S.r; return r; };
+})();
