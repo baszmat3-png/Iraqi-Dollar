@@ -139,4 +139,6 @@ exports.routes = (app, { pool, wrap, ctl, SYNC, GAME }) => {
       cats: CATS,
     });
   }));
+
+  require('./fin-report-ext').routes(app, { pool, wrap, ctl, SYNC, GAME, settings, ptRate }); // التقارير المالية + الاستثمار + الالتزامات
 };

@@ -48,13 +48,15 @@ exports.routes = (app, { pool, wrap, ctl }) => {
 
   app.post('/api/u/support/history', uLim, wrap(async (req, res) => {
     const e = await who(req.body);
-    const r = await q(`SELECT id,from_admin,body,img,created_at FROM support_msgs WHERE LOWER(email)=LOWER($1) ORDER BY id`, [e]);
+    const after = Math.max(0, parseInt(req.body.after, 10) || 0);
+    const r = await q(`SELECT id,from_admin,body,img,created_at FROM support_msgs WHERE LOWER(email)=LOWER($1) AND id>$2 ORDER BY id`, [e, after]);
     res.json({ messages: r.rows });
   }));
 
   app.post('/api/u/support/send', uLim, wrap(async (req, res) => {
     const e = await who(req.body);
     const body = txt(req.body.body, 2000), im = img(req.body.img);
+    if (req.body.img && !im) fail(400, 'تعذر إرسال الصورة: الصيغة غير مدعومة أو الحجم كبير');
     if (!body && !im) fail(400, 'الرسالة فارغة');
     await q(`INSERT INTO support_msgs(email,from_admin,body,img) VALUES($1,FALSE,$2,$3)`, [e, body, im]);
     res.json({ ok: true });
@@ -134,10 +136,12 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     const aft = (await q(`SELECT pts,gems,usd FROM sync_accounts WHERE LOWER(email)=$1`, [em])).rows[0];
     const after = { pts: Number(aft.pts) || 0, gems: Number(aft.gems) || 0, usd: Number(aft.usd) || 0 };
     cmd.by = 'srv';
-    await q(`INSERT INTO sync_cmds(body) VALUES($1)`, [JSON.stringify(cmd)]);
+    const ins = await q(`INSERT INTO sync_cmds(body) VALUES($1) RETURNING id`, [JSON.stringify(cmd)]);
+    // بث فوري لجهاز المستخدم المتصل (دون انتظار مراقب الثانية)
+    const delivered = app.locals.broadcastCmd ? app.locals.broadcastCmd(ins.rows[0].id, cmd) : 0;
     await q(`INSERT INTO bal_log(email,op,pts,gems,usd,b_pts,b_gems,b_usd,a_pts,a_gems,a_usd,note) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
       [em, op, after.pts - before.pts, after.gems - before.gems, after.usd - before.usd, before.pts, before.gems, before.usd, after.pts, after.gems, after.usd, txt(b.note, 200)]).catch(() => {});
-    return { before, after };
+    return { before, after, delivered };
   }
   exports.applyBal = applyBal;
 
@@ -205,14 +209,17 @@ exports.routes = (app, { pool, wrap, ctl }) => {
 
   app.get('/api/ctl/support/thread', ...ctl, wrap(async (req, res) => {
     const e = txt(req.query.e, 200);
-    await q(`UPDATE support_msgs SET read_by_admin=TRUE WHERE LOWER(email)=LOWER($1) AND NOT from_admin`, [e]);
-    res.json({ messages: (await q(`SELECT id,from_admin,body,img,created_at FROM support_msgs WHERE LOWER(email)=LOWER($1) ORDER BY id`, [e])).rows });
+    const after = Math.max(0, parseInt(req.query.after, 10) || 0);
+    await q(`UPDATE support_msgs SET read_by_admin=TRUE WHERE LOWER(email)=LOWER($1) AND NOT from_admin AND NOT read_by_admin`, [e]);
+    res.json({ messages: (await q(`SELECT id,from_admin,body,img,created_at FROM support_msgs WHERE LOWER(email)=LOWER($1) AND id>$2 ORDER BY id`, [e, after])).rows });
   }));
 
   app.post('/api/ctl/support/reply', ...ctl, wrap(async (req, res) => {
     const e = txt(req.body.e, 200), body = txt(req.body.body, 2000), im = img(req.body.img);
+    if (req.body.img && !im) fail(400, 'تعذر إرسال الصورة: الصيغة غير مدعومة أو الحجم كبير');
     if (!e || (!body && !im)) fail(400, 'الرسالة فارغة');
     await q(`INSERT INTO support_msgs(email,from_admin,body,img,read_by_admin) VALUES($1,TRUE,$2,$3,TRUE)`, [e, body, im]);
+    await q(`INSERT INTO notices(email,body) VALUES($1,$2)`, [e, '💬 ردّ الدعم الفني: ' + (body ? (body.length > 80 ? body.slice(0, 80) + '…' : body) : '📷 صورة')]).catch(() => {});
     res.json({ ok: true });
   }));
 

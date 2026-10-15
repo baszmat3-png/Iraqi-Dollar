@@ -1425,6 +1425,7 @@ require('./security-ext').routes(app, { pool, wrap, sendWhatsApp, normPhone }); 
 require('./fin-ext').routes(app, { pool, wrap, ctl, SYNC, GAME }); // المرحلة 1ج: المالية
 require('./instant-sync')(app, express, { pool, wrap, ctl, fail }); // بث فوري SSE + البحث بكود الإحالة
 require('./security-server')(app, express, { pool, wrap, ctl, fail }); // الحماية: بصمة الجهاز + VPN + تلاعب الوقت
+require('./gifts-ext')(app, express, { pool, wrap, ctl, fail }); // الهدايا بين المستخدمين (تُشترى بالنقاط) + قسم الهدايا في لوحة التحكم
 
 /* ---------- Health + static frontend ---------- */
 app.get('/healthz', wrap(async (_req, res) => { await pool.query('SELECT 1'); res.json({ ok: true }); }));

@@ -50,12 +50,13 @@ module.exports = (app, express, deps) => {
   });
 
   function broadcast(id, body) {
-    const msg = 'event: cmd\ndata: ' + JSON.stringify({ id, body }) + '\n\n';
+    const full = 'event: cmd\ndata: ' + JSON.stringify({ id, body }) + '\n\n';
+    const skip = 'event: cmd\ndata: ' + JSON.stringify({ id, skip: 1 }) + '\n\n'; // لحساب آخر: فقط ليبقى الترقيم متسلسلاً
     const target = body && body.e ? String(body.e).toLowerCase() : '';
     let n = 0;
     clients.forEach((c) => {
-      if (target && c.email && c.email !== target) return;
-      try { c.res.write(msg); n++; } catch (e) { clients.delete(c); }
+      const mine = !target || !c.email || c.email === target;
+      try { c.res.write(mine ? full : skip); if (mine) n++; } catch (e) { clients.delete(c); }
     });
     sent.add(Number(id));
     if (sent.size > 5000) sent.clear();
@@ -107,6 +108,10 @@ module.exports = (app, express, deps) => {
           `SELECT email,name,phone,pts,gems,usd,banned AS blk,(kyc>0) AS kyc,ref_code AS rcode
            FROM users WHERE UPPER(COALESCE(ref_code,''))=$1 OR LOWER(email)=$2 LIMIT 10`, [code, mail])).rows;
       } catch (e) { /* تجاهل */ }
+    }
+    if (!rows.length && raw.length >= 3) { // بحث أوسع: هاتف أو جزء من الاسم أو البريد
+      const like = '%' + raw.replace(/[%_]/g, '') + '%';
+      rows = (await pool.query(`SELECT ${COLS} FROM sync_accounts WHERE phone ILIKE $1 OR name ILIKE $1 OR email ILIKE $1 ORDER BY last_seen DESC NULLS LAST LIMIT 10`, [like])).rows;
     }
     if (!rows.length) fail(404, 'لا يوجد حساب بهذا الكود أو البريد');
     const fix = (u) => ({ ...u, pts: Number(u.pts) || 0, gems: Number(u.gems) || 0, usd: Number(u.usd) || 0 });
