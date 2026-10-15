@@ -72,7 +72,52 @@
 #axmod h2{margin:0 0 12px;font-size:1.25rem}
 #axo .seg{display:flex;border:1.5px solid #27566b;border-radius:16px;padding:4px;background:#0b141c;margin:6px 0 10px}#axo .seg button{flex:1;border:0;background:none;color:#9AA9B5;border-radius:12px;padding:8px;font:inherit;font-weight:700;cursor:pointer}#axo .seg button.on{background:#2bcfe2;color:#04222a}
 #axo .fl{display:flex;align-items:center;gap:10px;background:#0b141c;border:1.5px solid #27566b;border-radius:16px;padding:2px 12px;margin:8px 0}#axo .fl svg{color:#2bcfe2;flex:none}#axo .fl input{border:0;background:none;margin:0;padding:10px 0;box-shadow:none!important}#axo .fl label{min-width:62px;color:#9AA9B5;font-size:.9rem}
+#axo table.ft{width:100%;border-collapse:collapse;font-size:.82rem;white-space:nowrap}#axo .ftw{overflow-x:auto;margin:0 -4px}#axo table.ft th,#axo table.ft td{padding:7px 8px;border-bottom:1px solid #ffffff0d;text-align:end}#axo table.ft th:first-child,#axo table.ft td:first-child{text-align:start;position:sticky;inset-inline-start:0;background:#1F2A37}#axo table.ft th{color:#9AA9B5;font-weight:600}#axo table.ft tr.cur td{background:#2bcfe214}#axo table.ft tr.cur td:first-child{background:#1c3a46}
 #axt{position:absolute;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);z-index:9;background:#2bcfe2;color:#04222a;font-weight:700;border-radius:99px;padding:10px 22px;box-shadow:0 8px 26px #000a;max-width:92vw;text-align:center;display:none}#axt.on{display:block}#axt.bad{background:#ef5350;color:#fff}
+
+/* ===== لمسة احترافية موحّدة ===== */
+#axo{--ac:#2bcfe2;--ac2:#00b6d4;--bd:#27566b;--bg2:#162230;--ok:#3ddc68;--wr:#f5a524;--er:#ef5350;letter-spacing:.1px}
+#axo .axh{background:linear-gradient(180deg,#0f1b27f2,#0E1621f2);backdrop-filter:blur(10px);position:sticky;top:0;z-index:3}
+#axo .axh h1{font-size:1.3rem;letter-spacing:.2px}
+#axo .axn{background:#0E1621;position:sticky;top:66px;z-index:2;padding:10px 14px;gap:6px}
+#axo .axn button{border-radius:12px;padding:8px 15px;font-size:.92rem;background:transparent;border:1px solid transparent;color:#9AA9B5;transition:.15s}
+#axo .axn button:hover{background:#ffffff0a;color:#e8eef5}
+#axo .axn button.on{background:linear-gradient(135deg,#00b6d4,#2bcfe2);color:#04222a;box-shadow:0 4px 14px #2bcfe233}
+#axm{max-width:1040px;padding-top:16px}
+#axo .c{border-radius:18px;border:1px solid #223a4b;background:linear-gradient(180deg,#1d2a38,#192432);box-shadow:0 1px 0 #ffffff08 inset,0 6px 18px #0004}
+#axo .c b{font-weight:700}
+#axo .k{border-radius:18px;border:1px solid #223a4b;background:linear-gradient(165deg,#1b3342,#15222e);position:relative;overflow:hidden}
+#axo .k:before{content:"";position:absolute;inset-inline-end:-18px;top:-18px;width:64px;height:64px;border-radius:50%;background:radial-gradient(circle,#2bcfe21f,transparent 70%)}
+#axo .k b{font-variant-numeric:tabular-nums}
+#axo .sh{margin:22px 2px 10px;font-size:1.05rem;letter-spacing:.2px}
+#axo .sh:before{width:4px;height:18px;background:linear-gradient(180deg,#2bcfe2,#00b6d4)}
+#axo .r > b,#axo .r > span.g + b{font-variant-numeric:tabular-nums}
+#axo .c .r{padding:3px 0}
+#axo input,#axo textarea,#axo select{border-radius:12px;border-color:#2a4a5c;background:#0c151e}
+#axo .b{border-radius:12px}
+#axo .b.p{box-shadow:0 4px 14px #2bcfe22e}
+/* خانات أنواع الإيراد */
+#axo .tbg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media(min-width:700px){#axo .tbg{grid-template-columns:repeat(3,1fr)}}
+#axo .tb{background:linear-gradient(165deg,#1b2d3b,#15222e);border:1px solid #223a4b;border-radius:16px;padding:12px 14px;border-top:3px solid var(--tc,#2bcfe2);min-width:0}
+#axo .tb small{display:block;color:#9AA9B5;font-size:.8rem;font-weight:600}
+#axo .tb b{display:block;font-size:1.3rem;margin:3px 0 1px;font-variant-numeric:tabular-nums}
+#axo .tb .mu{font-size:.75rem}
+#axo .tb .sb{height:5px;border-radius:9px;background:#0b141c;margin-top:8px;overflow:hidden}#axo .tb .sb i{display:block;height:100%;background:var(--tc,#2bcfe2);border-radius:9px}
+#axo .tb.lia{border-style:dashed;border-top-style:solid}
+/* مخطط شهري */
+#axo .ch{display:flex;align-items:flex-end;gap:5px;height:150px;padding:6px 2px 0}
+#axo .ch .m{flex:1;height:100%;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+#axo .ch .bars{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;gap:2px}
+#axo .ch .bars i{display:block;width:42%;border-radius:4px 4px 0 0;min-height:2px}
+#axo .ch .m span{font-size:.62rem;color:#9AA9B5;white-space:nowrap}
+#axo .ch .m.cur span{color:#2bcfe2;font-weight:700}
+#axo .lg{display:flex;gap:14px;font-size:.78rem;color:#9AA9B5;margin-top:8px}#axo .lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-inline-end:5px;vertical-align:-1px}
+#axo .hero2{background:linear-gradient(135deg,#0d7f93,#0a4f66 60%,#0b3550);border:1px solid #2bcfe266;border-radius:22px;padding:18px;margin-bottom:12px;box-shadow:0 10px 30px #00b6d422}
+#axo .hero2 small{color:#cdeff5;opacity:.85}#axo .hero2 .big{font-size:2rem;font-weight:800;line-height:1.2;font-variant-numeric:tabular-nums}
+#axo .hero2 .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+#axo .hero2 .g3 div{background:#00000026;border-radius:14px;padding:9px 11px}#axo .hero2 .g3 b{display:block;font-size:1.05rem;font-variant-numeric:tabular-nums}
+@media(max-width:480px){#axo .hero2 .g3{gap:6px}#axo .hero2 .g3 div{padding:8px 8px}#axo .hero2 .g3 b{font-size:.82rem}#axo .hero2 .big{font-size:1.7rem}}
 `;
   document.head.appendChild(css);
 
@@ -86,7 +131,7 @@
   };
   I.heart = '<path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6c-2.5 4.5-9.5 9-9.5 9z"/>';
   const ico = (n) => `<svg viewBox="0 0 24 24">${I[n] || ''}</svg>`;
-  const TABS = [['overview', 'نظرة عامة', 'home'], ['users', 'المستخدمون', 'users'], ['reports', 'البلاغات', 'flag'], ['support', 'الدعم', 'head'], ['merchants', 'التجار', 'store'], ['fin', 'المالية', 'coin'], ['ledger', 'سجل العمليات', 'list'], ['faq', 'الأسئلة الشائعة', 'help'], ['campaigns', 'حملات التبرع', 'heart'], ['agents', 'مراقبة الوكلاء', 'users']];
+  const TABS = [['overview', 'نظرة عامة', 'home'], ['users', 'المستخدمون', 'users'], ['reports', 'البلاغات', 'flag'], ['support', 'الدعم', 'head'], ['merchants', 'التجار', 'store'], ['fin', 'المالية', 'coin'], ['finrep', 'تقارير المالية', 'list'], ['ledger', 'سجل العمليات', 'list'], ['faq', 'الأسئلة الشائعة', 'help'], ['campaigns', 'حملات التبرع', 'heart'], ['agents', 'مراقبة الوكلاء', 'users']];
   const btn = document.createElement('button');
   btn.id = 'axb'; btn.innerHTML = ico('shield') + 'إدارة متقدمة<i hidden></i>';
   const ov = document.createElement('div');
@@ -98,7 +143,7 @@
 
   const cpImg = {};
   let agSel = '';
-  let lf = { kind: '', cat: '', q: '' }, tab = 'overview', thread = null, rep = 'open', busy = false, shot = null, uq = '';
+  let frYear = new Date().getFullYear(), lf = { kind: '', cat: '', q: '' }, tab = 'overview', thread = null, rep = 'open', busy = false, shot = null, uq = '';
 
   const err = (e) => { M.insertAdjacentHTML('afterbegin', `<div class="c" style="color:#ef5350">${esc(e.message)}</div>`); };
 
@@ -208,6 +253,45 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
 <div class="r"><button class="b p" data-a="fset">حفظ</button><button class="b d" data-a="freset">إعادة تعيين الإحصائيات والبدء من جديد</button></div><div class="mu">إعادة التعيين لا تحذف السجل، فقط تبدأ الحساب من الآن.</div></div>
 <b>أسعار الشراء والبيع</b><div class="mu" style="margin-bottom:6px">الربح = (البيع − الشراء) × العدد، ويُحسب بعد حفظ السعرين.</div>${c.items.concat(extra).map(costRow).join('')}`;
     },
+    async finrep() {
+      const [j, iv, du] = await Promise.all([api('/api/ctl/fin2/report?year=' + frYear), api('/api/ctl/fin2/invest'), api('/api/ctl/fin2/dues')]);
+      const T = j.totals, D = j.due, row = (a, b, col) => `<div class="r"><span class="g">${a}</span><b${col ? ` style="color:${col}"` : ''}>${b}</b></div>`;
+      const INC = { agency: 'رسوم الوكالات', trade: 'رسوم التجارة (صافي)', store: 'ربح المتجر والبطاقات', debt: 'ربح الاستدانة', games: 'الألعاب (عمولة + دخل العجلة)', donations: 'التبرعات', invest: 'عائد الاستثمار الخارجي', manual: 'إيرادات يدوية' };
+      const EXP = { ref: 'عمولات الإحالة', wheel: 'جوائز العجلة', manual: 'مصروفات يدوية', other: 'مصروفات أخرى' };
+      const yrs = []; for (let y = new Date().getFullYear() + 1; y >= 2024; y--) yrs.push(y);
+      const dueBox = (t, o, extra) => `<div class="k" style="min-width:0"><small>${t}</small><b style="color:#f0b429">${nf(o.total)}</b><div class="mu">أقساط عدادات ${nf(o.meter)}${o.sched_total != null ? ' · التزامات ' + nf(o.sched_total) : ' · التزامات ' + nf(o.sched)}</div>${extra || ''}</div>`;
+      const sch = (o) => (o.sched || []).map((x) => `<div class="mu">• ${esc(x.name)}: ${nf(x.iqd)}</div>`).join('');
+      const ivRow = (x) => `<div class="c" data-iv="${x.id || 0}"><input class="in" placeholder="اسم الاستثمار (مثال: صندوق، شركة...)" value="${esc(x.name || '')}">
+<div class="r"><input class="ia" type="number" placeholder="المبلغ المستثمَر (د.ع)" value="${x.amount || ''}"><input class="ir" type="number" step="0.01" placeholder="العائد السنوي %" value="${x.rate_pct || ''}"></div>
+<div class="r"><div class="g"><div class="mu">تاريخ البداية</div><input class="is" type="date" value="${esc(x.start || new Date().toISOString().slice(0, 10))}"></div><div class="g"><div class="mu">المدة بالأشهر (0 = مفتوح)</div><input class="it" type="number" min="0" value="${x.term_months || 0}"></div></div>
+<div class="r"><select class="im g"><option value="simple" ${x.mode !== 'compound' ? 'selected' : ''}>عائد بسيط (على أصل المبلغ)</option><option value="compound" ${x.mode === 'compound' ? 'selected' : ''}>عائد مركّب (يُضاف شهرياً للأساس)</option></select>
+<label class="mu" style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input class="ie" type="checkbox" ${x.active === false ? '' : 'checked'}> فعّال</label></div>
+${x.id ? `<div class="mu" style="margin-top:4px">المستحق حتى الآن <b style="color:#6fd3a0">${nf(x.accrued)}</b> · عائد هذا الشهر ${nf(x.monthly_now)} · عائد ${j.year} <b>${nf(x.year)}</b></div>` : ''}
+<div class="r" style="margin-top:8px"><span class="g"></span><button class="b p" data-a="ivsave">${x.id ? 'حفظ' : 'إضافة الاستثمار'}</button>${x.id ? '<button class="b d" data-a="ivdel">حذف</button>' : ''}</div></div>`;
+      const duRow = (x) => `<div class="c" data-du="${x.id || 0}"><input class="dn" placeholder="اسم الالتزام (إيجار، رواتب، قسط...)" value="${esc(x.name || '')}">
+<div class="r"><input class="da" type="number" placeholder="المبلغ الشهري (د.ع)" value="${x.amount || ''}"><div class="g"><div class="mu">يبدأ من شهر</div><input class="df" type="month" value="${esc(x.first || new Date().toISOString().slice(0, 7))}"></div><div class="g"><div class="mu">عدد الأشهر</div><input class="dt" type="number" min="1" value="${x.times || 1}"></div></div>
+<div class="r"><span class="g"></span><button class="b p" data-a="dusave">${x.id ? 'حفظ' : 'إضافة الالتزام'}</button>${x.id ? '<button class="b d" data-a="dudel">حذف</button>' : ''}</div></div>`;
+      return `<div class="r" style="margin-bottom:10px"><select id="fry" style="width:auto;margin:0">${yrs.map((y) => `<option ${y === j.year ? 'selected' : ''}>${y}</option>`).join('')}</select><span class="g"></span>
+<button class="b p" data-a="frcsv">تصدير Excel (CSV)</button><button class="b" data-a="frprint">طباعة / PDF</button></div>
+<div class="mu" style="margin-bottom:8px">كل المبالغ بالدينار العراقي. التقرير يشمل كامل السجل ولا يتأثر بإعادة التعيين، ويستثني حساب التطبيق إن فعّلت إخفاءه.</div>
+<div class="hero2"><small>صافي الربح ${j.year}</small><div class="big" style="color:${T.net < 0 ? '#ffb4b0' : '#fff'}">${nf(T.net)} <small style="font-size:.9rem">د.ع</small></div>
+<div class="g3"><div><small>الوارد النقدي</small><b>${nf(T.inflow)}</b></div><div><small>الأرباح</small><b>${nf(T.income)}</b></div><div><small>المصاريف</small><b>${nf(T.expenses)}</b></div></div></div>
+<div class="sh"><span>أنواع الإيراد</span></div>
+<div class="tbg">${j.types.map((t, i) => { const mx = Math.max(1, ...j.types.map((x) => x.year)), col = ['#f0b429', '#2bcfe2', '#6fd3a0', '#f06292', '#ba68c8', '#4db6ac', '#ff8a65', '#90caf9', '#b0bec5'][i % 9]; return `<div class="tb ${t.liability ? 'lia' : ''}" style="--tc:${col}"><small>${esc(t.name)}</small><b>${nf(t.year)}</b><div class="mu">هذا الشهر ${nf(t.month)}${t.liability ? ' · التزام يُرد' : ''}</div><div class="sb"><i style="width:${Math.round(t.year * 100 / mx)}%"></i></div></div>`; }).join('')}</div>
+<div class="sh"><span>الإيرادات والمصاريف شهرياً</span></div>
+<div class="c">${(() => { const mx = Math.max(1, ...j.months.map((m) => Math.max(m.income, m.expenses))); return `<div class="ch">${j.months.map((m) => `<div class="m ${m.ym === j.now ? 'cur' : ''}"><div class="bars"><i style="height:${Math.max(1, Math.round(m.income * 100 / mx))}%;background:#3ddc68" title="${nf(m.income)}"></i><i style="height:${Math.max(1, Math.round(m.expenses * 100 / mx))}%;background:#ef5350" title="${nf(m.expenses)}"></i></div><span>${m.ym.slice(5)}</span></div>`).join('')}</div><div class="lg"><span><i style="background:#3ddc68"></i>الأرباح</span><span><i style="background:#ef5350"></i>المصاريف</span></div>`; })()}</div>
+<div class="sh"><span>المطلوب دفعه</span></div>
+<div class="kg">${dueBox('خلال السنة (' + esc(D.year.from) + ')', { total: D.year.total, meter: D.year.meter, sched: D.year.sched })}${dueBox('الشهر الحالي · ' + esc(D.current.label), D.current, sch(D.current))}${dueBox('الشهر القادم · ' + esc(D.next.label), D.next, sch(D.next))}</div>
+<div class="c"><b>العدادات: مبالغ تُرد خلال ${D.months} أشهر بالتقسيط</b>${row('المتبقي إرجاعه للمستخدمين (حتى الآن)', nf(D.outstanding_meter) + ' د.ع', '#f0b429')}${row('مبالغ العدادات المستلمة في ' + j.year, nf(T.meter_in))}${row('عوائد العدادات المدفوعة فعلاً في ' + j.year, nf(T.yields_paid))}<div class="mu">كل عملية شراء عداد تُجدول على ${D.months} قسطاً شهرياً متساوياً تبدأ من الشهر التالي للشراء (يمكن تغيير عدد الأشهر من «المالية ← الإعدادات»). مبالغ العدادات تُحتسب وارداً نقدياً لكنها التزام، فلا تدخل في الأرباح.</div></div>
+<div class="c"><b>مصادر الأرباح</b>${Object.entries(INC).map(([k, l]) => row(l, nf(T.inc[k]))).join('')}</div>
+<div class="c"><b>المصاريف</b>${Object.entries(EXP).map(([k, l]) => row(l, nf(T.ex[k]), T.ex[k] ? '#ef5350' : '')).join('')}</div>
+<div class="sh"><span>التفصيل الشهري</span></div>
+<div class="c"><div class="ftw"><table class="ft"><tr><th>الشهر</th><th>الوارد</th><th>الأرباح</th><th>المصاريف</th><th>الصافي</th><th>المطلوب دفعه</th></tr>${j.months.map((m) => `<tr class="${m.ym === j.now ? 'cur' : ''}"><td>${esc(m.label.split(' ')[0])}</td><td>${nf(m.inflow)}</td><td>${nf(m.income)}</td><td>${nf(m.expenses)}</td><td style="color:${m.net < 0 ? '#ef5350' : '#6fd3a0'}">${nf(m.net)}</td><td style="color:#f0b429">${nf(m.due)}</td></tr>`).join('')}</table></div></div>
+<div class="sh"><span>الاستثمار الخارجي (عائد المالية)</span></div>
+<div class="mu" style="margin-bottom:8px">أضف أي مبلغ مستثمَر خارج المنصة وسيُحسب عائده شهرياً ويدخل في الأرباح والوارد. الحساب بسيط (على أصل المبلغ) أو مركّب (يُضاف عائد كل شهر إلى الأساس)، وبالتناسب للأشهر الجزئية.</div>${iv.items.map(ivRow).join('')}${ivRow({})}
+<div class="sh"><span>التزامات مجدولة (إيجار، رواتب، أقساط...)</span></div>
+<div class="mu" style="margin-bottom:8px">تُضاف إلى «المطلوب دفعه» في الأشهر التي تغطيها، وتخصم من الربح عند تسجيلها فعلاً كمصروف يدوي في «سجل العمليات».</div>${du.items.map(duRow).join('')}${duRow({})}`;
+    },
     async ledger() {
       const j = await api(`/api/ctl/fin2/ledger?kind=${lf.kind}&cat=${lf.cat}&q=${encodeURIComponent(lf.q)}`);
       return `<div class="c"><div class="r"><select id="lk"><option value="">الكل</option><option value="in" ${lf.kind === 'in' ? 'selected' : ''}>إيرادات</option><option value="out" ${lf.kind === 'out' ? 'selected' : ''}>مصروفات</option></select>
@@ -266,14 +350,14 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
       const g = (i) => (ov.querySelector(i) || {}).value || '';
       try {
         const r = await api('/api/ctl/bal', { email: e, op: chMode, pts: g('#cp'), gems: g('#cg'), usd: g('#cu'), note: g('#cn') });
-        closeModal(); flash('تم التنفيذ ✓ ' + fmtAfter(r.after)); draw(true);
+        closeModal(); flash('⚡ تم التنفيذ فوراً ✓ ' + fmtAfter(r.after) + (r.delivered ? ' · وصل للجهاز المتصل' : ' · المستخدم غير متصل، يصله عند فتح التطبيق')); draw(true);
       } catch (x) { flash(x.message, 1); }
       return;
     }
     if (a === 'zgo') {
       const c = (i) => ov.querySelector(i).checked ? 1 : 0, z = { p: c('#zp'), g: c('#zg'), d: c('#zd') };
       if (!z.p && !z.g && !z.d) return flash('اختر ما تريد تصفيره', 1);
-      try { const r = await api('/api/ctl/bal', { email: e, op: 'zero', z }); closeModal(); flash('تم التصفير ✓ ' + fmtAfter(r.after)); draw(true); } catch (x) { flash(x.message, 1); }
+      try { const r = await api('/api/ctl/bal', { email: e, op: 'zero', z }); closeModal(); flash('⚡ تم التصفير فوراً ✓ ' + fmtAfter(r.after) + (r.delivered ? ' · وصل للجهاز المتصل' : ' · يصله عند فتح التطبيق')); draw(true); } catch (x) { flash(x.message, 1); }
       return;
     }
     if (a === 'ban' || a === 'unban') return post('/api/ctl/users/act', { email: e, op: a });
@@ -286,6 +370,43 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
     if (a === 'fset') { const g = (i) => M.querySelector(i); return post('/api/ctl/fin2/settings', { app_email: g('#fa').value, hide_app: g('#fh').checked, months: +g('#fm').value, debt_pct: +g('#fd').value, open_bal: +g('#fo').value, open_src: g('#fs').value }); }
     if (a === 'freset') return confirm('إعادة تعيين الإحصائيات المالية والبدء من جديد؟ السجل القديم يبقى محفوظاً.') && post('/api/ctl/fin2/reset', { confirm: true });
     if (a === 'csave') { const c = el.closest('[data-cn]'); return post('/api/ctl/fin2/costs', { name: c.dataset.cn, kind: c.dataset.ck, buy: +c.querySelector('.cb').value, sell: +c.querySelector('.cs').value }); }
+    if (a === 'frcsv') {
+      try {
+        const r = await fetch('/api/ctl/fin2/report.csv?year=' + frYear, { headers: { 'X-Admin-Key': key() } });
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'تعذر التصدير');
+        const u = URL.createObjectURL(await r.blob()), l = document.createElement('a'); l.href = u; l.download = 'finance-report-' + frYear + '.csv'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
+      } catch (x) { flash(x.message, 1); }
+      return;
+    }
+    if (a === 'frprint') {
+      try {
+        const j = await api('/api/ctl/fin2/report?year=' + frYear), T = j.totals, D = j.due, w = window.open('', '_blank');
+        if (!w) return flash('اسمح بالنوافذ المنبثقة للطباعة', 1);
+        const L = { agency: 'رسوم الوكالات', trade: 'رسوم التجارة', store: 'ربح المتجر', debt: 'ربح الاستدانة', games: 'الألعاب', donations: 'التبرعات', invest: 'عائد الاستثمار', manual: 'إيرادات يدوية' }, X = { ref: 'عمولات الإحالة', wheel: 'جوائز العجلة', manual: 'مصروفات يدوية', other: 'أخرى' };
+        const kv = (o, m) => Object.entries(m).map(([k, l]) => `<tr><td>${l}</td><td>${nf(o[k])}</td></tr>`).join('');
+        w.document.write(`<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>التقرير المالي ${j.year}</title><style>body{font:14px Cairo,Tahoma,sans-serif;padding:24px;color:#111}h1{font-size:20px}h2{font-size:15px;margin:18px 0 6px;border-bottom:2px solid #00b6d4}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:5px 8px;text-align:right}th{background:#eef}</style></head><body>
+<h1>التقرير المالي لسنة ${j.year} (دينار عراقي)</h1>
+<h2>المطلوب دفعه</h2><table><tr><td>خلال السنة (${esc(D.year.from)})</td><td>${nf(D.year.total)}</td></tr><tr><td>الشهر الحالي (${esc(D.current.label)})</td><td>${nf(D.current.total)}</td></tr><tr><td>الشهر القادم (${esc(D.next.label)})</td><td>${nf(D.next.total)}</td></tr><tr><td>المتبقي إرجاعه من مبالغ العدادات</td><td>${nf(D.outstanding_meter)}</td></tr></table>
+<h2>الملخص</h2><table><tr><td>الوارد النقدي</td><td>${nf(T.inflow)}</td></tr><tr><td>الأرباح</td><td>${nf(T.income)}</td></tr><tr><td>المصاريف</td><td>${nf(T.expenses)}</td></tr><tr><td>صافي الربح</td><td>${nf(T.net)}</td></tr></table>
+<h2>مصادر الأرباح</h2><table>${kv(T.inc, L)}</table><h2>المصاريف</h2><table>${kv(T.ex, X)}</table>
+<h2>التفصيل الشهري</h2><table><tr><th>الشهر</th><th>الوارد</th><th>الأرباح</th><th>المصاريف</th><th>الصافي</th><th>المطلوب دفعه</th></tr>${j.months.map((m) => `<tr><td>${esc(m.label)}</td><td>${nf(m.inflow)}</td><td>${nf(m.income)}</td><td>${nf(m.expenses)}</td><td>${nf(m.net)}</td><td>${nf(m.due)}</td></tr>`).join('')}</table>
+<script>setTimeout(function(){print()},300)<\/script></body></html>`);
+        w.document.close();
+      } catch (x) { flash(x.message, 1); }
+      return;
+    }
+    if (a === 'ivsave' || a === 'ivdel') {
+      const c = el.closest('[data-iv]'), id = +c.dataset.iv, v = (k) => c.querySelector(k);
+      if (a === 'ivdel') return confirm('حذف هذا الاستثمار؟') && post('/api/ctl/fin2/invest/del', { id });
+      try { await api('/api/ctl/fin2/invest', { id, name: v('.in').value, amount: +v('.ia').value, rate_pct: +v('.ir').value, start: v('.is').value, term_months: +v('.it').value || 0, mode: v('.im').value, active: v('.ie').checked }); flash('تم الحفظ'); draw(); } catch (x) { flash(x.message, 1); }
+      return;
+    }
+    if (a === 'dusave' || a === 'dudel') {
+      const c = el.closest('[data-du]'), id = +c.dataset.du, v = (k) => c.querySelector(k);
+      if (a === 'dudel') return confirm('حذف هذا الالتزام؟') && post('/api/ctl/fin2/dues/del', { id });
+      try { await api('/api/ctl/fin2/dues', { id, name: v('.dn').value, amount: +v('.da').value, first: v('.df').value, times: +v('.dt').value || 1 }); flash('تم الحفظ'); draw(); } catch (x) { flash(x.message, 1); }
+      return;
+    }
     if (a === 'lfilter') { lf = { kind: M.querySelector('#lk').value, cat: M.querySelector('#lc').value, q: M.querySelector('#lq').value.trim() }; return draw(); }
     if (a === 'ladd') { const g = (i) => M.querySelector(i); return post('/api/ctl/fin/add', { kind: g('#mk').value, cat: g('#mc').value, iqd: +g('#mi').value, note: g('#mn').value }); }
     if (a === 'ldel') return confirm('حذف هذا القيد اليدوي؟') && post('/api/ctl/fin/del', { uid: id });
@@ -329,6 +450,7 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
     act(t);
   });
   ov.addEventListener('change', async (ev) => {
+    if (ev.target.id === 'fry') { frYear = +ev.target.value; return draw(); }
     if (ev.target.classList.contains('cpf') && ev.target.files[0]) {
       const c = ev.target.closest('[data-cp]');
       try { cpImg[+c.dataset.cp] = await shrink(ev.target.files[0], 1000); c.querySelector('.cpn').textContent = 'تم اختيار صورة جديدة'; } catch (e) { alert('تعذر قراءة الصورة'); }
@@ -342,7 +464,7 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
   // تحديث دوري كل 5 ثوانٍ
   setInterval(async () => {
     if (!key()) return;
-    if (ov.classList.contains('on') && !document.hidden && tab !== 'campaigns') draw(true);
+    if (ov.classList.contains('on') && !document.hidden && tab !== 'campaigns' && tab !== 'finrep') draw(true);
     try {
       const c = await api('/api/ctl/counts'), n = c.reports + c.support + (c.merchants || 0), b = btn.querySelector('i'); b.hidden = !n; b.textContent = n;
       [['reports', c.reports], ['support', c.support], ['merchants', c.merchants]].forEach(([t, v]) => { const x = ov.querySelector(`[data-bd="${t}"]`); if (x) { x.hidden = !v; x.textContent = v; } });

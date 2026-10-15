@@ -9,43 +9,68 @@
   const me = () => { try { return S.acc && S.acc.e && S.acc.h ? { e: S.acc.e, h: S.acc.h } : null; } catch (e) { return null; } };
   const say = (m) => { try { toast(m); } catch (e) { alert(m); } };
   const shrink = (file, max = 1000) => new Promise((ok, no) => {
+    if (!file) return no(new Error('no file'));
     const fr = new FileReader(); fr.onerror = no;
     fr.onload = () => { const im = new Image(); im.onerror = no; im.onload = () => {
-      const k = Math.min(1, max / Math.max(im.width, im.height)), c = document.createElement('canvas');
-      c.width = im.width * k; c.height = im.height * k; c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); ok(c.toDataURL('image/jpeg', 0.75));
+      let m = max, q = 0.75, out = '';
+      for (let i = 0; i < 5; i++) {
+        const k = Math.min(1, m / Math.max(im.width, im.height)), c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(im.width * k)); c.height = Math.max(1, Math.round(im.height * k));
+        const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height);
+        out = c.toDataURL('image/jpeg', q); if (out.length < 1.2e6) break; m = Math.round(m * 0.75); q = Math.max(0.5, q - 0.08);
+      }
+      ok(out);
     }; im.src = fr.result; };
     fr.readAsDataURL(file);
   });
 
-  /* ---- محادثة الدعم ---- */
-  const SUPX = (window.SUPX = { msgs: [], sig: '' });
-  window.supHtml = () => SUPX.msgs.map((m) => {
-    const b = esc(m.body || '') + (m.img ? `<img src="${m.img}" style="display:block;max-width:100%;border-radius:10px;margin-top:6px">` : '');
-    return `<div class="bub ${m.from_admin ? 'bt' : 'me'}">${b}</div>`;
-  }).join('');
+  /* ---- محادثة الدعم: المحادثة كاملة محفوظة على السيرفر لكل مستخدم، والتحميل تزايدي ---- */
+  const SUPX = (window.SUPX = { msgs: [], last: 0, who: '' });
+  const tmS = (t) => { try { return new Date(t).toLocaleTimeString('ar-u-nu-latn', { hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } };
+  const dayS = (t) => { const d = new Date(t), n = new Date(), z = (x) => x.toDateString(); if (z(d) === z(n)) return 'اليوم'; if (z(d) === z(new Date(n - 864e5))) return 'أمس'; return d.toLocaleDateString('ar-u-nu-latn', { day: 'numeric', month: 'long' }); };
+  window.supHtml = () => {
+    let last = '';
+    return SUPX.msgs.map((m) => {
+      const d = dayS(m.created_at), h = d !== last ? `<p class="mu" style="text-align:center;margin:10px 0 4px;font-size:.8rem">${d}</p>` : ''; last = d;
+      const b = esc(m.body || '') + (m.img ? `<img src="${m.img}" data-supimg="${m.id}" style="display:block;max-width:100%;max-height:260px;border-radius:10px;margin-top:6px;cursor:zoom-in">` : '');
+      return h + `<div class="bub ${m.from_admin ? 'bt' : 'me'}">${b}<small style="display:block;font-size:.66rem;opacity:.65;margin-top:3px;text-align:end">${tmS(m.created_at)}${m.pending ? ' · جارٍ الإرسال' : ''}</small></div>`;
+    }).join('');
+  };
+  const HELLO = '<div class="bub me">مرحباً! كيف يمكنني مساعدتك اليوم؟</div>';
+  const toEndS = () => requestAnimationFrame(() => scrollTo({ top: document.body.scrollHeight }));
+  function paintSup(sc) { const c = document.querySelector('#ch'); if (!c) return; c.innerHTML = '<p class="mu" style="text-align:center;margin:4px 0">المحادثة محفوظة</p>' + HELLO + supHtml(); if (sc) toEndS(); }
 
-  async function supLoad() {
-    const id = me(); if (!id) { SUPX.msgs = []; SUPX.sig = ''; return; }
-    const j = await J('/api/u/support/history', id);
-    const sig = j.messages.length + ':' + (j.messages.length ? j.messages[j.messages.length - 1].id : 0);
-    if (sig === SUPX.sig) return;
-    SUPX.msgs = j.messages; SUPX.sig = sig;
-    const c = document.querySelector('#ch');
-    if (c) {
-      c.innerHTML = '<p class="mu" style="text-align:center">المحادثة محفوظة</p><div class="bub me">مرحباً! كيف يمكنني مساعدتك اليوم؟</div>' + supHtml();
-      c.lastElementChild && c.lastElementChild.scrollIntoView({ block: 'end' });
-    }
+  V.chat = () => `<div class="u2-hdn fx"><button class="ib" data-r="support" aria-label="رجوع">${ic('back')}</button><div class="ci" style="width:46px;height:46px">${ic('head', 22)}</div><div class="sp"><b>الدعم الفني</b><small class="u2-on">فريق خدمة العملاء</small></div></div><div class="dm-st"></div>
+<div id="ch" style="min-height:calc(100vh - 230px);display:flex;flex-direction:column;justify-content:flex-end"><p class="mu" style="text-align:center;margin:4px 0">المحادثة محفوظة</p>${HELLO}${supHtml()}</div>
+<div class="u2-in fx"><button class="ib" id="cimg" aria-label="إرفاق صورة" style="width:46px;height:46px;flex:none">${ic('img')}</button><input id="cm" maxlength="2000" autocomplete="off" placeholder="اكتب رسالتك هنا..."><button class="u2-snd" data-a="send" aria-label="إرسال">${ic('send')}</button></div>`;
+
+  let busy = false;
+  async function supLoad(force) {
+    const id = me(); if (!id) { SUPX.msgs = []; SUPX.last = 0; SUPX.who = ''; return; }
+    if (busy && !force) return; busy = true;
+    try {
+      if (SUPX.who !== id.e) { SUPX.msgs = []; SUPX.last = 0; SUPX.who = id.e; }
+      const j = await J('/api/u/support/history', { ...id, after: SUPX.last });
+      const fresh = j.messages || []; if (!fresh.length) return;
+      SUPX.msgs = SUPX.msgs.filter((m) => !m.pending); // نستبدل الرسائل المؤقتة بالفعلية
+      const have = new Set(SUPX.msgs.map((m) => m.id));
+      fresh.forEach((m) => { if (!have.has(m.id)) SUPX.msgs.push(m); SUPX.last = Math.max(SUPX.last, m.id); });
+      SUPX.msgs.sort((a, b) => a.id - b.id);
+      paintSup(true);
+    } finally { busy = false; }
   }
 
   let pend = null;
+  const resetImgBtn = () => { const ib = document.querySelector('#cimg'); if (ib) { ib.style.opacity = ''; ib.style.background = ''; ib.style.backgroundSize = ''; ib.innerHTML = ic('img'); } };
   window.supSend = async () => {
     const x = document.querySelector('#cm'), id = me();
     if (!x || !id) return say('سجّل الدخول أولاً');
     const body = x.value.trim(); if (!body && !pend) return;
-    const img = pend; x.value = ''; pend = null;
-    const ib = document.querySelector('#cimg'); if (ib) ib.style.opacity = '';
-    try { await J('/api/u/support/send', { ...id, body, img }); SUPX.sig = ''; await supLoad(); }
-    catch (e) { x.value = body; say(e.message); }
+    const img = pend; x.value = ''; pend = null; resetImgBtn();
+    const tmp = { id: -Date.now(), from_admin: false, body, img, created_at: new Date().toISOString(), pending: 1 };
+    SUPX.msgs.push(tmp); paintSup(true); x.focus();
+    try { await J('/api/u/support/send', { ...id, body, img }); await supLoad(true); }
+    catch (e) { SUPX.msgs = SUPX.msgs.filter((m) => m !== tmp); paintSup(); x.value = body; pend = img; say(e.message); }
   };
 
   /* ---- نافذة البلاغ ---- */
@@ -70,11 +95,13 @@
 
   /* ---- أزرار الصفحة (تفويض نقرات) ---- */
   document.addEventListener('click', (ev) => {
+    const z = ev.target.closest('[data-supimg]');
+    if (z) { const m = SUPX.msgs.find((x) => String(x.id) === z.dataset.supimg); if (m && m.img) { ev.stopPropagation(); ev.preventDefault(); const o = document.createElement('div'); o.style.cssText = 'position:fixed;inset:0;z-index:100002;background:#000d;display:flex;align-items:center;justify-content:center;padding:12px'; o.innerHTML = `<img src="${m.img}" style="max-width:100%;max-height:100%;border-radius:12px">`; o.onclick = () => o.remove(); document.body.appendChild(o); } return; }
     const t = ev.target.closest('[data-a="rpt"],#cimg'); if (!t) return;
     ev.stopPropagation(); ev.preventDefault();
     if (t.id === 'cimg') {
       const f = document.createElement('input'); f.type = 'file'; f.accept = 'image/*';
-      f.onchange = async () => { try { pend = await shrink(f.files[0]); t.style.opacity = '.45'; say('تم اختيار الصورة، اضغط إرسال'); } catch (e) { say('تعذر قراءة الصورة'); } };
+      f.onchange = async () => { try { pend = await shrink(f.files[0]); t.style.opacity = ''; t.innerHTML = ''; t.style.background = `url('${pend}') center/cover`; say('تم اختيار الصورة، اضغط إرسال'); } catch (e) { say('تعذر قراءة الصورة'); } };
       f.click();
     } else reportBox();
   }, true);
@@ -93,7 +120,11 @@
   /* ---- تنبيهات الإدارة ---- */
   async function notices() { const id = me(); if (!id) return; (await J('/api/u/notices', id)).notices.forEach((n) => say(n.body)); }
 
+  document.addEventListener('keydown', (e) => { if (e.target && e.target.id === 'cm' && e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); window.supSend(); } });
   const tick = () => { if (document.hidden) return; supLoad().catch(() => {}); notices().catch(() => {}); };
-  setInterval(tick, 5000); setInterval(() => faqLoad().catch(() => {}), 15000);
+  setInterval(tick, 5000); setInterval(() => { if (!document.hidden && S.r === 'chat') supLoad().catch(() => {}); }, 2000);
+  setInterval(() => faqLoad().catch(() => {}), 15000);
   setTimeout(() => { tick(); faqLoad().catch(() => {}); }, 2500);
+  const _dr = window.draw; let lr = '';
+  window.draw = function () { const r = _dr.apply(this, arguments); if (S.r === 'chat' && lr !== 'chat') { toEndS(); supLoad(true).catch(() => {}); } lr = S.r; return r; };
 })();
