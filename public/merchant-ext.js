@@ -172,11 +172,8 @@ ${fld('mxar', 'رمز الإحالة', '', code, 'readonly dir="ltr" style="opac
   }
 
   /* شريط اسم المتجر المثبت في الأعلى */
-  function bar() {
-    let b = document.querySelector('#mxbar'); const m = MX.me && MX.me.status === 'active' && S.acc && S.r !== 'panel' ? MX.me : null;
-    if (!m) { if (b) { b.remove(); document.body.style.paddingTop = ''; } return; }
-    if (!b) { b = document.createElement('div'); b.id = 'mxbar'; b.setAttribute('data-a', 'go'); b.setAttribute('data-v', 'mxdash'); b.style.cssText = 'position:fixed;top:0;inset-inline:0;z-index:50;height:34px;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--cy);color:#fff;font-weight:700;cursor:pointer'; document.body.append(b); document.body.style.paddingTop = '34px'; }
-    b.innerHTML = '🏪 ' + esc(m.name) + ' · لوحة المتجر';
+  function bar() { // لا شريط علوي: بطاقة «لوحة متجري» تبقى مثبتة أعلى قائمة التجار فقط
+    const b = document.querySelector('#mxbar'); if (b) { b.remove(); document.body.style.paddingTop = ''; }
   }
 
   /* ---------- دعوة الإحالة + المشاركة ---------- */
