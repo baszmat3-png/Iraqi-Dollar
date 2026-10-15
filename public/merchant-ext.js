@@ -119,7 +119,7 @@ ${cap > 0 ? `<div style="height:8px;border-radius:99px;background:#0003;margin-t
     const fld = (i, l, ph, v, ex) => `<label style="display:block;margin-top:6px"><span class="mu">${l}</span><input id="${i}" placeholder="${ph}" value="${esc(v || '')}" ${ex || ''}></label>`;
     dlg(`<h2 style="margin-top:0">إضافة تاجر جديد</h2>
 <div class="card" style="margin-bottom:10px;padding:12px"><b>شروط الانضمام</b>
-${cond(ok, 'امتلاك عداد 50,000 نقطة (الماسي فما فوق)')}
+${cond(ok, 'امتلاك عداد الماسي (300,000 نقطة) فما فوق')}
 ${cond(enough, 'رصيد يكفي للرسوم: ' + nf(fee) + ' نقطة تُستقطع مقدماً')}
 <div class="mu" style="font-size:.85rem;margin-top:6px">يُرسل الطلب إلى لوحة التحكم للموافقة، وتُعاد الرسوم إلى رصيدك إن رُفض الطلب.</div></div>
 ${ok ? `${fld('mxan', 'اسم المتجر', 'أدخل اسم المتجر')}
@@ -129,7 +129,7 @@ ${fld('mxaa', 'المنطقة', 'أدخل المنطقة')}
 ${fld('mxal', 'أقرب نقطة دالة', 'مثال: مقابل مدرسة، قرب جسر...')}
 ${fld('mxar', 'رمز الإحالة', '', code, 'readonly dir="ltr" style="opacity:.8"')}
 <button class="btn" style="margin-top:10px" data-a="mxapply" ${enough ? '' : 'disabled style="opacity:.5;margin-top:10px"'}>دفع ${nf(fee)} نقطة وإرسال الطلب</button>`
-        : '<button class="btn" data-a="go" data-v="counter">شراء عداد 50,000 نقطة</button>'}
+        : '<button class="btn" data-a="go" data-v="counter">شراء عداد الماسي</button>'}
 <button class="btn o" style="margin-top:8px" onclick="d.close()">إلغاء</button>`);
   }
   const code_ = () => { try { return String(ucode({ e: S.acc.e })); } catch (e) { return ''; } };
@@ -138,7 +138,7 @@ ${fld('mxar', 'رمز الإحالة', '', code, 'readonly dir="ltr" style="opac
     if (applying) return; const me = id(); if (!me) return say('سجّل الدخول أولاً');
     const g = (i) => ((document.querySelector(i) || {}).value || '').trim();
     const name = g('#mxan'), phone = g('#mxap'), province = g('#mxapv'), area = g('#mxaa'), landmark = g('#mxal');
-    if (!hasCounter()) return say('تحتاج عداداً من فئة 50,000 نقطة (الماسي فما فوق)');
+    if (!hasCounter()) return say('تحتاج عداداً من فئة الماسي (300,000 نقطة) فما فوق');
     if (!name) return say('أدخل اسم المتجر');
     if (phone.replace(/\D/g, '').length < 9) return say('أدخل رقم هاتف صحيحاً');
     if (!province) return say('اختر المحافظة');
@@ -172,8 +172,11 @@ ${fld('mxar', 'رمز الإحالة', '', code, 'readonly dir="ltr" style="opac
   }
 
   /* شريط اسم المتجر المثبت في الأعلى */
-  function bar() { // لا شريط علوي: بطاقة «لوحة متجري» تبقى مثبتة أعلى قائمة التجار فقط
-    const b = document.querySelector('#mxbar'); if (b) { b.remove(); document.body.style.paddingTop = ''; }
+  function bar() {
+    let b = document.querySelector('#mxbar'); const m = MX.me && MX.me.status === 'active' && S.acc && S.r !== 'panel' ? MX.me : null;
+    if (!m) { if (b) { b.remove(); document.body.style.paddingTop = ''; } return; }
+    if (!b) { b = document.createElement('div'); b.id = 'mxbar'; b.setAttribute('data-a', 'go'); b.setAttribute('data-v', 'mxdash'); b.style.cssText = 'position:fixed;top:0;inset-inline:0;z-index:50;height:34px;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--cy);color:#fff;font-weight:700;cursor:pointer'; document.body.append(b); document.body.style.paddingTop = '34px'; }
+    b.innerHTML = '🏪 ' + esc(m.name) + ' · لوحة المتجر';
   }
 
   /* ---------- دعوة الإحالة + المشاركة ---------- */

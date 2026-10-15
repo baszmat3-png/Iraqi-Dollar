@@ -84,8 +84,9 @@
     x: '<path d="M6 6l12 12M18 6L6 18"/>', gem: '<path d="M6 3h12l3 6-9 12L3 9z"/><path d="M3 9h18M9 3l-2 6 5 12M15 3l2 6-5 12"/>', dollar: '<path d="M12 2v20M17 6.5C16 5 14.3 4.5 12 4.5c-2.8 0-4.5 1.1-4.5 3 0 4.5 9 2.2 9 7 0 1.900-1.800 3-4.500 3-2.300 0-4.100-.7-5-2.500"/>',
     plus: '<path d="M12 5v14M5 12h14"/>', chat: '<path d="M21 12a8 8 0 01-11.700 7L4 20l1.200-4.200A8 8 0 1121 12z"/>', shield: '<path d="M12 3l8 3v6c0 5-3.500 8-8 9-4.500-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>', bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
   };
+  I.heart = '<path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6c-2.5 4.5-9.5 9-9.5 9z"/>';
   const ico = (n) => `<svg viewBox="0 0 24 24">${I[n] || ''}</svg>`;
-  const TABS = [['overview', 'نظرة عامة', 'home'], ['users', 'المستخدمون', 'users'], ['reports', 'البلاغات', 'flag'], ['support', 'الدعم', 'head'], ['merchants', 'التجار', 'store'], ['fin', 'المالية', 'coin'], ['ledger', 'سجل العمليات', 'list'], ['faq', 'الأسئلة الشائعة', 'help']];
+  const TABS = [['overview', 'نظرة عامة', 'home'], ['users', 'المستخدمون', 'users'], ['reports', 'البلاغات', 'flag'], ['support', 'الدعم', 'head'], ['merchants', 'التجار', 'store'], ['fin', 'المالية', 'coin'], ['ledger', 'سجل العمليات', 'list'], ['faq', 'الأسئلة الشائعة', 'help'], ['campaigns', 'حملات التبرع', 'heart'], ['agents', 'مراقبة الوكلاء', 'users']];
   const btn = document.createElement('button');
   btn.id = 'axb'; btn.innerHTML = ico('shield') + 'إدارة متقدمة<i hidden></i>';
   const ov = document.createElement('div');
@@ -95,6 +96,8 @@
   document.body.append(btn, ov);
   const M = ov.querySelector('#axm');
 
+  const cpImg = {};
+  let agSel = '';
   let lf = { kind: '', cat: '', q: '' }, tab = 'overview', thread = null, rep = 'open', busy = false, shot = null, uq = '';
 
   const err = (e) => { M.insertAdjacentHTML('afterbegin', `<div class="c" style="color:#ef5350">${esc(e.message)}</div>`); };
@@ -215,6 +218,21 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
         (j.rows.map((r) => `<div class="c" style="${r.pre_reset ? 'opacity:.6' : ''}"><div class="r"><b style="color:${r.kind === 'in' ? '#4caf50' : '#ef5350'}">${r.kind === 'in' ? '+' : '−'}${nf(r.iqd)} د.ع</b><span class="mu">${esc(r.cat_label)}</span><span class="g"></span><span class="mu">${dt(r.ts)}</span></div>
 <div class="mu" dir="ltr">من: ${esc(r.from)} ← إلى: ${esc(r.to)}${r.app ? ' [حساب التطبيق]' : ''}</div><div>${esc(r.note || '')}</div>${r.src === 'manual' ? `<button class="b d" data-a="ldel" data-id="${esc(r.uid)}">حذف</button>` : ''}</div>`).join('') || '<div class="c mu">لا توجد حركات</div>');
     },
+    async agents() {
+      if (agSel) {
+        const [L, J] = await Promise.all([api('/api/ctl/agents/log?email=' + encodeURIComponent(agSel)), api('/api/ctl/agents')]);
+        const a = J.items.find((x) => x.email === agSel) || { name: agSel };
+        return `<button class="b s" data-a="agback">← كل الوكلاء</button><div class="sh"><span>${esc(a.name)} · حركات الوكيل</span></div><div class="mu" dir="ltr" style="text-align:start;margin-bottom:8px">${esc(agSel)}</div>` + (L.items.map((r) => `<div class="c"><div class="r"><b>${esc(r.label)}</b><span class="g"></span><b style="color:${r.pts < 0 ? '#ef5350' : '#3ddc68'}">${r.pts ? (r.pts > 0 ? '+' : '') + nf(r.pts) + ' نقطة' : r.usd ? '$' + nf(r.usd) : ''}</b></div>${r.who ? `<div class="mu">${esc(r.who)}</div>` : ''}${r.note ? `<div class="mu">${esc(r.note)}</div>` : ''}<div class="mu" style="font-size:.75rem">${dt(r.t)}</div></div>`).join('') || '<div class="c mu">لا توجد حركات مسجلة لهذا الوكيل بعد</div>');
+      }
+      const j = await api('/api/ctl/agents');
+      const st = (l, v) => `<div style="flex:1;min-width:46%;margin:4px 0"><div class="mu">${l}</div><b>${v}</b></div>`;
+      return '<div class="mu" style="margin-bottom:8px">إجمالي كل وكيل: ما باعه، وما حُوّل إليه، وما أضافه لرصيده الرسمي، وسحوباته. الحركات تُسجَّل منذ تحديث هذه النسخة.</div>' + (j.items.map((a) => `<div class="c"><div class="r"><b>${esc(a.name)}</b><span class="g"></span><span class="mu">${a.last ? 'آخر حركة ' + dt(a.last) : 'لا حركات'}</span></div><div class="mu" dir="ltr" style="text-align:start">${esc(a.email)}</div><div class="r" style="flex-wrap:wrap;margin-top:6px">${st('رصيد حسابه', nf(a.balance) + ' نقطة')}${st('السيولة', nf(a.liq))}${st('الرصيد الرسمي', nf(a.off))}${st('باع (شحن أعضاء)', nf(a.sold.pts) + ' نقطة · ' + a.sold.n + ' عملية · ' + a.sold.members + ' عضو')}${st('حُوّل إليه من مستخدمين', nf(a.recv.pts) + ' نقطة · ' + a.recv.n + ' عملية')}${st('أضاف للرصيد الرسمي', nf(a.addoff.pts) + ' نقطة · ' + a.addoff.n)}${st('طلبات شراء بالسعر الرسمي', nf(a.buy.pts) + ' نقطة · ' + a.buy.n)}${st('شحن/خصم الإدارة', '+' + nf(a.admin.plus) + ' / −' + nf(a.admin.minus))}${st('طلبات سحب الرصيد', '$' + nf(a.wd.usd) + ' · ' + a.wd.n + (a.wd.pending ? ' (' + a.wd.pending + ' قيد المراجعة)' : ''))}</div><div class="r" style="margin-top:8px"><span class="g"></span><button class="b p" data-a="aglog" data-e="${esc(a.email)}">كل حركاته</button></div></div>`).join('') || '<div class="c mu">لا يوجد وكلاء معتمدون في الإعدادات المنشورة</div>');
+    },
+    async campaigns() {
+      const j = await api('/api/ctl/campaigns');
+      const row = (c) => { const id = c.id || 0; return `<div class="c" data-cp="${id}"><input class="cpt" placeholder="اسم الحملة (مثال: فشل كلوي)" value="${esc(c.title || '')}"><textarea class="cpd" rows="4" placeholder="وصف الحالة المرضية">${esc(c.descr || '')}</textarea><div class="r"><input class="cpg g" type="number" min="0" placeholder="الهدف بالنقاط (0 = بلا هدف)" value="${c.goal || ''}"><label class="mu" style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" class="cpa" style="width:auto" ${c.active === false ? '' : 'checked'}> تظهر للجميع</label></div>${c.img ? `<img src="${esc(c.img)}" alt="" style="max-width:100%;max-height:220px;border-radius:12px;margin:8px 0;object-fit:cover">` : ''}<input type="file" accept="image/*" class="cpf" style="margin-top:8px"><div class="mu cpn">${cpImg[id] ? 'تم اختيار صورة جديدة' : (id ? 'اختر صورة لتغيير الحالية' : 'اختر صورة الحالة (مطلوبة)')}</div>${id ? `<div class="mu" style="margin-top:6px">تم جمع <b>${(c.raised || 0).toLocaleString('en')}</b> نقطة · ${c.donors || 0} متبرع</div>` : ''}<div class="r" style="margin-top:8px"><span class="g"></span><button class="b p" data-a="cpsave">${id ? 'حفظ' : 'إضافة الحملة'}</button>${id ? '<button class="b d" data-a="cpdel">حذف</button>' : ''}</div></div>`; };
+      return '<div class="mu" style="margin-bottom:8px">كل حملة تظهر لجميع المستخدمين داخل نافذة «التبرع للجمعيات الخيرية» بصورتها ووصفها ومجموع ما جُمع لها.</div>' + row({}) + j.items.map(row).join('');
+    },
     async faq() {
       const j = await (await fetch('/api/faq')).json();
       const row = (f) => `<div class="c" data-f="${f.id || 0}"><input class="fc" placeholder="القسم" value="${esc(f.cat || '')}"><input class="fq" placeholder="السؤال" value="${esc(f.q || '')}"><textarea class="fa" rows="3" placeholder="الجواب">${esc(f.a || '')}</textarea>
@@ -283,6 +301,17 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
     if (a === 'mreject') { const c = el.closest('[data-m]'); if (!confirm('رفض الطلب وإعادة الرسوم للمستخدم؟')) return; return post('/api/ctl/merchants/save', { id: +c.dataset.m, status: 'rejected', note: (c.querySelector('.mnote') || {}).value || '' }); }
     if (a === 'msave') { const c = el.closest('[data-m]'); return post('/api/ctl/merchants/save', { id: +c.dataset.m, status: el.dataset.st, daily_cap: c.querySelector('.mcap').value, discount: c.querySelector('.mdis').value }); }
     if (a === 'mdel') { const c = el.closest('[data-m]'); return confirm('حذف المتجر وسجل عملياته؟') && post('/api/ctl/merchants/del', { id: +c.dataset.m }); }
+    if (a === 'aglog') { agSel = e; return draw(); }
+    if (a === 'agback') { agSel = ''; return draw(); }
+    if (a === 'cpsave' || a === 'cpdel') {
+      const c = el.closest('[data-cp]'), id = +c.dataset.cp;
+      if (a === 'cpdel') return confirm('حذف الحملة وسجل تبرعاتها؟') && post('/api/ctl/campaigns/del', { id });
+      try {
+        await api('/api/ctl/campaigns/save', { id, title: c.querySelector('.cpt').value, descr: c.querySelector('.cpd').value, goal: +c.querySelector('.cpg').value || 0, active: c.querySelector('.cpa').checked, img: cpImg[id] || undefined });
+        delete cpImg[id]; flash('تم الحفظ'); draw();
+      } catch (x) { flash(x.message, 1); }
+      return;
+    }
     if (a === 'fsave' || a === 'fdel') {
       const c = el.closest('[data-f]'), fid = +c.dataset.f;
       if (a === 'fdel') return confirm('حذف السؤال؟') && post('/api/ctl/faq/del', { id: fid });
@@ -300,6 +329,11 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
     act(t);
   });
   ov.addEventListener('change', async (ev) => {
+    if (ev.target.classList.contains('cpf') && ev.target.files[0]) {
+      const c = ev.target.closest('[data-cp]');
+      try { cpImg[+c.dataset.cp] = await shrink(ev.target.files[0], 1000); c.querySelector('.cpn').textContent = 'تم اختيار صورة جديدة'; } catch (e) { alert('تعذر قراءة الصورة'); }
+      return;
+    }
     if (ev.target.id !== 'af' || !ev.target.files[0]) return;
     try { shot = await shrink(ev.target.files[0]); M.querySelector('#an').textContent = 'تم اختيار صورة'; } catch (e) { alert('تعذر قراءة الصورة'); }
   });
@@ -308,7 +342,7 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
   // تحديث دوري كل 5 ثوانٍ
   setInterval(async () => {
     if (!key()) return;
-    if (ov.classList.contains('on') && !document.hidden) draw(true);
+    if (ov.classList.contains('on') && !document.hidden && tab !== 'campaigns') draw(true);
     try {
       const c = await api('/api/ctl/counts'), n = c.reports + c.support + (c.merchants || 0), b = btn.querySelector('i'); b.hidden = !n; b.textContent = n;
       [['reports', c.reports], ['support', c.support], ['merchants', c.merchants]].forEach(([t, v]) => { const x = ov.querySelector(`[data-bd="${t}"]`); if (x) { x.hidden = !v; x.textContent = v; } });
