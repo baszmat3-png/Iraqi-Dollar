@@ -321,7 +321,7 @@ const VBC={b:['#1d9bf0','أزرق'],g:['#22c55e','أخضر'],r:['#ef4444','أح�
 const rc6=e=>String(100000+(parseInt(sha256hex(e).slice(0,8),16)%900000));
 const _rcc={};
 const ucodeE=e=>{e=String(e==null?'':e).trim().toLowerCase();const m=RCX();if(m[e])return String(m[e]);const tk=new Set(Object.values(m).map(String));let c=_rcc[e]||(_rcc[e]=rc6(e));for(let n=1;tk.has(c)&&n<60;n++)c=rc6(e+'#'+n);return c};
-const ucode=a=>ucodeE(a&&a.e);
+const ucode=a=>{const u=(typeof sU=='function')?sU(a&&a.e):null;return(u&&u.rcode)||ucodeE(a&&a.e)};
 const vbd=e=>{const c=VBC[VBX()[String(e==null?'':e).trim().toLowerCase()]];return c?`<svg width="17" height="17" viewBox="0 0 24 24" style="vertical-align:-3px;margin-inline-start:4px;flex:none" role="img" aria-label="حساب موثق"><circle cx="12" cy="12" r="11" fill="${c[0]}"/><path d="M7 12.5l3.2 3.2L17 8.8" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`:''};
 const lv=p=>p<5000?['برونزي','w']:p<30000?['فضي','c']:p<80000?['ذهبي','w']:['ماسي','i'];
 const ini=n=>String(n||'?').trim()[0]||'?';
