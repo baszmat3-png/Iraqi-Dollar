@@ -81,6 +81,93 @@ npm start
 
 ---
 
+# API Endpoints Documentation
+
+## 1. Health Check
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| GET | `/healthz` | Public | Check server and database readiness |
+
+## 2. Authentication
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| POST | `/api/auth/signup/request` | Public (Rate Limited) | Send OTP via Email and WhatsApp for registration |
+| POST | `/api/auth/signup/verify` | Public (Rate Limited) | Verify OTP, create account, and return JWT |
+| POST | `/api/auth/login` | Public (Rate Limited) | Login using email and password |
+| POST | `/api/auth/password` | Bearer Token | Change account password |
+
+**Alternative Endpoint Names:**
+- `/api/auth/send-otp`
+- `/api/auth/verify-otp`
+
+## 3. Admin & Products
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| POST | `/api/admin/verify` | Public | Verify the product dashboard password |
+| GET | `/api/products` | Public | Retrieve the store products list |
+
+## 4. User Account
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| GET | `/api/me` | Bearer Token | Retrieve account details, balance, and counter status |
+
+## 5. Counters
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| POST | `/api/counter/toggle` | Bearer Token | Start or stop a counter |
+| POST | `/api/counter/claim` | Bearer Token | Claim counter earnings after 24 hours |
+| POST | `/api/counters/buy` | Bearer Token | Purchase a new counter |
+
+## 6. Counter Marketplace
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| GET | `/api/market` | Bearer Token | Retrieve counters listed for sale |
+| POST | `/api/market/list` | Bearer Token | List a counter for sale |
+| POST | `/api/market/unlist` | Bearer Token | Remove a counter from the marketplace |
+| POST | `/api/market/buy` | Bearer Token | Purchase a listed counter |
+
+## 7. Store & Purchases
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| POST | `/api/store/purchase` | Bearer Token | Purchase products from the store |
+
+## 8. Transfers
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| POST | `/api/transfer` | Bearer Token | Transfer points to another user or convert them into gems or dollars |
+
+## 9. Withdrawals
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| GET | `/api/withdrawals` | Bearer Token | Retrieve withdrawal history |
+| POST | `/api/withdrawals` | Bearer Token | Submit a withdrawal request |
+| POST | `/api/withdraw` | Bearer Token | Alternative withdrawal request endpoint |
+
+## 10. Fun & Rewards
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| POST | `/api/fun/spin` | Bearer Token | Spin the wheel of fortune for 100 gems |
+
+---
+
+## General Notes
+
+- **Public:** No authentication token is required.
+- **Bearer Token:** Requires a valid JWT access token in the `Authorization` header.
+- **Rate Limited:** Requests are subject to rate limits.
+- These endpoints describe the planned API interface. Their actual availability and behavior depend on backend implementation.
+
+
 ## النشر على Render
 
 1. يتم رفع الكود إلى مستودع GitHub.
