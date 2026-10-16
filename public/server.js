@@ -79,11 +79,14 @@ const WHEEL = ['3600', 'x', '200', 'x', '500', '100', 'gem', '50'];
 /* ---------- Helpers ---------- */
 const app = express();
 const SYNC = require('./sync-ext')(app, express);
-const GAME = require('./game-ext')(app);
+const EXCL = require('./excl-ext'); // المرحلة 14: حسابات مستثناة من المالية والأرباح
+EXCL.init(pool);
+const GAME = require('./game-ext')(app, { excluded: () => EXCL.set() });
 const AX = require('./admin-ext');
 const MXT = require('./merchant-ext');
 const SOC = require('./social-ext');
 const EXT5 = require('./extras-ext');
+const STOREX = require('./store-ext');
 
 // أعمدة العدادات (عدد العدادات + هل تعمل) تُخزَّن على السيرفر ليراها المالك لكل المستخدمين
 const colsReady = (async () => {
@@ -100,6 +103,7 @@ AX.parsers(app, express); // صور الدعم والبلاغات (حد أكبر
 MXT.parsers(app, express); // صور التجار والصور الشخصية
 SOC.parsers(app, express); // الأصدقاء والرسائل
 EXT5.parsers(app, express); // صور حملات التبرع
+STOREX.parsers(app, express); // دفعات أكواد المتجر الكبيرة
 app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false }));
 // الإعدادات المنشورة قد تحتوي صوراً، لذلك حد أكبر لهذا المسار فقط
@@ -1063,6 +1067,7 @@ async function syncRefFin(a, email, RC, out) {
   for (const ev of (Array.isArray(a.rfe) ? a.rfe.slice(0, 20) : [])) {
     const id = String(ev && ev.id || '').slice(0, 60), base = Math.floor(SYNC_NUM(ev && ev.b, 1e12));
     if (!id || !base || !me || !me.ref_by) continue; // لا يُؤكَّد الحدث قبل معرفة الداعي
+    if (EXCL.has(email) || EXCL.has(me.ref_by)) { rfa.push(id); continue; } // حساب مستثنى: لا عمولة إحالة
     const uid = email + ':' + id;
     const ins = await pool.query(
       `INSERT INTO sync_ref_ev(uid,invitee,inviter,base,pts) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING RETURNING pts`,
@@ -1083,10 +1088,15 @@ async function syncRefFin(a, email, RC, out) {
     const u = String(ev && ev.u || '').slice(0, 40), amt = Math.floor(SYNC_NUM(ev && ev.a, 1e12));
     if (!u) continue;
     const c = amt > 0 ? finCls(ev.l, ev.d === 'in' ? 'in' : 'out') : null;
-    if (c) {
+    if (c && !EXCL.has(email)) {
+      let cat = c[1];
+      if (cat === 'agency') { // وكالة مجانية: لا تُحسب ربحاً
+        const fr = await pool.query('SELECT 1 FROM agency_free WHERE LOWER(email)=LOWER($1)', [email]).catch(() => ({ rows: [] }));
+        if (fr.rows[0]) cat = 'agency_free';
+      }
       await pool.query(
         `INSERT INTO fin_ev(uid,email,kind,cat,pts,iqd,note,src) VALUES($1,$2,$3,$4,$5,$6,$7,'auto') ON CONFLICT DO NOTHING`,
-        ['u:' + email + ':' + u, email, c[0], c[1], amt, Math.round(amt * RC.pr * 100) / 100, String(ev.l || '').slice(0, 80)]);
+        ['u:' + email + ':' + u, email, c[0], cat, amt, Math.round(amt * RC.pr * 100) / 100, String(ev.l || '').slice(0, 80)]);
     }
     fea.push(u);
   }
@@ -1186,6 +1196,7 @@ app.post('/api/ctl/config', ...ctl, wrap(async (req, res) => {
   await pool.query(
     `INSERT INTO sync_kv(key,val,updated_at) VALUES('config',$1,NOW())
      ON CONFLICT (key) DO UPDATE SET val=EXCLUDED.val, updated_at=NOW()`, [JSON.stringify(c)]);
+  try { if (app.locals.broadcastCfg) app.locals.broadcastCfg(); } catch (e) {} // وصول فوري لكل المتصلين
   res.json({ ok: true });
 }));
 
@@ -1331,14 +1342,16 @@ app.post('/api/ctl/cmd', ...ctl, wrap(async (req, res) => {
 
   const r = await pool.query('INSERT INTO sync_cmds(body) VALUES($1) RETURNING id', [JSON.stringify(body)]);
   await pool.query('DELETE FROM sync_cmds WHERE id < (SELECT MAX(id) FROM sync_cmds) - 5000');
-  res.json({ ok: true, id: r.rows[0].id });
+  // بث فوري (SSE) للأجهزة المتصلة بعد أن طُبّق التعديل على قاعدة البيانات
+  const delivered = app.locals.broadcastCmd ? app.locals.broadcastCmd(r.rows[0].id, body) : 0;
+  res.json({ ok: true, id: r.rows[0].id, delivered });
 }));
 
 app.get('/api/ctl/fin', ...ctl, wrap(async (_req, res) => {
   const rows = (await pool.query(
     `SELECT to_char(ts AT TIME ZONE 'Asia/Baghdad','YYYY-MM') AS m, kind, cat,
             SUM(iqd)::float8 AS iqd, SUM(pts)::float8 AS pts, COUNT(*)::int AS n
-       FROM fin_ev WHERE ts > NOW() - INTERVAL '25 months' GROUP BY 1,2,3 ORDER BY 1 DESC`)).rows;
+       FROM fin_ev WHERE ts > NOW() - INTERVAL '25 months' AND cat<>'agency_free' AND NOT (LOWER(COALESCE(email,''))=ANY($1::text[])) GROUP BY 1,2,3 ORDER BY 1 DESC`, [EXCL.list()])).rows;
   if (GAME) {
     const RC = await refCfg(), gr = Number(GAME.cfg().gemRate) || 100, agg = {};
     const add = (m, kind, cat, p) => {
@@ -1386,9 +1399,9 @@ app.get('/api/ctl/accounts', ...ctl, wrap(async (_req, res) => {
     `SELECT email,name,phone,demo,pts,gems,usd,blk,kyc,vml AS mv,last_seen FROM sync_accounts ORDER BY last_seen DESC LIMIT 5000`);
   const t = (await pool.query(
     `SELECT COUNT(*)::int AS n, COUNT(*) FILTER (WHERE demo)::int AS demo, COALESCE(SUM(pts),0) AS pts,
-            COALESCE(SUM(gems),0) AS gems, COALESCE(SUM(usd),0) AS usd FROM sync_accounts`)).rows[0];
+            COALESCE(SUM(gems),0) AS gems, COALESCE(SUM(usd),0) AS usd FROM sync_accounts WHERE NOT (LOWER(email)=ANY($1::text[]))`, [EXCL.list()])).rows[0];
   res.json({
-    accounts: r.rows.map((x) => ({ ...x, pts: Number(x.pts), gems: Number(x.gems), usd: Number(x.usd) })),
+    accounts: r.rows.map((x) => ({ ...x, pts: Number(x.pts), gems: Number(x.gems), usd: Number(x.usd), ex: EXCL.has(x.email) })),
     totals: { n: t.n, demo: t.demo, pts: Number(t.pts), gems: Number(t.gems), usd: Number(t.usd) },
   });
 }));
@@ -1421,6 +1434,11 @@ EXT5.routes(app, { pool, wrap, ctl, SYNC }); // المرحلة 5: شراء رم�
 SOC.routes(app, { pool, wrap, ctl }); // المرحلة 4: الأصدقاء + الرسائل + الإشعارات الفورية
 require('./security-ext').routes(app, { pool, wrap, sendWhatsApp, normPhone }); // المرحلة 3: الجلسات + رمز واتساب + المصادقة الثنائية
 require('./fin-ext').routes(app, { pool, wrap, ctl, SYNC, GAME }); // المرحلة 1ج: المالية
+EXCL.routes(app, { pool, wrap, ctl, GAME }); // المرحلة 14: المستثنون + الأعلى مالياً
+require('./instant-sync')(app, express, { pool, wrap, ctl, fail }); // بث فوري SSE + البحث بكود الإحالة
+require('./security-server')(app, express, { pool, wrap, ctl, fail }); // الحماية: بصمة الجهاز + VPN + تلاعب الوقت
+require('./gifts-ext')(app, express, { pool, wrap, ctl, fail });
+STOREX(app, express, { pool, wrap, ctl, fail }); // المرحلة 12: مخزون أكواد البطاقات + الطلبات + التسليم التلقائي // الهدايا بين المستخدمين (تُشترى بالنقاط) + قسم الهدايا في لوحة التحكم
 
 /* ---------- Health + static frontend ---------- */
 app.get('/healthz', wrap(async (_req, res) => { await pool.query('SELECT 1'); res.json({ ok: true }); }));
@@ -1434,7 +1452,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, p) => { if (/\.(html|json)$/.test(p)) res.setHeader('Cache-Control', 'no-cache, must-revalidate'); },
 }));
 app.get('/admin', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
-app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get(/.*/, (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 migrate().then(() => {
   app.listen(PORT, '0.0.0.0', () => console.log('Listening on', PORT));

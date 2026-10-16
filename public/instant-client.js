@@ -5,7 +5,7 @@
   window.__instantClient = 1;
   if (!('EventSource' in window)) return; // يبقى الفحص الدوري الموجود أصلاً
 
-  let es = null, delay = 1000, curEmail = null, timer = 0;
+  let es = null, delay = 1000, curEmail = null, timer = 0, cfgT = 0;
   const myEmail = () => { try { return (S.acc && S.acc.e ? String(S.acc.e) : '').toLowerCase(); } catch (e) { return ''; } };
 
   async function poll() { // سحب الأوامر الأحدث من آخر رقم مطبَّق (بالترتيب وبدون فجوات)
@@ -33,7 +33,11 @@
     curEmail = myEmail();
     try { es = new EventSource('/api/sync/stream' + (curEmail ? '?email=' + encodeURIComponent(curEmail) : '')); }
     catch (e) { return retry(); }
-    es.addEventListener('hello', () => { delay = 1000; poll(); }); // تعويض ما فات أثناء الانقطاع
+    es.addEventListener('hello', () => { delay = 1000; poll(); try { if (typeof syncPoll === 'function') syncPoll(); } catch (e) {} }); // تعويض ما فات أثناء الانقطاع
+    es.addEventListener('cfg', () => { // إعدادات جديدة: اسحبها وطبّقها فوراً
+      clearTimeout(cfgT);
+      cfgT = setTimeout(() => { try { if (typeof syncFetch === 'function') syncFetch().then((j) => { if (j && window._cfgChanged && window._cfgH) window._cfgH(j); }).catch(() => {}); } catch (e) {} }, 250);
+    });
     es.addEventListener('cmd', (e) => { try { onCmd(JSON.parse(e.data)); } catch (x) {} });
     es.addEventListener('error', () => { try { es.close(); } catch (e) {} es = null; retry(); });
   }
