@@ -11,7 +11,7 @@
 
   async function api(path, body) {
     const m = me(); if (!m) throw new Error('سجّل الدخول أولاً');
-    const r = await fetch('/api/p2p/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({}, m, body || {})) });
+    const r = await fetch('/api/p2p/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({}, m, { cl: (function () { try { return (S.cl || []).map((x) => ({ i: x.i, e: x.e })); } catch (e) { return undefined; } })() }, body || {})) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || 'تعذر الاتصال بالخادم');
     return j;
@@ -440,6 +440,20 @@ ${a.out ? `<div class="note warn" style="margin:10px 0 0">${ic('shield')}<span>�
     ev.stopImmediatePropagation(); ev.preventDefault(); open();
   }, true);
   window.P2P_OPEN = open;
+  /* مزامنة عدادات المستخدم إلى السيرفر تلقائياً (لتظهر في لوحة التحكم ويتحقق منها نظام P2P) */
+  let lastCl = '';
+  async function pushCl() {
+    try {
+      const m = me(); if (!m || (S.acc && S.acc.demo)) return;
+      const cl = (S.cl || []).filter((x) => x && Number(x.e) > Date.now()).map((x) => ({ i: x.i, e: x.e }));
+      if (!cl.length) return;
+      const sig = m.e + JSON.stringify(cl) + Math.floor(Date.now() / 36e5); /* يُعاد الإرسال كل ساعة على الأقل */
+      if (sig === lastCl) return;
+      const r = await fetch('/api/p2p/cl', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({}, m, { cl })) });
+      if (r.ok) lastCl = sig;
+    } catch (e) {}
+  }
+  setTimeout(pushCl, 2500); setInterval(pushCl, 15000);
   /* احتياط: إذا ظهرت الصفحة القديمة (route=p2p) افتح النظام الجديد تلقائياً */
   setInterval(() => { try { if (typeof S !== 'undefined' && S.r === 'p2p' && !(typeof CFG !== 'undefined' && CFG.hp2p) && !document.getElementById('ppo')?.classList.contains('on')) { S.r = 'home'; try { draw(); } catch (e) {} open(); } } catch (e) {} }, 400);
 })();

@@ -64,7 +64,7 @@
   const zoom = document.createElement('div'); zoom.id = 'paz'; zoom.onclick = () => zoom.classList.remove('on'); document.body.appendChild(zoom);
 
   const A = { tab: 'review', ov: null, ofilt: 'review', sfilt: '', od: null, busy: 0 };
-  const TABS = [['review', 'التدقيق'], ['orders', 'كل الطلبات'], ['sellers', 'البائعون'], ['reviews', 'التقييمات'], ['ads', 'الإعلانات'], ['cfg', 'الإعدادات']];
+  const TABS = [['review', 'التدقيق'], ['orders', 'كل الطلبات'], ['sellers', 'البائعون'], ['reviews', 'التقييمات'], ['ads', 'الإعلانات'], ['counters', 'العدادات'], ['cfg', 'الإعدادات']];
   const M = $('#pam'), N = $('#pan');
 
   function nav() {
@@ -88,6 +88,19 @@ ${o.flag === 'dispute' ? `<div class="al" style="margin:8px 0 0">⚠️ اعتر
 ${o.hasProof ? '<div class="mu" style="margin-top:4px">📎 صورة التحويل مرفقة</div>' : ''}</div>`;
 
   const VIEW = {
+    async counters() {
+      const j = await api('counters');
+      const q0 = (A.cq || '').trim().toLowerCase();
+      const list = j.users.filter((u) => !q0 || [u.name, u.email, u.phone, u.uid].some((x) => String(x || '').toLowerCase().includes(q0)));
+      M.innerHTML = `<div class="k"><div><b style="color:#2bcfe2">${NF(j.totalActive)}</b><span>عدادات فعّالة</span></div><div><b>${NF(j.usersWith)}</b><span>مستخدمون لديهم عدادات</span></div><div><b style="color:#3ad98f">${NF(j.dailyTotal)}</b><span>نقاط/يوم إجمالاً</span></div><div><b style="color:#ffb454">${NF(j.unsynced)}</b><span>لم تُزامن بعد</span></div></div>`
+        + `<div class="c"><div class="r">${j.byType.filter((x) => x.count).map((x) => pill(x.name + ' × ' + x.count, '#2bcfe2')).join('') || '<span class="mu">لا توجد عدادات</span>'}</div></div>`
+        + `<input id="pacq" placeholder="بحث بالاسم أو البريد أو الهاتف" value="${esc(A.cq || '')}" style="width:100%;padding:11px;margin-bottom:12px;border-radius:12px;border:1.5px solid var(--bd);background:var(--cd);color:inherit;font:inherit">`
+        + (list.map((u) => `<div class="c"><div class="r"><b>${esc(u.name || u.email)}</b>${u.unsynced ? pill('لم تُزامن بعد', '#ffb454') : pill(u.counters.length + ' عداد', '#3ad98f')}</div>`
+          + `<div class="mu" style="margin:4px 0 8px;direction:ltr;text-align:right">${esc(u.email)} ${u.phone ? '· ' + esc(u.phone) : ''}</div>`
+          + (u.counters.map((c) => `<div class="r" style="justify-content:space-between;padding:6px 0;border-top:1px solid #ffffff10"><b>${esc(c.name)}</b><span class="mu">${NF(c.daily)} نقطة/يوم · ينتهي ${dtf(c.exp)} (${c.days} يوم)</span></div>`).join('') || '<div class="mu">يملك عدادات على جهازه ولم تصل بعد — تُزامن عند فتح التطبيق.</div>')
+          + `<div class="mu" style="margin-top:6px;font-size:.78rem">آخر مزامنة: ${dtf(u.syncedAt)} · الرصيد: ${NF(u.pts)}</div></div>`).join('') || '<div class="em">لا نتائج</div>');
+      const inp = $('#pacq', M); if (inp) inp.oninput = () => { A.cq = inp.value; clearTimeout(A.ct); A.ct = setTimeout(() => VIEW.counters().then(() => { const i2 = $('#pacq', M); if (i2) { i2.focus(); i2.setSelectionRange(i2.value.length, i2.value.length); } }), 300); };
+    },
     async review() {
       const j = await api('orders?status=review');
       M.innerHTML = kpis() + (j.orders.map(orderRow).join('') || '<div class="em">لا توجد طلبات بانتظار التدقيق ✓</div>');
