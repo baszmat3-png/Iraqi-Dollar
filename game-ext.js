@@ -131,7 +131,10 @@ module.exports = function mountGame(app, opts) {
       }
     });
     const d = bucket(), t = db.tot;
-    [d.g, t.g].forEach(g => { g.n++; g.stake += total; g.prize += r.prize; g.comm += r.cm; });
+    // الحسابات المستثناة لا تدخل في أرباح اللعبة: يُحتسب نصيب غير المستثنين فقط
+    const exs = (opts.excluded && opts.excluded()) || new Set(), nx = r.players.filter(p => !exs.has(key(p.e))).length;
+    const sStake = r.entry * nx, sPrize = exs.has(key(r.players[w].e)) ? 0 : r.prize, sComm = Math.round(r.cm * nx / n);
+    if (nx) [d.g, t.g].forEach(g => { g.n++; g.stake += sStake; g.prize += sPrize; g.comm += sComm; });
     db.matches.push({ id: r.id, t: r.dt, entry: r.entry, pct: r.commPct, total, prize: r.prize, cm: r.cm, win: r.players[w].n, we: r.players[w].e, ps: r.players.map(p => p.n) });
     if (db.matches.length > 3000) db.matches.splice(0, db.matches.length - 3000);
     save();
@@ -265,7 +268,8 @@ module.exports = function mountGame(app, opts) {
     if (db.spins.length > 3000) db.spins.splice(0, db.spins.length - 3000);
     if (rid) { db.rids[rid] = { k: 's', sid: id, e: a.e }; trimRids(); }
     a.p.spins++; a.p.wGems += c.wCost;
-    const d = bucket().w, T = db.tot.w;
+    const ex1 = !!(opts.excluded && opts.excluded().has(a.e)); // حساب مستثنى: لا يدخل في إحصائيات العجلة
+    const d = ex1 ? zero().w : bucket().w, T = ex1 ? zero().w : db.tot.w;
     [d, T].forEach(w => { w.n++; w.gems += c.wCost; });
     if (pr.t === 'p') {
       a.p.wPts += pr.v;

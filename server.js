@@ -79,7 +79,9 @@ const WHEEL = ['3600', 'x', '200', 'x', '500', '100', 'gem', '50'];
 /* ---------- Helpers ---------- */
 const app = express();
 const SYNC = require('./sync-ext')(app, express);
-const GAME = require('./game-ext')(app);
+const EXCL = require('./excl-ext'); // المرحلة 14: حسابات مستثناة من المالية والأرباح
+EXCL.init(pool);
+const GAME = require('./game-ext')(app, { excluded: () => EXCL.set() });
 const AX = require('./admin-ext');
 const MXT = require('./merchant-ext');
 const SOC = require('./social-ext');
@@ -1065,6 +1067,7 @@ async function syncRefFin(a, email, RC, out) {
   for (const ev of (Array.isArray(a.rfe) ? a.rfe.slice(0, 20) : [])) {
     const id = String(ev && ev.id || '').slice(0, 60), base = Math.floor(SYNC_NUM(ev && ev.b, 1e12));
     if (!id || !base || !me || !me.ref_by) continue; // لا يُؤكَّد الحدث قبل معرفة الداعي
+    if (EXCL.has(email) || EXCL.has(me.ref_by)) { rfa.push(id); continue; } // حساب مستثنى: لا عمولة إحالة
     const uid = email + ':' + id;
     const ins = await pool.query(
       `INSERT INTO sync_ref_ev(uid,invitee,inviter,base,pts) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING RETURNING pts`,
@@ -1085,7 +1088,7 @@ async function syncRefFin(a, email, RC, out) {
     const u = String(ev && ev.u || '').slice(0, 40), amt = Math.floor(SYNC_NUM(ev && ev.a, 1e12));
     if (!u) continue;
     const c = amt > 0 ? finCls(ev.l, ev.d === 'in' ? 'in' : 'out') : null;
-    if (c) {
+    if (c && !EXCL.has(email)) {
       await pool.query(
         `INSERT INTO fin_ev(uid,email,kind,cat,pts,iqd,note,src) VALUES($1,$2,$3,$4,$5,$6,$7,'auto') ON CONFLICT DO NOTHING`,
         ['u:' + email + ':' + u, email, c[0], c[1], amt, Math.round(amt * RC.pr * 100) / 100, String(ev.l || '').slice(0, 80)]);
@@ -1342,7 +1345,7 @@ app.get('/api/ctl/fin', ...ctl, wrap(async (_req, res) => {
   const rows = (await pool.query(
     `SELECT to_char(ts AT TIME ZONE 'Asia/Baghdad','YYYY-MM') AS m, kind, cat,
             SUM(iqd)::float8 AS iqd, SUM(pts)::float8 AS pts, COUNT(*)::int AS n
-       FROM fin_ev WHERE ts > NOW() - INTERVAL '25 months' GROUP BY 1,2,3 ORDER BY 1 DESC`)).rows;
+       FROM fin_ev WHERE ts > NOW() - INTERVAL '25 months' AND NOT (LOWER(COALESCE(email,''))=ANY($1::text[])) GROUP BY 1,2,3 ORDER BY 1 DESC`, [EXCL.list()])).rows;
   if (GAME) {
     const RC = await refCfg(), gr = Number(GAME.cfg().gemRate) || 100, agg = {};
     const add = (m, kind, cat, p) => {
@@ -1390,9 +1393,9 @@ app.get('/api/ctl/accounts', ...ctl, wrap(async (_req, res) => {
     `SELECT email,name,phone,demo,pts,gems,usd,blk,kyc,vml AS mv,last_seen FROM sync_accounts ORDER BY last_seen DESC LIMIT 5000`);
   const t = (await pool.query(
     `SELECT COUNT(*)::int AS n, COUNT(*) FILTER (WHERE demo)::int AS demo, COALESCE(SUM(pts),0) AS pts,
-            COALESCE(SUM(gems),0) AS gems, COALESCE(SUM(usd),0) AS usd FROM sync_accounts`)).rows[0];
+            COALESCE(SUM(gems),0) AS gems, COALESCE(SUM(usd),0) AS usd FROM sync_accounts WHERE NOT (LOWER(email)=ANY($1::text[]))`, [EXCL.list()])).rows[0];
   res.json({
-    accounts: r.rows.map((x) => ({ ...x, pts: Number(x.pts), gems: Number(x.gems), usd: Number(x.usd) })),
+    accounts: r.rows.map((x) => ({ ...x, pts: Number(x.pts), gems: Number(x.gems), usd: Number(x.usd), ex: EXCL.has(x.email) })),
     totals: { n: t.n, demo: t.demo, pts: Number(t.pts), gems: Number(t.gems), usd: Number(t.usd) },
   });
 }));
@@ -1425,6 +1428,7 @@ EXT5.routes(app, { pool, wrap, ctl, SYNC }); // المرحلة 5: شراء رم�
 SOC.routes(app, { pool, wrap, ctl }); // المرحلة 4: الأصدقاء + الرسائل + الإشعارات الفورية
 require('./security-ext').routes(app, { pool, wrap, sendWhatsApp, normPhone }); // المرحلة 3: الجلسات + رمز واتساب + المصادقة الثنائية
 require('./fin-ext').routes(app, { pool, wrap, ctl, SYNC, GAME }); // المرحلة 1ج: المالية
+EXCL.routes(app, { pool, wrap, ctl, GAME }); // المرحلة 14: المستثنون + الأعلى مالياً
 require('./instant-sync')(app, express, { pool, wrap, ctl, fail }); // بث فوري SSE + البحث بكود الإحالة
 require('./security-server')(app, express, { pool, wrap, ctl, fail }); // الحماية: بصمة الجهاز + VPN + تلاعب الوقت
 require('./gifts-ext')(app, express, { pool, wrap, ctl, fail });

@@ -245,7 +245,7 @@ exports.routes = (app, { pool, wrap, ctl }) => {
        COUNT(*) FILTER (WHERE last_seen > NOW() - INTERVAL '24 hours' AND NOT demo)::int day,
        COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours' AND NOT demo)::int new_day,
        COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days' AND NOT demo)::int new_week,
-       COALESCE(SUM(pts) FILTER (WHERE NOT demo),0)::float8 pts, COALESCE(SUM(gems) FILTER (WHERE NOT demo),0)::float8 gems, COALESCE(SUM(usd) FILTER (WHERE NOT demo),0)::float8 usd FROM sync_accounts`);
+       COALESCE(SUM(pts) FILTER (WHERE NOT demo AND NOT (LOWER(email)=ANY($1::text[]))),0)::float8 pts, COALESCE(SUM(gems) FILTER (WHERE NOT demo AND NOT (LOWER(email)=ANY($1::text[]))),0)::float8 gems, COALESCE(SUM(usd) FILTER (WHERE NOT demo AND NOT (LOWER(email)=ANY($1::text[]))),0)::float8 usd FROM sync_accounts`, [require('./excl-ext').list()]);
     const rp = await one(`SELECT COUNT(*) FILTER (WHERE status='open')::int open, COUNT(*)::int total FROM reports`);
     const sp = await one(`SELECT COUNT(*) FILTER (WHERE NOT from_admin AND NOT read_by_admin AND body NOT LIKE '🚩%' AND body NOT LIKE 'بلاغ%')::int unread, COUNT(DISTINCT LOWER(email))::int threads FROM support_msgs`);
     const mc = await one(`SELECT COUNT(*) FILTER (WHERE status='pending')::int pending, COUNT(*) FILTER (WHERE status='active')::int active, COALESCE(SUM(received),0)::float8 received FROM merchants`);
@@ -253,7 +253,7 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     const ms = await one(`SELECT COUNT(*)::int total, COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours')::int day FROM soc_msgs`);
     const wd = await one(`SELECT COUNT(*) FILTER (WHERE status='pending')::int pending FROM withdrawals`);
     let top = [], recent = [], joined = [];
-    try { top = (await q(`SELECT email,name,pts,gems,usd,(SELECT (EXTRACT(EPOCH FROM v.updated_at)*1000)::bigint FROM avatars v WHERE v.email=LOWER(a.email)) av FROM sync_accounts a WHERE demo=FALSE ORDER BY pts DESC LIMIT 5`)).rows.map((x) => ({ ...x, pts: Number(x.pts), gems: Number(x.gems), usd: Number(x.usd), av: x.av ? Number(x.av) : 0 })); } catch (e) {}
+    try { top = (await q(`SELECT email,name,pts,gems,usd,(SELECT (EXTRACT(EPOCH FROM v.updated_at)*1000)::bigint FROM avatars v WHERE v.email=LOWER(a.email)) av FROM sync_accounts a WHERE demo=FALSE AND NOT (LOWER(a.email)=ANY($1::text[])) ORDER BY pts DESC LIMIT 5`, [require('./excl-ext').list()])).rows.map((x) => ({ ...x, pts: Number(x.pts), gems: Number(x.gems), usd: Number(x.usd), av: x.av ? Number(x.av) : 0 })); } catch (e) {}
     try { recent = (await q(`SELECT email,op,pts,gems,usd,created_at FROM bal_log ORDER BY id DESC LIMIT 8`)).rows.map((x) => ({ ...x, pts: Number(x.pts), gems: Number(x.gems), usd: Number(x.usd) })); } catch (e) {}
     try { joined = (await q(`SELECT email,name,created_at,(SELECT (EXTRACT(EPOCH FROM v.updated_at)*1000)::bigint FROM avatars v WHERE v.email=LOWER(a.email)) av FROM sync_accounts a WHERE demo=FALSE ORDER BY created_at DESC LIMIT 5`)).rows.map((x) => ({ ...x, av: x.av ? Number(x.av) : 0 })); } catch (e) {}
     const ab = await one(`SELECT COUNT(*) FILTER (WHERE status='pending')::int pending FROM agent_buys`);

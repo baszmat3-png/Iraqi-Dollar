@@ -3,6 +3,7 @@ const CATS = {
   counters: 'شراء عدادات', agency: 'رسوم وكالة', trade: 'رسوم تجارة', orders: 'دفعات طلبات المتجر', store: 'بطاقات وألعاب',
   yields: 'عوائد العدادات للمستخدمين', ref: 'عمولات إحالة', game_comm: 'عمولة الألعاب', wheel_in: 'دخل العجلة', wheel_prizes: 'جوائز العجلة', debt: 'تسديد استدانة', agent_pts: 'بيع نقاط للوكلاء',
 };
+const EXCL = require('./excl-ext');
 const num = (v, d = 0) => { v = Number(v); return Number.isFinite(v) ? v : d; };
 const txt = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
 
@@ -27,9 +28,9 @@ exports.routes = (app, { pool, wrap, ctl, SYNC, GAME }) => {
 
   async function compute() {
     const S = await settings(), pr = await ptRate(), since = new Date(S.reset_ts || 0);
-    const app = S.hide_app && S.app_email ? S.app_email.toLowerCase() : '';
+    const app = S.hide_app && S.app_email ? S.app_email.toLowerCase() : '', EX = EXCL.list(), EXS = EXCL.set();
     const ev = (await q(
-      `SELECT kind,cat,src,SUM(iqd)::float8 iqd,COALESCE(SUM(iqd) FILTER (WHERE ts>=date_trunc('month',NOW())),0)::float8 mon,COUNT(*)::int n FROM fin_ev WHERE ts>=$1 AND ($2='' OR LOWER(COALESCE(email,''))<>$2) GROUP BY 1,2,3`, [since, app])).rows;
+      `SELECT kind,cat,src,SUM(iqd)::float8 iqd,COALESCE(SUM(iqd) FILTER (WHERE ts>=date_trunc('month',NOW())),0)::float8 mon,COUNT(*)::int n FROM fin_ev WHERE ts>=$1 AND ($2='' OR LOWER(COALESCE(email,''))<>$2) AND NOT (LOWER(COALESCE(email,''))=ANY($3::text[])) GROUP BY 1,2,3`, [since, app, EX])).rows;
     const sum = (kind, cat) => ev.filter((r) => r.kind === kind && r.cat === cat && r.src !== 'manual').reduce((t, r) => t + r.iqd, 0);
     const cost = {}; (await q(`SELECT name,kind,buy::float8 buy,sell::float8 sell FROM fin_costs`)).rows.forEach((c) => (cost[c.name] = c));
 
@@ -44,11 +45,12 @@ exports.routes = (app, { pool, wrap, ctl, SYNC, GAME }) => {
     ords.forEach((o) => {
       if (!o || o.rej || !Array.isArray(o.items) || (o.at || 0) < since.getTime()) return;
       if (app && String(o.u || '').toLowerCase() === app) return;
+      if (EXS.has(String(o.u || '').toLowerCase())) return;
       const per = (num(o.t) * pr) / (o.items.length || 1);
       o.items.forEach((n) => add(String(n).slice(0, 80), 'product', 1, cost[n] && cost[n].sell > 0 ? cost[n].sell : per));
     });
     // بطاقات وألعاب مشتراة من المتجر
-    (await q(`SELECT note,COUNT(*)::int n,SUM(iqd)::float8 iqd FROM fin_ev WHERE ts>=$1 AND cat='store' AND kind='in' AND ($2='' OR LOWER(COALESCE(email,''))<>$2) GROUP BY 1`, [since, app]))
+    (await q(`SELECT note,COUNT(*)::int n,SUM(iqd)::float8 iqd FROM fin_ev WHERE ts>=$1 AND cat='store' AND kind='in' AND ($2='' OR LOWER(COALESCE(email,''))<>$2) AND NOT (LOWER(COALESCE(email,''))=ANY($3::text[])) GROUP BY 1`, [since, app, EX]))
       .rows.forEach((r) => { const name = String(r.note || '').replace(/^تم شراء\s*/, '').slice(0, 80) || 'بطاقة'; add(name, 'card', r.n, r.iqd); });
 
     let wheelNet = 0;
@@ -84,13 +86,13 @@ exports.routes = (app, { pool, wrap, ctl, SYNC, GAME }) => {
     const types = Object.values(tmap).map((t) => ({ ...t, iqd: Math.round(t.iqd), mon: Math.round(t.mon) })).sort((a, b) => b.iqd - a.iqd);
     const cashIn = types.reduce((t, x) => t + x.iqd, 0);
     const net = Math.round(profit + mIn - mOut);
-    const u = (await q(`SELECT COUNT(*)::int n,COALESCE(SUM(pts),0)::float8 pts,COALESCE(SUM(gems),0)::float8 gems,COALESCE(SUM(usd),0)::float8 usd FROM sync_accounts WHERE $1='' OR LOWER(email)<>$1`, [app])).rows[0];
+    const u = (await q(`SELECT COUNT(*)::int n,COALESCE(SUM(pts),0)::float8 pts,COALESCE(SUM(gems),0)::float8 gems,COALESCE(SUM(usd),0)::float8 usd FROM sync_accounts WHERE ($1='' OR LOWER(email)<>$1) AND NOT (LOWER(email)=ANY($2::text[]))`, [app, EX])).rows[0];
     return {
       settings: S, since: S.reset_ts || null, profit, parts, types, cash_in: cashIn, expenses: Math.round(mOut), net, year: new Date().getFullYear(), owner: { balance: Math.round(owner), sources },
       sales: { units: list.reduce((t, i) => t + i.units, 0), revenue: Math.round(prodRev), margin: prodRev ? Math.round(prodProfit / prodRev * 1000) / 10 : 0 },
       top: list.slice(0, 15).map((i) => ({ ...i, revenue: Math.round(i.revenue), profit: Math.round(i.profit) })),
       liability: { received: Math.round(cIn), paid: Math.round(yOut), outstanding: Math.round(Math.max(0, cIn - yOut)), months: S.months, monthly: Math.round(cIn / Math.max(1, S.months)) },
-      users: { n: u.n, pts: u.pts, gems: u.gems, usd: u.usd }, hidden: !!app,
+      users: { n: u.n, pts: u.pts, gems: u.gems, usd: u.usd }, hidden: !!app, excluded: EX.length,
     };
   }
 
@@ -136,14 +138,14 @@ exports.routes = (app, { pool, wrap, ctl, SYNC, GAME }) => {
     const lim = Math.min(500, Math.max(10, Math.floor(num(req.query.limit, 200)))), off = Math.max(0, Math.floor(num(req.query.offset, 0)));
     const w = `($1='' OR kind=$1) AND ($2='' OR cat=$2) AND ($3='' OR COALESCE(email,'') ILIKE '%'||$3||'%' OR COALESCE(note,'') ILIKE '%'||$3||'%')`;
     const rows = (await q(`SELECT uid,ts,email,kind,cat,pts::float8 pts,iqd::float8 iqd,note,src FROM fin_ev WHERE ${w} ORDER BY ts DESC LIMIT $4 OFFSET $5`, [kind, cat, s, lim, off])).rows;
-    const t = (await q(`SELECT kind,SUM(iqd)::float8 iqd,COUNT(*)::int n FROM fin_ev WHERE ${w} GROUP BY kind`, [kind, cat, s])).rows;
+    const t = (await q(`SELECT kind,SUM(iqd)::float8 iqd,COUNT(*)::int n FROM fin_ev WHERE ${w} AND NOT (LOWER(COALESCE(email,''))=ANY($4::text[])) GROUP BY kind`, [kind, cat, s, EXCL.list()])).rows;
     const app = S.app_email.toLowerCase();
     res.json({
       rows: rows.map((r) => ({
         ...r, cat_label: CATS[r.cat] || r.cat,
         from: r.kind === 'in' ? (r.email || (r.src === 'manual' ? 'إدخال يدوي' : '—')) : 'المنصة',
         to: r.kind === 'in' ? 'المنصة' : (r.email || (CATS[r.cat] || r.cat)),
-        app: !!(app && r.email && r.email.toLowerCase() === app), pre_reset: new Date(r.ts).getTime() < (S.reset_ts || 0),
+        app: !!(app && r.email && r.email.toLowerCase() === app), excl: !!(r.email && EXCL.has(r.email)), pre_reset: new Date(r.ts).getTime() < (S.reset_ts || 0),
       })),
       totals: { in: (t.find((x) => x.kind === 'in') || {}).iqd || 0, out: (t.find((x) => x.kind === 'out') || {}).iqd || 0 },
       cats: CATS,
