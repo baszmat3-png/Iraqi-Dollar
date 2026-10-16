@@ -1,7 +1,7 @@
 /* المرحلة 1ج — المالية: الأرباح + الالتزامات + سجل العمليات + أسعار الشراء والبيع */
 const CATS = {
   counters: 'شراء عدادات', agency: 'رسوم وكالة', trade: 'رسوم تجارة', orders: 'دفعات طلبات المتجر', store: 'بطاقات وألعاب',
-  yields: 'عوائد العدادات للمستخدمين', ref: 'عمولات إحالة', game_comm: 'عمولة الألعاب', wheel_in: 'دخل العجلة', wheel_prizes: 'جوائز العجلة', debt: 'تسديد استدانة',
+  yields: 'عوائد العدادات للمستخدمين', ref: 'عمولات إحالة', game_comm: 'عمولة الألعاب', wheel_in: 'دخل العجلة', wheel_prizes: 'جوائز العجلة', debt: 'تسديد استدانة', agent_pts: 'بيع نقاط للوكلاء',
 };
 const num = (v, d = 0) => { v = Number(v); return Number.isFinite(v) ? v : d; };
 const txt = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
@@ -29,7 +29,7 @@ exports.routes = (app, { pool, wrap, ctl, SYNC, GAME }) => {
     const S = await settings(), pr = await ptRate(), since = new Date(S.reset_ts || 0);
     const app = S.hide_app && S.app_email ? S.app_email.toLowerCase() : '';
     const ev = (await q(
-      `SELECT kind,cat,src,SUM(iqd)::float8 iqd,COUNT(*)::int n FROM fin_ev WHERE ts>=$1 AND ($2='' OR LOWER(COALESCE(email,''))<>$2) GROUP BY 1,2,3`, [since, app])).rows;
+      `SELECT kind,cat,src,SUM(iqd)::float8 iqd,COALESCE(SUM(iqd) FILTER (WHERE ts>=date_trunc('month',NOW())),0)::float8 mon,COUNT(*)::int n FROM fin_ev WHERE ts>=$1 AND ($2='' OR LOWER(COALESCE(email,''))<>$2) GROUP BY 1,2,3`, [since, app])).rows;
     const sum = (kind, cat) => ev.filter((r) => r.kind === kind && r.cat === cat && r.src !== 'manual').reduce((t, r) => t + r.iqd, 0);
     const cost = {}; (await q(`SELECT name,kind,buy::float8 buy,sell::float8 sell FROM fin_costs`)).rows.forEach((c) => (cost[c.name] = c));
 
@@ -62,6 +62,7 @@ exports.routes = (app, { pool, wrap, ctl, SYNC, GAME }) => {
       ['ربح بيع المنتجات والبطاقات', prodProfit],
       ['رسوم الوكالات', sum('in', 'agency')],
       ['رسوم التجارة', sum('in', 'trade')],
+      ['بيع نقاط للوكلاء', sum('in', 'agent_pts')],
       ['ربح الاستدانة', sum('in', 'debt') * S.debt_pct / 100],
       ['عمولة الألعاب', sum('in', 'game_comm')],
       ['صافي العجلة', wheelNet],
@@ -74,9 +75,18 @@ exports.routes = (app, { pool, wrap, ctl, SYNC, GAME }) => {
     const owner = S.open_bal + profit + mIn - mOut;
     const sources = [{ label: S.open_src || 'رصيد افتتاحي', iqd: Math.round(S.open_bal) }, ...parts.filter((p) => p.iqd), ...(mIn ? [{ label: 'إيرادات يدوية', iqd: Math.round(mIn) }] : []), ...(mOut ? [{ label: 'مصروفات يدوية', iqd: -Math.round(mOut) }] : [])];
 
+    // تقرير الإيرادات حسب النوع (للوحة «تقارير مالية»)
+    const tmap = {};
+    ev.filter((r) => r.kind === 'in').forEach((r) => {
+      const k = r.src === 'manual' ? 'manual' : r.cat, t = tmap[k] || (tmap[k] = { cat: k, label: k === 'manual' ? 'إيرادات يدوية' : (CATS[k] || k), iqd: 0, mon: 0, n: 0, liab: k === 'counters' });
+      t.iqd += r.iqd; t.mon += r.mon; t.n += r.n;
+    });
+    const types = Object.values(tmap).map((t) => ({ ...t, iqd: Math.round(t.iqd), mon: Math.round(t.mon) })).sort((a, b) => b.iqd - a.iqd);
+    const cashIn = types.reduce((t, x) => t + x.iqd, 0);
+    const net = Math.round(profit + mIn - mOut);
     const u = (await q(`SELECT COUNT(*)::int n,COALESCE(SUM(pts),0)::float8 pts,COALESCE(SUM(gems),0)::float8 gems,COALESCE(SUM(usd),0)::float8 usd FROM sync_accounts WHERE $1='' OR LOWER(email)<>$1`, [app])).rows[0];
     return {
-      settings: S, since: S.reset_ts || null, profit, parts, owner: { balance: Math.round(owner), sources },
+      settings: S, since: S.reset_ts || null, profit, parts, types, cash_in: cashIn, expenses: Math.round(mOut), net, year: new Date().getFullYear(), owner: { balance: Math.round(owner), sources },
       sales: { units: list.reduce((t, i) => t + i.units, 0), revenue: Math.round(prodRev), margin: prodRev ? Math.round(prodProfit / prodRev * 1000) / 10 : 0 },
       top: list.slice(0, 15).map((i) => ({ ...i, revenue: Math.round(i.revenue), profit: Math.round(i.profit) })),
       liability: { received: Math.round(cIn), paid: Math.round(yOut), outstanding: Math.round(Math.max(0, cIn - yOut)), months: S.months, monthly: Math.round(cIn / Math.max(1, S.months)) },
@@ -139,6 +149,4 @@ exports.routes = (app, { pool, wrap, ctl, SYNC, GAME }) => {
       cats: CATS,
     });
   }));
-
-  require('./fin-report-ext').routes(app, { pool, wrap, ctl, SYNC, GAME, settings, ptRate }); // التقارير المالية + الاستثمار + الالتزامات
 };

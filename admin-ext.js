@@ -82,7 +82,8 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     const a = (await q(`SELECT COUNT(*)::int n FROM reports WHERE status='open'`)).rows[0].n;
     const b = (await q(`SELECT COUNT(*)::int n FROM support_msgs WHERE NOT from_admin AND NOT read_by_admin AND body NOT LIKE '🚩%' AND body NOT LIKE 'بلاغ%'`)).rows[0].n;
     let m = 0; try { m = (await q(`SELECT COUNT(*)::int n FROM merchants WHERE status='pending'`)).rows[0].n; } catch (e) {}
-    res.json({ reports: a, support: b, merchants: m });
+    let ab = 0; try { ab = (await q(`SELECT COUNT(*)::int n FROM agent_buys WHERE status='pending'`)).rows[0].n; } catch (e) {}
+    res.json({ reports: a, support: b, merchants: m, agbuys: ab });
   }));
 
   // المستخدمون (مع الصورة الشخصية)
@@ -136,12 +137,10 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     const aft = (await q(`SELECT pts,gems,usd FROM sync_accounts WHERE LOWER(email)=$1`, [em])).rows[0];
     const after = { pts: Number(aft.pts) || 0, gems: Number(aft.gems) || 0, usd: Number(aft.usd) || 0 };
     cmd.by = 'srv';
-    const ins = await q(`INSERT INTO sync_cmds(body) VALUES($1) RETURNING id`, [JSON.stringify(cmd)]);
-    // بث فوري لجهاز المستخدم المتصل (دون انتظار مراقب الثانية)
-    const delivered = app.locals.broadcastCmd ? app.locals.broadcastCmd(ins.rows[0].id, cmd) : 0;
+    await q(`INSERT INTO sync_cmds(body) VALUES($1)`, [JSON.stringify(cmd)]);
     await q(`INSERT INTO bal_log(email,op,pts,gems,usd,b_pts,b_gems,b_usd,a_pts,a_gems,a_usd,note) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
       [em, op, after.pts - before.pts, after.gems - before.gems, after.usd - before.usd, before.pts, before.gems, before.usd, after.pts, after.gems, after.usd, txt(b.note, 200)]).catch(() => {});
-    return { before, after, delivered };
+    return { before, after };
   }
   exports.applyBal = applyBal;
 
@@ -257,6 +256,7 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     try { top = (await q(`SELECT email,name,pts,gems,usd,(SELECT (EXTRACT(EPOCH FROM v.updated_at)*1000)::bigint FROM avatars v WHERE v.email=LOWER(a.email)) av FROM sync_accounts a WHERE demo=FALSE ORDER BY pts DESC LIMIT 5`)).rows.map((x) => ({ ...x, pts: Number(x.pts), gems: Number(x.gems), usd: Number(x.usd), av: x.av ? Number(x.av) : 0 })); } catch (e) {}
     try { recent = (await q(`SELECT email,op,pts,gems,usd,created_at FROM bal_log ORDER BY id DESC LIMIT 8`)).rows.map((x) => ({ ...x, pts: Number(x.pts), gems: Number(x.gems), usd: Number(x.usd) })); } catch (e) {}
     try { joined = (await q(`SELECT email,name,created_at,(SELECT (EXTRACT(EPOCH FROM v.updated_at)*1000)::bigint FROM avatars v WHERE v.email=LOWER(a.email)) av FROM sync_accounts a WHERE demo=FALSE ORDER BY created_at DESC LIMIT 5`)).rows.map((x) => ({ ...x, av: x.av ? Number(x.av) : 0 })); } catch (e) {}
-    res.json({ users: u, reports: rp, support: sp, merchants: mc, friends: fr, msgs: ms, withdrawals: wd, top, recent, joined });
+    const ab = await one(`SELECT COUNT(*) FILTER (WHERE status='pending')::int pending FROM agent_buys`);
+    res.json({ users: u, reports: rp, support: sp, merchants: mc, friends: fr, msgs: ms, withdrawals: wd, agbuys: ab, top, recent, joined });
   }));
 };

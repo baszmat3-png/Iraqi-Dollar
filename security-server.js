@@ -81,7 +81,8 @@ module.exports = (app, express, deps) => {
     const cfg = await getConfig();
 
     const drift = clientTime ? Math.abs(serverTime - clientTime) : 0;
-    const timeTampered = drift > 120000 || flags.some((f) => f && f.type === 'time_jump');
+    const TIME_TOLERANCE = 30 * 60 * 1000; // سماح نصف ساعة: أقل منها لا يُعتبر تلاعب
+    const timeTampered = drift > TIME_TOLERANCE || flags.some((f) => f && f.type === 'time_jump' && Math.abs(f.skew || 0) > TIME_TOLERANCE);
     const ipInfo = await checkIp(ip);
 
     let deviceCount = 0, banned = false, over = false;

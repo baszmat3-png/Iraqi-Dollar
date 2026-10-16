@@ -84,6 +84,7 @@ const AX = require('./admin-ext');
 const MXT = require('./merchant-ext');
 const SOC = require('./social-ext');
 const EXT5 = require('./extras-ext');
+const STOREX = require('./store-ext');
 
 // أعمدة العدادات (عدد العدادات + هل تعمل) تُخزَّن على السيرفر ليراها المالك لكل المستخدمين
 const colsReady = (async () => {
@@ -100,6 +101,7 @@ AX.parsers(app, express); // صور الدعم والبلاغات (حد أكبر
 MXT.parsers(app, express); // صور التجار والصور الشخصية
 SOC.parsers(app, express); // الأصدقاء والرسائل
 EXT5.parsers(app, express); // صور حملات التبرع
+STOREX.parsers(app, express); // دفعات أكواد المتجر الكبيرة
 app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false }));
 // الإعدادات المنشورة قد تحتوي صوراً، لذلك حد أكبر لهذا المسار فقط
@@ -1425,7 +1427,8 @@ require('./security-ext').routes(app, { pool, wrap, sendWhatsApp, normPhone }); 
 require('./fin-ext').routes(app, { pool, wrap, ctl, SYNC, GAME }); // المرحلة 1ج: المالية
 require('./instant-sync')(app, express, { pool, wrap, ctl, fail }); // بث فوري SSE + البحث بكود الإحالة
 require('./security-server')(app, express, { pool, wrap, ctl, fail }); // الحماية: بصمة الجهاز + VPN + تلاعب الوقت
-require('./gifts-ext')(app, express, { pool, wrap, ctl, fail }); // الهدايا بين المستخدمين (تُشترى بالنقاط) + قسم الهدايا في لوحة التحكم
+require('./gifts-ext')(app, express, { pool, wrap, ctl, fail });
+STOREX(app, express, { pool, wrap, ctl, fail }); // المرحلة 12: مخزون أكواد البطاقات + الطلبات + التسليم التلقائي // الهدايا بين المستخدمين (تُشترى بالنقاط) + قسم الهدايا في لوحة التحكم
 
 /* ---------- Health + static frontend ---------- */
 app.get('/healthz', wrap(async (_req, res) => { await pool.query('SELECT 1'); res.json({ ok: true }); }));
