@@ -1196,6 +1196,7 @@ app.post('/api/ctl/config', ...ctl, wrap(async (req, res) => {
   await pool.query(
     `INSERT INTO sync_kv(key,val,updated_at) VALUES('config',$1,NOW())
      ON CONFLICT (key) DO UPDATE SET val=EXCLUDED.val, updated_at=NOW()`, [JSON.stringify(c)]);
+  try { if (app.locals.broadcastCfg) app.locals.broadcastCfg(); } catch (e) {} // وصول فوري لكل المتصلين
   res.json({ ok: true });
 }));
 

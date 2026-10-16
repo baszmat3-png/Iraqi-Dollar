@@ -62,6 +62,10 @@ module.exports = (app, express, deps) => {
     return n;
   }
   app.locals.broadcastCmd = broadcast;
+  // دفع فوري عند نشر الإعدادات (الأخبار/العروض/الأقسام...) بدل انتظار الفحص الدوري
+  app.locals.broadcastCfg = () => {
+    clients.forEach((c) => { try { c.res.write('event: cfg\ndata: {}\n\n'); } catch (e) { clients.delete(c); } });
+  };
 
   let busy = false;
   setInterval(async () => {
