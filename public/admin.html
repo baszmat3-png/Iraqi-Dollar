@@ -82,6 +82,101 @@ select,textarea{font:inherit;width:100%;background:#0b141c;color:#fff;border:1.5
 .pp .btn:focus-visible,.pp input:focus-visible,.pp select:focus-visible{outline:2px solid #fff;outline-offset:2px}
 
 .sn[popover]{top:auto;right:auto;height:auto;margin:0;border:0;overflow:visible;z-index:2147483647}
+/* ===================== قالب لوحة التحكم الجديد — Aurora Pro ===================== */
+#app.pnl{--ps-bg:#060b13;--ps-ln:#ffffff14;--ps-gl:#ffffff08;--ps-ac:hsl(var(--h) 82% 56%);--ps-ac2:hsl(calc(var(--h) + 58) 85% 62%);
+ max-width:none;width:100%;margin:0;padding:0!important;min-height:100vh;border:0;border-radius:0;box-shadow:none;overflow-x:clip;
+ background:radial-gradient(1100px 560px at 88% -8%,hsl(var(--h) 85% 46%/.17),transparent 62%),radial-gradient(900px 520px at -6% 108%,hsl(calc(var(--h) + 64) 75% 52%/.13),transparent 62%),radial-gradient(circle at 1px 1px,#ffffff09 1px,transparent 0) 0 0/26px 26px,var(--ps-bg)}
+.pnl .ps{min-height:100vh}
+.pnl .ps-side{display:none}
+.pnl .ps-main{min-width:0}
+.pnl .ps-top{position:sticky;top:0;z-index:30;background:rgba(7,13,22,.74);-webkit-backdrop-filter:blur(20px) saturate(1.5);backdrop-filter:blur(20px) saturate(1.5);border-bottom:1px solid var(--ps-ln);padding:12px 14px 0}
+.pnl .ps-row{display:flex;align-items:center;gap:12px;padding-bottom:10px}
+.pnl .ps-logo{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;flex:none;color:#fff;background:linear-gradient(135deg,var(--ps-ac),var(--ps-ac2));box-shadow:0 8px 24px hsl(var(--h) 85% 50%/.35),inset 0 1px 0 #ffffff55}
+.pnl .ps-logo.m{width:40px;height:40px;border-radius:12px}
+.pnl .ps-ttl{flex:1;min-width:0}.pnl .ps-ttl small{display:block;color:var(--mu);font-size:.72rem;letter-spacing:.06em;line-height:1.2}.pnl .ps-ttl h1{margin:0;font-size:1.25rem;line-height:1.3;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pnl .ps-act{display:flex;gap:8px}
+.pnl .ib.s{width:40px;height:40px;border-radius:12px;background:var(--ps-gl);border:1px solid var(--ps-ln);color:#cfe3ee;transition:.18s}.pnl .ib.s:hover{background:#ffffff14;transform:translateY(-1px)}.pnl .ib.s.r{color:#ff8f8f;background:#ff4d4d14;border-color:#ff4d4d33}
+.pnl .ps-top .chips{gap:8px;padding:2px 0 12px;margin:0;scrollbar-width:none}.pnl .ps-top .chips::-webkit-scrollbar{display:none}
+.pnl .chip{display:inline-flex;align-items:center;gap:7px;font-size:.86rem;padding:8px 15px;border-radius:99px;border:1px solid var(--ps-ln);background:var(--ps-gl);color:#b9c9d6;transition:.18s;white-space:nowrap}
+.pnl .chip svg.i{width:15px;height:15px;opacity:.85}
+.pnl .chip.on{color:#041218;font-weight:700;border-color:transparent;background:linear-gradient(135deg,var(--ps-ac),var(--ps-ac2));box-shadow:0 6px 20px hsl(var(--h) 85% 50%/.35)}
+.pnl .chip b{background:var(--am);color:#1b1b1b;border-radius:99px;min-width:19px;height:19px;font-size:.7rem;display:grid;place-items:center;padding:0 5px}
+.pnl .ps-body{padding:16px 14px 90px;max-width:1360px;margin:0 auto}
+@media(min-width:980px){
+ .pnl .ps{display:grid;grid-template-columns:290px minmax(0,1fr)}
+ .pnl .ps-side{display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh;padding:20px 14px 14px;background:linear-gradient(180deg,rgba(13,22,35,.92),rgba(7,12,20,.96));-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-inline-end:1px solid var(--ps-ln)}
+ .pnl .ps-brand{display:flex;align-items:center;gap:12px;padding:2px 8px 14px;border-bottom:1px solid var(--ps-ln);margin-bottom:4px}.pnl .ps-brand b{display:block;font-size:1.08rem;line-height:1.3}.pnl .ps-brand small{color:var(--mu);font-size:.74rem}
+ .pnl .ps-nav{flex:1;overflow-y:auto;margin:0 -6px;padding:0 6px;scrollbar-width:thin;scrollbar-color:#ffffff24 transparent}
+ .pnl .ps-g{font-size:.7rem;letter-spacing:.1em;color:#6d8296;font-weight:700;padding:16px 12px 6px}
+ .pnl .ps-i{position:relative;display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border-radius:14px;border:0;background:none;color:#a2b4c3;font:inherit;font-size:.92rem;cursor:pointer;text-align:start;transition:.16s}
+ .pnl .ps-i:hover{background:#ffffff0c;color:#fff}
+ .pnl .ps-i .ps-ic{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:#ffffff0a;color:var(--cy);flex:none;transition:.16s}
+ .pnl .ps-i.on{color:#fff;font-weight:700;background:linear-gradient(90deg,hsl(var(--h) 85% 48%/.26),hsl(var(--h) 85% 48%/.05));box-shadow:inset 0 0 0 1px hsl(var(--h) 85% 58%/.32)}
+ .pnl .ps-i.on .ps-ic{background:linear-gradient(135deg,var(--ps-ac),var(--ps-ac2));color:#041218;box-shadow:0 6px 16px hsl(var(--h) 85% 50%/.4)}
+ .pnl .ps-i.on::before{content:"";position:absolute;inset-inline-start:-14px;top:22%;bottom:22%;width:4px;border-radius:0 4px 4px 0;background:linear-gradient(var(--ps-ac),var(--ps-ac2))}
+ .pnl .ps-t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .pnl .ps-b{min-width:22px;height:22px;border-radius:99px;background:var(--am);color:#1b1b1b;font-size:.72rem;font-weight:700;display:grid;place-items:center;padding:0 6px}
+ .pnl .ps-user{display:flex;align-items:center;gap:10px;padding:10px;border-radius:18px;background:var(--ps-gl);border:1px solid var(--ps-ln);margin-top:4px}
+ .pnl .ps-user b{display:block;font-size:.92rem;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pnl .ps-user small{color:var(--mu);font-size:.72rem}
+ .pnl .ps-av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#041218;background:linear-gradient(135deg,var(--ps-ac),var(--ps-ac2));flex:none}
+ .pnl .ps-top{padding:16px 28px 0}.pnl .ps-top .chips,.pnl .ps-act,.pnl .ps-logo.m{display:none}.pnl .ps-row{padding-bottom:14px}.pnl .ps-ttl h1{font-size:1.5rem}
+ .pnl .ps-body{padding:24px 28px 60px}
+}
+/* ---- المحتوى: بطاقات زجاجية ---- */
+.pnl .pp{font-size:.9rem}
+.pnl .pp .gd{gap:14px}.pnl .pp .gd.k{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}.pnl .pp .gd.a{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+.pnl .pp .c,.pnl .card{background:linear-gradient(180deg,#ffffff0d,#ffffff05);border:1px solid var(--ps-ln);border-radius:20px;padding:18px;box-shadow:0 14px 36px #0005,inset 0 1px 0 #ffffff14;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.pnl .pp .c h3,.pnl .card h3{font-size:1.02rem;font-weight:700;margin:0 0 12px}
+.pnl .pp .kp{position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}.pnl .pp .kp:hover{transform:translateY(-2px);box-shadow:0 18px 40px #0007,inset 0 1px 0 #ffffff1c}
+.pnl .pp .kp::before{content:"";position:absolute;inset-inline:0;top:0;height:2px;background:linear-gradient(90deg,transparent,var(--ps-ac),var(--ps-ac2),transparent);opacity:.85}
+.pnl .pp .kp::after{content:"";position:absolute;width:120px;height:120px;inset-inline-end:-40px;top:-50px;border-radius:50%;background:radial-gradient(hsl(var(--h) 85% 55%/.22),transparent 70%);pointer-events:none}
+.pnl .pp .kp small{font-size:.8rem;color:#9db0c0}.pnl .pp .kp b{font-size:1.75rem;font-weight:700;letter-spacing:-.01em;margin-top:4px;background:linear-gradient(180deg,#fff,#b8d4e4);-webkit-background-clip:text;background-clip:text;color:transparent}
+.pnl .pp .ico{width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,hsl(var(--h) 85% 50%/.28),hsl(calc(var(--h) + 58) 85% 58%/.18));color:var(--cy);border:1px solid #ffffff14}
+.pnl .pp .dl{font-size:.76rem}
+/* ---- أزرار وحقول ---- */
+.pnl .pp .btn{border-radius:12px;padding:9px 16px;font-size:.88rem;font-weight:700;background:linear-gradient(135deg,var(--ps-ac),var(--ps-ac2));color:#041218;box-shadow:0 6px 18px hsl(var(--h) 85% 50%/.28);transition:transform .15s,box-shadow .15s,filter .15s}
+.pnl .pp .btn:hover{transform:translateY(-1px);filter:brightness(1.07)}.pnl .pp .btn:active{transform:none}
+.pnl .pp .btn.o{background:var(--ps-gl);color:#d6e8f2;border:1px solid var(--ps-ln);box-shadow:none}.pnl .pp .btn.o:hover{background:#ffffff14}
+.pnl .pp .btn.r{background:#ff4d6a1c;color:#ff9aa8;border:1px solid #ff4d6a40;box-shadow:none}.pnl .pp .btn.gn{background:#2fd68a1c;color:#5ff0aa;border:1px solid #2fd68a40;box-shadow:none}
+.pnl .pp .btn.s{padding:5px 12px;font-size:.8rem;border-radius:10px}
+.pnl .btn:not(.pp .btn){border-radius:14px}
+.pnl .pp input,.pnl .pp select,.pnl .pp textarea,.pnl input,.pnl select,.pnl textarea{background:#ffffff09;border:1px solid #ffffff1a;border-radius:12px;color:#fff;transition:border-color .15s,box-shadow .15s,background .15s}
+.pnl .pp input,.pnl .pp select,.pnl .pp textarea{padding:10px 13px}
+.pnl .pp input:focus,.pnl .pp select:focus,.pnl .pp textarea:focus,.pnl input:focus,.pnl select:focus,.pnl textarea:focus{outline:0;border-color:var(--ps-ac);background:#ffffff0f;box-shadow:0 0 0 4px hsl(var(--h) 85% 50%/.18)}
+.pnl select option{background:#0e1a28;color:#fff}
+.pnl .pp label{color:#a6b8c6;font-size:.82rem}
+/* ---- الجداول ---- */
+.pnl .pp .tw{border:1px solid var(--ps-ln);border-radius:18px;background:#ffffff05;box-shadow:inset 0 1px 0 #ffffff0c;scrollbar-width:thin;scrollbar-color:#ffffff24 transparent}
+.pnl .pp table{border-collapse:separate;border-spacing:0}
+.pnl .pp th{background:#0d1a29;color:#8fa6b8;font-size:.74rem;font-weight:700;letter-spacing:.04em;padding:12px 14px;border-bottom:1px solid var(--ps-ln);position:sticky;top:0;z-index:1}
+.pnl .pp td{padding:12px 14px;border-bottom:1px solid #ffffff0a}.pnl .pp tr:last-child td{border-bottom:0}.pnl .pp tr:hover td{background:hsl(var(--h) 80% 50%/.06)}
+.pnl .tbar{margin:0 0 10px;gap:10px}.pnl .tbar input{border-radius:99px;padding:9px 16px}
+.pnl .pp .bx{padding:3px 11px;border-radius:99px;font-size:.73rem;border:1px solid #ffffff12}
+.pnl .pp .bx.a{background:#2fd68a1c;color:#5ff0aa;border-color:#2fd68a30}.pnl .pp .bx.b{background:#ff4d6a1c;color:#ff9aa8;border-color:#ff4d6a30}.pnl .pp .bx.w{background:#f5a5241c;color:#ffc766;border-color:#f5a52430}.pnl .pp .bx.i{background:#818cf81c;color:#a9b2ff;border-color:#818cf830}.pnl .pp .bx.c{background:hsl(var(--h) 80% 50%/.16);color:var(--cy);border-color:hsl(var(--h) 80% 50%/.3)}
+.pnl .pp .bar{height:8px;background:#ffffff0d}.pnl .pp .bar i{background:linear-gradient(90deg,var(--ps-ac),var(--ps-ac2));border-radius:9px}
+.pnl .pp .seg,.pnl .seg{background:#ffffff08;border:1px solid var(--ps-ln);border-radius:14px}.pnl .pp .seg button.on,.pnl .seg button.on{background:linear-gradient(135deg,hsl(var(--h) 85% 48%/.35),hsl(var(--h) 85% 48%/.12));color:#fff;box-shadow:inset 0 0 0 1px hsl(var(--h) 85% 58%/.4)}
+.pnl .pp .tg i{background:#ffffff1f}.pnl .pp .tg input:checked+i{background:linear-gradient(135deg,var(--ps-ac),var(--ps-ac2))}
+.pnl .pp .lr{border-bottom:1px solid #ffffff0d}
+.pnl .pp .pv{background:linear-gradient(135deg,var(--ps-ac),var(--ps-ac2))}
+.pnl .sec b{border-inline-start:4px solid var(--ps-ac)}
+.pnl .note{border-radius:14px}
+/* ---- النوافذ (عامة) ---- */
+dialog{background:linear-gradient(180deg,#152233,#0d1621);border:1px solid #ffffff1a;border-radius:24px;box-shadow:0 40px 100px #000c,inset 0 1px 0 #ffffff14}
+dialog::backdrop{background:rgba(3,8,14,.68);-webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px)}
+dialog .pp .btn{border-radius:12px}
+dialog .dx{background:#ffffff14;transition:.15s}dialog .dx:hover{background:#ffffff24}
+
+.pnl .pp .gd.k{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.pnl .pp .kp .rw{flex-wrap:nowrap;align-items:flex-start;gap:8px}.pnl .pp .kp .rw small{min-width:0;line-height:1.4}
+.pnl .pp .kp b{font-size:1.5rem}.pnl .pp .c{padding:15px}
+@media(min-width:980px){
+ .pnl .pp .gd.k{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}.pnl .pp .kp b{font-size:1.75rem}.pnl .pp .c{padding:18px}
+ #app.pnl~#axb{inset-inline-start:auto;inset-inline-end:26px;bottom:24px}
+}
+/* ---- شريط تمرير وحركة ---- */
+.pnl *{scrollbar-width:thin;scrollbar-color:#ffffff24 transparent}
+@media(prefers-reduced-motion:reduce){.pnl *{transition:none!important}}
+
 </style></head><body><div id="app"></div><div class="sn" id="sn" role="status" aria-live="assertive" popover="manual"></div><dialog id="d"></dialog>
 <script>/* الإشعارات دائماً أمام أي نافذة: كل showModal جديد يُعيد رفع الإشعار للطبقة العليا */
 (function(){var o=HTMLDialogElement.prototype.showModal;HTMLDialogElement.prototype.showModal=function(){var r=o.apply(this,arguments);try{var t=document.getElementById('sn');if(t&&t.showPopover&&t.classList.contains('s')&&t.matches(':popover-open')){t.hidePopover();t.showPopover()}}catch(e){}return r}})();
@@ -244,7 +339,14 @@ const TP={fin:'staff',agr:'rq',rcx:'rf',vb:'users',demo:'users',mon:'stats',game
 const H=hd('لوحة التحكم','shield',{acts:(S.acc?`<button class="ib" data-r="home" aria-label="التطبيق">${ic('home')}</button>`:'')+`<button class="ib r" data-a="stfout" aria-label="خروج">${ic('out')}</button>`})+`<div class="row" style="margin-bottom:10px"><span class="bdg ok">${ROLES[S.staff.role]||''}</span><b>${esc(S.staff.u)}</b></div>`;
 if(!T.length)return H+'<div class="card mu" style="text-align:center">لا توجد صلاحيات لهذا الحساب</div>';
 if(!T.find(t=>t[0]==S.pt))S.pt=T[0][0];
-return H+`<div class="chips">${T.map(t=>`<button class="chip ${S.pt==t[0]?'on':''}" data-a="ptab" data-v="${t[0]}">${t[1]}${nb(t[0])?`<b>${nb(t[0])}</b>`:''}</button>`).join('')}</div>`+(PT2[S.pt]||PT[S.pt])()+(S.pt=='cfg'?cfgExtra()+ctlCard()+cfgBar():(['demo','ctr2','ct','products','cards','pst','agents','mr','rf','rcx','vb','dc','nw','ann','chg','terms'].includes(S.pt)?pubBar():''))},
+const GR=[['الرئيسية','home',['stats','mon','games','fin']],['الحسابات','users',['users','demo','vb','rcx','rf','staff','sec']],['العمليات','swap',['rq','ord','agr','wd','chg','tx','debt','ct']],['المتجر','store',['products','cards','pst','dc','mr','agents']],['التواصل','chat',['support','nw','ann','gifts']],['النظام','shield',['ctr2','terms','cfg','lg','sys']]],
+TI={stats:'gauge',mon:'eye',games:'pad',fin:'wallet',users:'users',demo:'user',vb:'chk',rcx:'qr',rf:'gift',staff:'lock',sec:'shield',rq:'doc',ord:'bag',agr:'store',wd:'out',chg:'plus',tx:'swap',debt:'hand',ct:'timer',products:'bag',cards:'card',pst:'cart',dc:'code',mr:'bld',agents:'store',support:'head',nw:'doc',ann:'bell',gifts:'gift',ctr2:'doc',terms:'doc',cfg:'code',lg:'rc',sys:'shield'},
+tm={};T.forEach(t=>tm[t[0]]=t[1]);const seen={},groups=GR.map(g=>[g[0],g[1],g[2].filter(k=>tm[k]&&!seen[k]&&(seen[k]=1))]).filter(g=>g[2].length),rest=T.map(t=>t[0]).filter(k=>!seen[k]);if(rest.length)groups.push(['أخرى','doc',rest]);
+const cur=groups.find(g=>g[2].includes(S.pt)),bdg=k=>nb(k)?`<b class="ps-b">${nb(k)}</b>`:'',
+item=k=>`<button class="ps-i ${S.pt==k?'on':''}" data-a="ptab" data-v="${k}"><span class="ps-ic">${ic(TI[k]||'doc',19)}</span><span class="ps-t">${tm[k]}</span>${bdg(k)}</button>`,
+ini=(String(S.staff.u||'?').trim()[0]||'?').toUpperCase(),
+acts=(S.acc?`<button class="ib s" data-r="home" aria-label="التطبيق">${ic('home')}</button>`:'')+`<button class="ib s r" data-a="stfout" aria-label="خروج">${ic('out')}</button>`;
+return`<div class="ps"><aside class="ps-side"><div class="ps-brand"><div class="ps-logo">${ic('shield',22)}</div><div><b>لوحة التحكم</b><small>الدولار العراقي</small></div></div><div class="ps-nav">${groups.map(g=>`<div class="ps-g">${g[0]}</div>${g[2].map(item).join('')}`).join('')}</div><div class="ps-user"><div class="ps-av">${esc(ini)}</div><div class="sp"><b>${esc(S.staff.u)}</b><small>${ROLES[S.staff.role]||''}</small></div>${acts}</div></aside><section class="ps-main"><header class="ps-top"><div class="ps-row"><div class="ps-logo m">${ic('shield',20)}</div><div class="ps-ttl"><small>${cur?cur[0]:''}</small><h1>${tm[S.pt]||''}</h1></div><div class="ps-act">${acts}</div></div><div class="chips">${T.map(t=>`<button class="chip ${S.pt==t[0]?'on':''}" data-a="ptab" data-v="${t[0]}">${ic(TI[t[0]]||'doc',15)}${t[1]}${nb(t[0])?`<b>${nb(t[0])}</b>`:''}</button>`).join('')}</div></header><main class="ps-body">${(PT2[S.pt]||PT[S.pt])()+(S.pt=='cfg'?cfgExtra()+ctlCard()+cfgBar():(['demo','ctr2','ct','products','cards','pst','agents','mr','rf','rcx','vb','dc','nw','ann','chg','terms'].includes(S.pt)?pubBar():''))}</main></section></div>`},
 resetpw:()=>{if(!S.rs)return V.login();return hd('كلمة مرور جديدة','lock',{back:'login'})+`<h2 style="font-size:1.6rem;margin:24px 0 4px">تعيين كلمة مرور جديدة</h2><p class="mu" style="margin-top:0">تم التحقق من الرمز، اختر كلمة مرور جديدة</p><div class="card" style="padding:16px">${pwf('rw1','كلمة المرور الجديدة','new-password')}${pwf('rw2','تأكيد كلمة المرور','new-password')}<p id="er" role="alert" style="color:#ef5350;text-align:center;min-height:1.5em;margin:12px 0 0"></p><button class="btn" data-a="rspw">حفظ كلمة المرور</button></div>`},
 welcome:()=>`<div class="hd"><h1 style="text-align:start">مرحباً بك</h1><div class="ci">${ic('user')}</div></div><div style="display:grid;place-items:center;margin:50px 0 30px"><div style="width:230px;height:230px;border-radius:50%;border:3px solid hsl(calc(var(--h) + 1) 65% 25%);background:hsl(calc(var(--h) + 2) 71% 20%);display:grid;place-items:center;color:var(--cy2);box-shadow:0 0 70px hsl(calc(var(--h) + -1) 76% 53% / 0.20)"><svg class="f" style="width:110px;height:110px" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20a8 6 0 0116 0z"/></svg></div></div><h2 data-a="sec" style="text-align:center;font-size:1.8rem;margin:0">مرحباً بك في تطبيقنا</h2><p class="mu" style="text-align:center">سجل دخولك أو أنشئ حساباً جديداً للاستمتاع بمزايا التطبيق</p><div style="margin-top:50px;display:grid;gap:14px"><button class="btn" data-r="login">تسجيل الدخول ${ic('out')}</button><button class="btn o" data-r="signup">إنشاء حساب جديد ${ic('add')}</button></div><p class="cy" style="text-align:center;margin-top:30px">سياسة الخصوصية</p>`,
 login:()=>hd('تسجيل الدخول','out',{back:'welcome'})+`<h2 style="font-size:1.6rem;margin:24px 0 4px">أهلاً بعودتك</h2><p class="mu" style="margin-top:0">أدخل بريدك الإلكتروني وكلمة المرور</p><div class="card" style="padding:16px">${fld('le','البريد الإلكتروني','email','name@example.com','dir="ltr" autocomplete="email" autocapitalize="none" inputmode="email"')}${pwf('lp','كلمة المرور','current-password')}<p id="er" role="alert" style="color:#ef5350;text-align:center;min-height:1.5em;margin:12px 0 0"></p><button class="btn" style="margin-top:6px" data-a="dologin">تسجيل الدخول ${ic('out')}</button></div><p style="text-align:center;margin:12px 0"><a class="cy" data-a="forgot" style="font-size:1.05rem">نسيت كلمة المرور؟</a></p><p class="mu" style="text-align:center">ليس لديك حساب؟ <a class="cy" data-r="signup">إنشاء حساب جديد</a></p>`,
@@ -1153,7 +1255,7 @@ function tm(){const s=S.left;return[s/3600|0,s/60%60|0,s%60|0].map(n=>String(n).
 function dlg(h){const d=$('#d');d.innerHTML=(h.includes('aria-label="إغلاق"')?'':`<button class="dx" onclick="d.close()" aria-label="إغلاق">${ic('x',18)}</button>`)+h;d.open||d.showModal()}
 const row=(i,t,a,v)=>`<button class="ic" data-a="${a}" ${v?`data-v="${v}"`:''}><div class="ci">${ic(i)}</div><b class="sp" style="font-size:1.2rem">${t}</b>${ic('chev')}</button>`;
 const inp=(i,p)=>`<div class="ic" style="background:#0b141c;padding:6px 16px;cursor:text"><input placeholder="${p}" style="border:0;background:none;margin:0"><span class="cy">${ic(i)}</span></div>`;
-function draw(){sync();const a=$('#app'),oc=a.querySelector('.chips'),sl=oc?oc.scrollLeft:null,pr=S.r;a.className=['welcome','login','signup','otp','ref','home','counter','users','fun'].includes(S.r)?'':'g';a.innerHTML=(V[S.r]||V.home)();{const n=a.querySelector('.chips');if(n){if(sl!=null&&pr==S.r)n.scrollLeft=sl;const on=n.querySelector('.chip.on');if(on){const r=on.getBoundingClientRect(),q=n.getBoundingClientRect();if(r.left<q.left)n.scrollLeft-=q.left-r.left+12;else if(r.right>q.right)n.scrollLeft+=r.right-q.right+12}}}if(S.r=='chat')$('#cm').focus?.();if(S.r=='counter'){rain();arc()}}
+function draw(){sync();const a=$('#app'),oc=a.querySelector('.chips'),sl=oc?oc.scrollLeft:null,pr=S.r,snv=a.querySelector('.ps-nav'),ss=snv?snv.scrollTop:null;a.className=(['welcome','login','signup','otp','ref','home','counter','users','fun'].includes(S.r)?'':'g')+(S.r=='panel'&&S.staff?' pnl':'');a.innerHTML=(V[S.r]||V.home)();{const nv=a.querySelector('.ps-nav');if(nv&&ss!=null)nv.scrollTop=ss;const ai=nv&&nv.querySelector('.ps-i.on');if(ai&&ss==null){try{ai.scrollIntoView({block:'center'})}catch(e){}}}{const n=a.querySelector('.chips');if(n){if(sl!=null&&pr==S.r)n.scrollLeft=sl;const on=n.querySelector('.chip.on');if(on){const r=on.getBoundingClientRect(),q=n.getBoundingClientRect();if(r.left<q.left)n.scrollLeft-=q.left-r.left+12;else if(r.right>q.right)n.scrollLeft+=r.right-q.right+12}}}if(S.r=='chat')$('#cm').focus?.();if(S.r=='counter'){rain();arc()}}
 const go=r=>{if((r=='p2p'&&CFG.hp2p)||(r=='cmarket'&&CFG.hmk)||(r=='withdraw'&&CFG.hwd))return toast('هذا القسم غير متاح حالياً');if(r=='alerts')markSeen('A');if(r=='news')markSeen('N');S.r=r;draw();scrollTo(0,0);if(r=='profile')setTimeout(ctrProfile,350)};
 document.addEventListener('click',e=>{const b=e.target.closest('[data-r],[data-a]');if(!b)return;let{r,a,i,v}=b.dataset;if(r){$('#d').open&&$('#d').close();return go(r)}
  const pay=(p,m)=>S.pts<p?(toast('رصيد النقاط غير كافٍ'),0):(S.pts-=p,txlog(m,p,'out'),toast(m),1);
