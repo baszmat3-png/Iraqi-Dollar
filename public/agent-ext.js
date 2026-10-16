@@ -89,10 +89,37 @@
     } catch (e) { say(e.message); } finally { charging = false; }
   };
 
+  /* ---------- صور الوكلاء في قائمة الوكلاء: نفس صورة حساب الوكيل، وتظهر للمستخدمين بعد اعتماده ---------- */
+  const AV = { map: null, at: 0, busy: false, k: '' };
+  async function loadAv() {
+    if (AV.busy) return; AV.busy = true;
+    try {
+      const r = await fetch('/api/soc/agent-avatars', { cache: 'no-store' });
+      if (r.ok) {
+        const j = await r.json(), k = JSON.stringify(j.map || {}), ch = k !== AV.k;
+        AV.k = k; AV.map = j.map || {}; AV.at = Date.now();
+        if (ch && S.r === 'agents') draw();
+      }
+    } catch (e) {}
+    AV.busy = false;
+  }
+  function paintAv() {
+    if (!AV.map || Date.now() - AV.at > 20000) loadAv();
+    if (!AV.map) return;
+    document.querySelectorAll('#app [data-a="ag"][data-i]').forEach((b) => {
+      const o = AG[+b.dataset.i], x = AV.map[String((o && o[8]) || '').trim().toLowerCase()];
+      const card = b.closest('.card'), ci = card && card.querySelector('.ci');
+      if (!x || !ci) return;
+      ci.innerHTML = '';
+      ci.style.cssText += ';width:52px;height:52px;min-width:52px;border-radius:50%;flex:none;background:url(/api/soc/avatar/' + encodeURIComponent(x.uid) + '?v=' + x.av + ') center/cover no-repeat;border:2px solid #3ddc68';
+    });
+  }
+
   const _draw = window.draw;
   window.draw = function () {
     const r = _draw.apply(this, arguments);
     try {
+      if (S.r === 'agents') paintAv();
       if (S.r === 'agdash') {
         const x = document.querySelector('#agm'); if (x && !x.value) x.value = st.sel ? st.sel.email : st.q;
         paint();

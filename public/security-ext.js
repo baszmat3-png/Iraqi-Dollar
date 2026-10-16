@@ -36,6 +36,13 @@
     });
   }
 
+  /* رفع الحسابات المحلية للسيرفر فوراً عبر دالة المزامنة الأصلية (ترسل الأرصدة الحقيقية) ثم ننتظر وصولها */
+  async function pushNow() {
+    if (typeof syncReport !== 'function') return;
+    syncReport();
+    await new Promise((ok) => setTimeout(ok, 700));
+  }
+
   /* ---------- إعادة تعيين حالة الذاكرة عند تبديل الحساب (حساب جديد = صفر) ---------- */
   let lastAcc = S.acc ? String(S.acc.e).toLowerCase() : '';
   const resetMem = () => Object.assign(S, { pts: CFG.start, gems: CFG.startG, usd: 0, cl: [], run: 0, left: 86400, accr: 0, accg: 0, done: 0, wg: 0, ml: [], mk: [], wd: [], cart: [], mq: [] });
@@ -57,7 +64,9 @@
           resetMem();
         }
       } catch (x) {}
-      return _fin.apply(this, arguments);
+      const rv = _fin.apply(this, arguments);
+      Promise.resolve(rv).then(() => setTimeout(() => { try { pushNow(); } catch (x) {} }, 300)); // الحساب الجديد يصل للسيرفر فوراً
+      return rv;
     };
   }
 
@@ -69,12 +78,21 @@
     let h; try { h = await hp(w); } catch (x) { return _dl(); }
     const body = { e, h, device_id: did() };
     let r = await api('/api/sec/login', body);
+    // الحساب لم يصل للسيرفر بعد أو تأخرت المزامنة: ارفعه فوراً ثم أعد المحاولة تلقائياً (بدل إظهار خطأ للمستخدم)
+    if (r.s === 401 || r.s === 404 || r.s === 0 || r.s >= 500) {
+      const lm = AC.get(), lk = Object.keys(lm).find((x) => x.toLowerCase() === e);
+      for (let i = 0; i < 2 && !(r.s === 200 && r.j.ok); i++) {
+        if (lk && lm[lk].h === h) { try { await pushNow(); } catch (x) {} }
+        await new Promise((ok) => setTimeout(ok, 500));
+        r = await api('/api/sec/login', body);
+      }
+    }
     if (r.s === 429) return er(r.j.error || 'حاول لاحقاً');
     if (r.s === 403) return er(r.j.error || 'هذا الحساب محظور');
-    if (r.s === 200 && r.j.need_otp) {
+    if (r.s === 200 && r.j.need_otp) { // يظهر فقط لمن فعّل المصادقة الثنائية بنفسه
       const resend = async () => { const x = await api('/api/sec/login', body); return x.s === 200 ? '' : (x.j.error || 'تعذر إرسال الرمز'); };
       for (;;) {
-        const code = await askOtp(r.j.reason === 'tfa' ? 'المصادقة الثنائية' : 'تأكيد تسجيل الدخول من جهاز جديد', r.j.to, resend);
+        const code = await askOtp('المصادقة الثنائية', r.j.to, resend);
         if (!code) return er('تم إلغاء تسجيل الدخول');
         r = await api('/api/sec/login', { ...body, otp: code });
         if (r.s === 200 && r.j.ok) break;
@@ -83,8 +101,10 @@
       }
     }
     if (r.s === 200 && r.j.ok) {
-      const A = r.j.account, m = AC.get();
-      if (!m[A.e]) { m[A.e] = { e: A.e, p: A.p, n: A.n, h: A.h, cr: A.cr || Date.now(), b: A.b, kyc: A.kyc ? 1 : 0, mv: A.vml ? 1 : 0 }; AC.set(m); }
+      const A = r.j.account, m = AC.get(), k = Object.keys(m).find((x) => x.toLowerCase() === String(A.e).toLowerCase());
+      if (!k) m[A.e] = { e: A.e, p: A.p, n: A.n, h: A.h, cr: A.cr || Date.now(), b: A.b, kyc: A.kyc ? 1 : 0, mv: A.vml ? 1 : 0 };
+      else { const x = m[k]; x.h = A.h; if (A.n) x.n = A.n; if (A.p) x.p = A.p; if (A.kyc) x.kyc = 1; if (A.vml) x.mv = 1; delete x.blk; } // السيرفر هو المرجع: كلمة المرور المحدّثة تعمل فوراً
+      AC.set(m);
       lsSet(sidKey(A.e), r.j.sid); SEC.tfa = !!r.j.tfa;
     }
     return _dl(); // يكمل الدخول المحلي المعتاد بعد نجاح التحقق من السيرفر
