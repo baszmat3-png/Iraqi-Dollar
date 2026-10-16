@@ -87,6 +87,7 @@ const MXT = require('./merchant-ext');
 const SOC = require('./social-ext');
 const EXT5 = require('./extras-ext');
 const STOREX = require('./store-ext');
+const P2PX = require('./p2p-ext'); // المرحلة 20: نظام شراء النقاط P2P
 
 // أعمدة العدادات (عدد العدادات + هل تعمل) تُخزَّن على السيرفر ليراها المالك لكل المستخدمين
 const colsReady = (async () => {
@@ -104,6 +105,7 @@ MXT.parsers(app, express); // صور التجار والصور الشخصية
 SOC.parsers(app, express); // الأصدقاء والرسائل
 EXT5.parsers(app, express); // صور حملات التبرع
 STOREX.parsers(app, express); // دفعات أكواد المتجر الكبيرة
+P2PX.parsers(app, express); // صور إثبات التحويل ورسائل P2P (حد أكبر)
 app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false }));
 // الإعدادات المنشورة قد تحتوي صوراً، لذلك حد أكبر لهذا المسار فقط
@@ -1438,6 +1440,7 @@ EXCL.routes(app, { pool, wrap, ctl, GAME }); // المرحلة 14: المستث�
 require('./instant-sync')(app, express, { pool, wrap, ctl, fail }); // بث فوري SSE + البحث بكود الإحالة
 require('./security-server')(app, express, { pool, wrap, ctl, fail }); // الحماية: بصمة الجهاز + VPN + تلاعب الوقت
 require('./gifts-ext')(app, express, { pool, wrap, ctl, fail });
+P2PX(app, express, { pool, wrap, ctl, fail }); // المرحلة 20: P2P
 STOREX(app, express, { pool, wrap, ctl, fail }); // المرحلة 12: مخزون أكواد البطاقات + الطلبات + التسليم التلقائي // الهدايا بين المستخدمين (تُشترى بالنقاط) + قسم الهدايا في لوحة التحكم
 
 /* ---------- Health + static frontend ---------- */
