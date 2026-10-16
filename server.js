@@ -107,6 +107,7 @@ EXT5.parsers(app, express); // صور حملات التبرع
 STOREX.parsers(app, express); // دفعات أكواد المتجر الكبيرة
 P2PX.parsers(app, express); // صور إثبات التحويل ورسائل P2P (حد أكبر)
 app.set('trust proxy', 1);
+require('./poke-ext')(app); // مزامنة فورية لكل الأقسام
 app.use(helmet({ contentSecurityPolicy: false }));
 // نافذة Google المنبثقة تحتاج هذا (القيمة الافتراضية same-origin في helmet تمنع إرجاع نتيجة الدخول للصفحة)
 app.use((_req, res, next) => { res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups'); next(); });
