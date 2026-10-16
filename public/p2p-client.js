@@ -434,8 +434,12 @@ ${a.out ? `<div class="note warn" style="margin:10px 0 0">${ic('shield')}<span>�
 
   /* ---------------- الاعتراض على «شراء نقاط P2P» ---------------- */
   window.addEventListener('click', (ev) => {
-    const b = ev.target.closest && ev.target.closest('[data-r="p2p"]'); if (!b) return;
+    const b = ev.target.closest && ev.target.closest('[data-r="p2p"],[data-a="go"][data-v="p2p"],[data-a="p2p"]'); if (!b) return;
+    try { if (typeof CFG !== 'undefined' && CFG.hp2p) return; } catch (e) {}
+    try { const dd = document.getElementById('d'); if (dd && dd.open) dd.close(); } catch (e) {}
     ev.stopImmediatePropagation(); ev.preventDefault(); open();
   }, true);
   window.P2P_OPEN = open;
+  /* احتياط: إذا ظهرت الصفحة القديمة (route=p2p) افتح النظام الجديد تلقائياً */
+  setInterval(() => { try { if (typeof S !== 'undefined' && S.r === 'p2p' && !(typeof CFG !== 'undefined' && CFG.hp2p) && !document.getElementById('ppo')?.classList.contains('on')) { S.r = 'home'; try { draw(); } catch (e) {} open(); } } catch (e) {} }, 400);
 })();
