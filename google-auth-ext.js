@@ -31,21 +31,33 @@ module.exports = (app, { pool, wrap, fail }) => {
     const at = txt(req.body && req.body.access_token, 4096);
     if (!at) fail(400, 'لم يصل توكن Google');
 
-    // 1) التحقق أن التوكن صادر لتطبيقنا نحن (وليس لتطبيق آخر)
-    const ti = await getJson('https://oauth2.googleapis.com/tokeninfo?access_token=' + encodeURIComponent(at));
-    if (!ti.ok || !ti.j) fail(401, 'تعذر التحقق من حساب Google، أعد المحاولة');
-    const aud = ti.j.aud || ti.j.azp;
-    if (aud !== CLIENT_ID) fail(401, 'توكن Google غير صالح لهذا التطبيق');
-
-    // 2) بيانات الحساب (الاسم والبريد والمعرّف الثابت)
-    const ui = await getJson('https://openidconnect.googleapis.com/v1/userinfo', { Authorization: 'Bearer ' + at });
-    if (!ui.ok) fail(401, 'تعذر قراءة بيانات حساب Google');
-    const email = txt(ui.j.email, 200).toLowerCase();
-    const sub = txt(ui.j.sub, 100);
-    const verified = ui.j.email_verified === true || ui.j.email_verified === 'true';
+    let email, sub, verified, name;
+    if (at.startsWith('idt:')) {
+      // دخول التطبيق الأصلي (أندرويد): ID Token صادر لـ GOOGLE_CLIENT_ID
+      const ti = await getJson('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(at.slice(4)));
+      if (!ti.ok || !ti.j) fail(401, 'تعذر التحقق من حساب Google، أعد المحاولة');
+      if (ti.j.aud !== CLIENT_ID) fail(401, 'توكن Google غير صالح لهذا التطبيق');
+      if (!/^(https:\/\/)?accounts\.google\.com$/.test(String(ti.j.iss || ''))) fail(401, 'مصدر التوكن غير صالح');
+      email = txt(ti.j.email, 200).toLowerCase();
+      sub = txt(ti.j.sub, 100);
+      verified = ti.j.email_verified === true || ti.j.email_verified === 'true';
+      name = txt(ti.j.name, 120).replace(/\s+/g, ' ') || email.split('@')[0];
+    } else {
+      // 1) التحقق أن التوكن صادر لتطبيقنا نحن (وليس لتطبيق آخر)
+      const ti = await getJson('https://oauth2.googleapis.com/tokeninfo?access_token=' + encodeURIComponent(at));
+      if (!ti.ok || !ti.j) fail(401, 'تعذر التحقق من حساب Google، أعد المحاولة');
+      const aud = ti.j.aud || ti.j.azp;
+      if (aud !== CLIENT_ID) fail(401, 'توكن Google غير صالح لهذا التطبيق');
+      // 2) بيانات الحساب (الاسم والبريد والمعرّف الثابت)
+      const ui = await getJson('https://openidconnect.googleapis.com/v1/userinfo', { Authorization: 'Bearer ' + at });
+      if (!ui.ok) fail(401, 'تعذر قراءة بيانات حساب Google');
+      email = txt(ui.j.email, 200).toLowerCase();
+      sub = txt(ui.j.sub, 100);
+      verified = ui.j.email_verified === true || ui.j.email_verified === 'true';
+      name = txt(ui.j.name, 120).replace(/\s+/g, ' ') || email.split('@')[0];
+    }
     if (!sub || !EM.test(email)) fail(400, 'حساب Google لا يحتوي بريداً صالحاً');
     if (!verified) fail(403, 'بريد Google هذا غير مُوثَّق');
-    const name = txt(ui.j.name, 120).replace(/\s+/g, ' ') || email.split('@')[0];
 
     const cols = 'email,name,phone,pass_hash,pts,gems,usd,kyc,vml,blk,created_at';
     let row = (await q(`SELECT ${cols} FROM sync_accounts WHERE LOWER(email)=$1`, [email])).rows[0];
