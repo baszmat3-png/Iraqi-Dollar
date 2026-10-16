@@ -116,7 +116,7 @@
   I.info = '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>';
   I.heart = '<path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6c-2.5 4.5-9.5 9-9.5 9z"/>';
   const ico = (n) => `<svg viewBox="0 0 24 24">${I[n] || ''}</svg>`;
-  const TABS = [['overview', 'نظرة عامة', 'home', '#22d3ee'], ['users', 'المستخدمون', 'users', '#a78bfa'], ['reports', 'البلاغات', 'flag', '#fb7185'], ['support', 'الدعم', 'head', '#60a5fa'], ['merchants', 'التجار', 'store', '#34d399'], ['agbuys', 'طلبات الوكلاء', 'coin', '#f5b82e'], ['finset', 'المالية', 'coin', '#2dd4bf'], ['fin', 'تقارير مالية', 'list', '#22d3ee'], ['ledger', 'سجل العمليات', 'list', '#38bdf8'], ['faq', 'الأسئلة الشائعة', 'help', '#c084fc'], ['campaigns', 'حملات التبرع', 'heart', '#f472b6'], ['agents', 'مراقبة الوكلاء', 'users', '#fb923c']];
+  const TABS = [['overview', 'نظرة عامة', 'home', '#22d3ee'], ['users', 'المستخدمون', 'users', '#a78bfa'], ['reports', 'البلاغات', 'flag', '#fb7185'], ['merchants', 'التجار', 'store', '#34d399'], ['agbuys', 'طلبات الوكلاء', 'coin', '#f5b82e'], ['finset', 'المالية', 'coin', '#2dd4bf'], ['fin', 'تقارير مالية', 'list', '#22d3ee'], ['ledger', 'سجل العمليات', 'list', '#38bdf8'], ['faq', 'الأسئلة الشائعة', 'help', '#c084fc'], ['campaigns', 'حملات التبرع', 'heart', '#f472b6'], ['agents', 'مراقبة الوكلاء', 'users', '#fb923c']];
   const TC = Object.fromEntries(TABS.map((t) => [t[0], t[3]]));
   const btn = document.createElement('button');
   btn.id = 'axb'; btn.innerHTML = ico('shield') + 'إدارة متقدمة<i hidden></i>';
@@ -175,7 +175,7 @@
       const att = (n, l, t, ic) => `<div class="lst"><span class="av" style="width:38px;height:38px;--hu:187">${ico(ic)}</span><div class="g"><b>${l}</b><div class="mu">${n ? 'يحتاج إلى معالجة' : 'لا يوجد شيء معلّق'}</div></div><span class="tg ${n ? 'd' : 'o'}">${nf(n)}</span>${t ? `<button class="b s" data-t="${t}">فتح</button>` : ''}</div>`;
       return hero('shield', 'نظرة عامة على المنصة', nf(u.real), 'مستخدم حقيقي', [['متصلون الآن', nf(u.online)], ['جدد اليوم', nf(u.new_day)], ['حسابات موثقة', nf(u.kyc)]]) + `<div class="kg">${k('users', 'المستخدمون الحقيقيون', nf(u.real), 'جدد اليوم: ' + nf(u.new_day) + ' · الأسبوع: ' + nf(u.new_week))}${k('bolt', 'متصلون الآن', nf(u.online), 'نشطون خلال 24 ساعة: ' + nf(u.day))}${k('shield', 'حسابات موثقة', nf(u.kyc), 'محظورة: ' + nf(u.blk) + ' · تجريبية: ' + nf(u.demo))}
 ${k('coin', 'إجمالي النقاط', nf(u.pts))}${k('gem', 'إجمالي الجواهر', nf(u.gems))}${k('dollar', 'إجمالي الدولار', '$' + nf(u.usd))}</div>
-<div class="sh"><span>يحتاج إلى إجراء</span></div><div class="c">${att(rp.open, 'بلاغات مفتوحة', 'reports', 'flag')}${att(sp.unread, 'رسائل دعم غير مقروءة', 'support', 'head')}${att(mc.pending, 'طلبات تجار بانتظار الموافقة', 'merchants', 'store')}${att((j.agbuys || {}).pending, 'طلبات شراء نقاط من الوكلاء', 'agbuys', 'coin')}${att(wd.pending, 'طلبات سحب معلقة', '', 'coin')}</div>
+<div class="sh"><span>يحتاج إلى إجراء</span></div><div class="c">${att(rp.open, 'بلاغات مفتوحة', 'reports', 'flag')}${att(mc.pending, 'طلبات تجار بانتظار الموافقة', 'merchants', 'store')}${att((j.agbuys || {}).pending, 'طلبات شراء نقاط من الوكلاء', 'agbuys', 'coin')}${att(wd.pending, 'طلبات سحب معلقة', '', 'coin')}</div>
 <div class="sh"><span>النشاط الاجتماعي</span></div><div class="kg">${k('users', 'صداقات مقبولة', nf(fr.accepted), 'طلبات معلقة: ' + nf(fr.pending))}${k('chat', 'رسائل المستخدمين', nf(ms.total), 'آخر 24 ساعة: ' + nf(ms.day))}${k('store', 'التجار', nf(mc.active), 'مستلم: ' + nf(mc.received) + ' نقطة')}</div>
 <div class="sh"><span>أعلى الأرصدة</span><button class="b s" data-t="users">كل المستخدمين</button></div><div class="c">${(j.top || []).map((x) => `<div class="lst">${av(x, 40)}<div class="g"><b>${esc(x.name || x.email)}</b><div class="mu" dir="ltr" style="text-align:start">${esc(x.email)}</div></div><div style="text-align:end"><b>${nf(x.pts)}</b><div class="mu">${nf(x.gems)} جوهرة · $${nf(x.usd)}</div></div></div>`).join('') || '<div class="mu">لا بيانات</div>'}</div>
 <div class="sh"><span>أحدث المنضمين</span></div><div class="c">${(j.joined || []).map((x) => `<div class="lst">${av(x, 38)}<div class="g"><b>${esc(x.name || x.email)}</b><div class="mu" dir="ltr" style="text-align:start">${esc(x.email)}</div></div><span class="mu">${dt(x.created_at)}</span></div>`).join('') || '<div class="mu">لا بيانات</div>'}</div>
@@ -190,7 +190,7 @@ ${k('coin', 'إجمالي النقاط', nf(u.pts))}${k('gem', 'إجمالي ا�
 <div class="mu" dir="ltr" style="text-align:start">${esc(u.email)}${u.phone ? ' · ' + esc(u.phone) : ''}</div><div class="mu">${u.rcode ? 'الكود: <b dir="ltr">' + esc(u.rcode) + '</b> · ' : ''}آخر ظهور: ${u.last_seen ? dt(u.last_seen) : '—'}</div></div></div>
 <div class="bal"><span>${ico('coin')}${nf(u.pts)} نقطة</span><span>${ico('gem')}${nf(u.gems)} جوهرة</span><span>${ico('dollar')}$${nf(u.usd)}</span></div>
 <div class="r"><button class="b p s" data-a="uch" data-e="${esc(u.email)}" data-n="${esc(u.name || u.email)}">شحن</button><button class="b s" data-a="udd" data-e="${esc(u.email)}" data-n="${esc(u.name || u.email)}">خصم</button><button class="b s" data-a="uzero" data-e="${esc(u.email)}" data-n="${esc(u.name || u.email)}">تصفير</button>
-<button class="b s" data-a="${u.blk ? 'unban' : 'ban'}" data-e="${esc(u.email)}">${u.blk ? 'فك الحظر' : 'حظر'}</button><button class="b s" data-a="chat" data-e="${esc(u.email)}">مراسلة</button><button class="b d s" data-a="del" data-e="${esc(u.email)}">حذف</button></div></div>`).join('');
+<button class="b s" data-a="${u.blk ? 'unban' : 'ban'}" data-e="${esc(u.email)}">${u.blk ? 'فك الحظر' : 'حظر'}</button><button class="b d s" data-a="del" data-e="${esc(u.email)}">حذف</button></div></div>`).join('');
     },
     async merchants() {
       const j = await api('/api/ctl/merchants'), B = { pending: ['بانتظار الموافقة', 'w'], active: ['معتمد', 'o'], suspended: ['موقوف', 'd'], rejected: ['مرفوض', 'd'] };
@@ -217,17 +217,6 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
 <p>${esc(r.details)}</p>${r.shot ? `<img class="s" src="${r.shot}">` : ''}${r.status !== 'open' ? `<div class="mu">الحالة: ${esc(r.status)} ${esc(r.note || '')}</div>` : `
 <textarea id="rn${r.id}" rows="2" placeholder="ملاحظة أو نص التنبيه لصاحب الحساب"></textarea>
 <div class="r"><button class="b d" data-a="rban" data-id="${r.id}">حظر الحساب</button><button class="b" data-a="rwarn" data-id="${r.id}">تنبيه صاحب الحساب</button><button class="b" data-a="rclose" data-id="${r.id}">إغلاق</button></div>`}</div>`).join('') || '<div class="c mu">لا توجد بلاغات</div>');
-    },
-    async support() {
-      if (thread) {
-        const j = await api('/api/ctl/support/thread?e=' + encodeURIComponent(thread));
-        return `<div class="r"><button class="b" data-a="back">← المحادثات</button><b dir="ltr">${esc(thread)}</b></div><div class="c" id="axt">` +
-          j.messages.map((m) => `<div class="bb ${m.from_admin ? 'a' : 'u'}">${esc(m.body)}${m.img ? `<img class="s" src="${m.img}">` : ''}<div class="mu">${dt(m.created_at)}</div></div>`).join('') +
-          `</div><textarea id="ar" rows="2" placeholder="اكتب الرد..."></textarea><div class="r"><label class="b">صورة<input id="af" type="file" accept="image/*" hidden></label><span id="an" class="mu"></span><span class="g"></span><button class="b p" data-a="areply">إرسال</button></div>`;
-      }
-      const j = await api('/api/ctl/support/threads');
-      return hero('head', 'الدعم الفني', nf(j.threads.length), 'محادثة', [['غير مقروءة', nf(j.threads.reduce((t, x) => t + (+x.unread || 0), 0))], ['بلا رد', nf(j.threads.filter((x) => !x.from_admin).length)], ['تم الرد', nf(j.threads.filter((x) => x.from_admin).length)]]) + j.threads.map((t) => `<div class="c" data-a="open" data-e="${esc(t.email)}" style="cursor:pointer"><div class="r"><b>${esc(t.name || t.email)}</b>${t.unread ? `<span style="background:#ef5350;border-radius:99px;padding:0 8px">${t.unread}</span>` : ''}<span class="g"></span><span class="mu">${dt(t.created_at)}</span></div>
-<div class="mu">${t.from_admin ? 'أنت: ' : ''}${esc(t.has_img && !t.body ? '📷 صورة' : t.body).slice(0, 90)}</div></div>`).join('') || '<div class="c mu">لا توجد محادثات. المحادثات تُحفظ دائماً ولا تُحذف.</div>';
     },
     async fin() {
       const j = await api('/api/ctl/fin2/summary'), L = j.liability, types = j.types || [], cash = j.cash_in || 0, net = j.net || 0;
@@ -341,7 +330,6 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
       return;
     }
     if (a === 'ban' || a === 'unban') return post('/api/ctl/users/act', { email: e, op: a });
-    if (a === 'chat') { tab = 'support'; thread = e; return draw(); }
     if (a === 'rtab') { rep = el.dataset.v; return draw(); }
     if (a === 'rban' || a === 'rwarn' || a === 'rclose') { const note = (M.querySelector('#rn' + id) || {}).value || ''; if (a === 'rban' && !confirm('حظر الحساب المبلّغ عنه؟')) return; return post('/api/ctl/reports/act', { id: +id, op: a.slice(1), note }); }
     if (a === 'open') { thread = e; return draw(); }
@@ -415,8 +403,8 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
     if (!key()) return;
     if (ov.classList.contains('on') && !document.hidden && tab !== 'campaigns') draw(true);
     try {
-      const c = await api('/api/ctl/counts'), n = c.reports + c.support + (c.merchants || 0) + (c.agbuys || 0), b = btn.querySelector('i'); b.hidden = !n; b.textContent = n;
-      [['reports', c.reports], ['support', c.support], ['merchants', c.merchants], ['agbuys', c.agbuys]].forEach(([t, v]) => { const x = ov.querySelector(`[data-bd="${t}"]`); if (x) { x.hidden = !v; x.textContent = v; } });
+      const c = await api('/api/ctl/counts'), n = c.reports + (c.merchants || 0) + (c.agbuys || 0), b = btn.querySelector('i'); b.hidden = !n; b.textContent = n;
+      [['reports', c.reports], ['merchants', c.merchants], ['agbuys', c.agbuys]].forEach(([t, v]) => { const x = ov.querySelector(`[data-bd="${t}"]`); if (x) { x.hidden = !v; x.textContent = v; } });
     } catch (e) {}
   }, 5000);
 })();
