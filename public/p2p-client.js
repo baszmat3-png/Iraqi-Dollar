@@ -311,7 +311,7 @@ ${a.out ? `<div class="note warn" style="margin:10px 0 0">${ic('shield')}<span>�
   function methodsForm(j, isApply) {
     const mt = j.mtypes, s = j.seller || {};
     return `${isApply ? `<div class="note">${ic('shield')}<span>أرقام حساباتك تظهر للمشتري عند إنشاء الطلب وللإدارة للمطابقة فقط. اكتب الاسم كما هو مسجّل في حسابك.</span></div>
-<div class="c"><label style="margin-top:0">الاسم الثلاثي<input id="apn" value="${esc(s.full_name || '')}" maxlength="80"></label><label>رقم الهاتف<input id="app" value="${esc(s.phone || '')}" inputmode="tel" dir="ltr" maxlength="20"></label></div>` : ''}
+<div class="c"><label style="margin-top:0">الاسم الثلاثي<input id="apn" value="${esc(s.full_name || '')}" maxlength="80"></label><label>رقم الهاتف<input id="apph" value="${esc(s.phone || '')}" inputmode="tel" dir="ltr" maxlength="20"></label></div>` : ''}
 <div class="c"><b>طرق الدفع التي تقبلها</b><div id="mmw">${mmHtml(mt)}</div><button class="btn s o" style="margin-top:10px" data-p="mmadd">${ic('plus')} إضافة طريقة</button>
 <label>نبذة قصيرة عنك (اختياري)<textarea id="apb" rows="2" maxlength="200">${esc(s.bio || '')}</textarea></label></div>
 <button class="btn" data-p="${isApply ? 'applysend' : 'methodssave'}">${isApply ? 'إرسال الطلب للإدارة' : 'حفظ'}</button>`;
@@ -420,7 +420,7 @@ ${a.out ? `<div class="note warn" style="margin:10px 0 0">${ic('shield')}<span>�
       return busy(b, async () => { await api('order/flag', { id: +v, flag: b.dataset.f, note }); say('تم إبلاغ الإدارة'); P.sig = ''; go('order', +v, false); });
     }
     if (a === 'rate') return busy(b, async () => { if (!P.star) return say('اختر عدد النجوم'); await api('order/rate', { id: +v, stars: P.star, comment: ($('#ppcm') || {}).value || '' }); P.star = 0; say('شكراً لتقييمك ⭐'); P.sig = ''; go('order', +v, false); });
-    if (a === 'applysend') return busy(b, async () => { await api('seller/apply', { full_name: ($('#apn') || {}).value, phone: ($('#app') || {}).value, bio: ($('#apb') || {}).value, methods: readMM() }); say('أُرسل طلبك للإدارة'); P.sm = null; P.nav = []; go('seller', null, false); });
+    if (a === 'applysend') return busy(b, async () => { await api('seller/apply', { full_name: ($('#apn') || {}).value, phone: ($('#apph') || {}).value, bio: ($('#apb') || {}).value, methods: readMM() }); say('أُرسل طلبك للإدارة'); P.sm = null; P.nav = []; go('seller', null, false); });
     if (a === 'methodssave') return busy(b, async () => { await api('seller/update', { bio: ($('#apb') || {}).value, methods: readMM() }); say('تم الحفظ'); P.sm = null; P.nav = []; go('seller', null, false); });
     if (a === 'adsave') return busy(b, async () => {
       const methods = [...document.querySelectorAll('.adc:checked')].map((x) => +x.value);
