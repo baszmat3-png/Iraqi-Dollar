@@ -108,6 +108,8 @@ STOREX.parsers(app, express); // دفعات أكواد المتجر الكبير
 P2PX.parsers(app, express); // صور إثبات التحويل ورسائل P2P (حد أكبر)
 app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false }));
+// نافذة Google المنبثقة تحتاج هذا (القيمة الافتراضية same-origin في helmet تمنع إرجاع نتيجة الدخول للصفحة)
+app.use((_req, res, next) => { res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups'); next(); });
 // الإعدادات المنشورة قد تحتوي صوراً، لذلك حد أكبر لهذا المسار فقط
 app.use('/api/ctl/config', express.json({ limit: '8mb' }));
 app.use(express.json({ limit: '50kb' }));
