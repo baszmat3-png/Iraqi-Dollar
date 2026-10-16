@@ -24,7 +24,7 @@
   setInterval(() => {
     const w = _now(), p = performance.now();
     const skew = (w - lastWall) - (p - lastPerf); // الساعة تحركت أكثر/أقل من الزمن الحقيقي
-    if (Math.abs(skew) > 30000) TS.jumps.push({ type: 'time_jump', t: w, skew: Math.round(skew) });
+    if (Math.abs(skew) > 1800000) TS.jumps.push({ type: 'time_jump', t: w, skew: Math.round(skew) });
     lastWall = w; lastPerf = p;
   }, 5000);
 

@@ -72,52 +72,36 @@
 #axmod h2{margin:0 0 12px;font-size:1.25rem}
 #axo .seg{display:flex;border:1.5px solid #27566b;border-radius:16px;padding:4px;background:#0b141c;margin:6px 0 10px}#axo .seg button{flex:1;border:0;background:none;color:#9AA9B5;border-radius:12px;padding:8px;font:inherit;font-weight:700;cursor:pointer}#axo .seg button.on{background:#2bcfe2;color:#04222a}
 #axo .fl{display:flex;align-items:center;gap:10px;background:#0b141c;border:1.5px solid #27566b;border-radius:16px;padding:2px 12px;margin:8px 0}#axo .fl svg{color:#2bcfe2;flex:none}#axo .fl input{border:0;background:none;margin:0;padding:10px 0;box-shadow:none!important}#axo .fl label{min-width:62px;color:#9AA9B5;font-size:.9rem}
-#axo table.ft{width:100%;border-collapse:collapse;font-size:.82rem;white-space:nowrap}#axo .ftw{overflow-x:auto;margin:0 -4px}#axo table.ft th,#axo table.ft td{padding:7px 8px;border-bottom:1px solid #ffffff0d;text-align:end}#axo table.ft th:first-child,#axo table.ft td:first-child{text-align:start;position:sticky;inset-inline-start:0;background:#1F2A37}#axo table.ft th{color:#9AA9B5;font-weight:600}#axo table.ft tr.cur td{background:#2bcfe214}#axo table.ft tr.cur td:first-child{background:#1c3a46}
 #axt{position:absolute;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);z-index:9;background:#2bcfe2;color:#04222a;font-weight:700;border-radius:99px;padding:10px 22px;box-shadow:0 8px 26px #000a;max-width:92vw;text-align:center;display:none}#axt.on{display:block}#axt.bad{background:#ef5350;color:#fff}
-
-/* ===== لمسة احترافية موحّدة ===== */
-#axo{--ac:#2bcfe2;--ac2:#00b6d4;--bd:#27566b;--bg2:#162230;--ok:#3ddc68;--wr:#f5a524;--er:#ef5350;letter-spacing:.1px}
-#axo .axh{background:linear-gradient(180deg,#0f1b27f2,#0E1621f2);backdrop-filter:blur(10px);position:sticky;top:0;z-index:3}
-#axo .axh h1{font-size:1.3rem;letter-spacing:.2px}
-#axo .axn{background:#0E1621;position:sticky;top:66px;z-index:2;padding:10px 14px;gap:6px}
-#axo .axn button{border-radius:12px;padding:8px 15px;font-size:.92rem;background:transparent;border:1px solid transparent;color:#9AA9B5;transition:.15s}
-#axo .axn button:hover{background:#ffffff0a;color:#e8eef5}
-#axo .axn button.on{background:linear-gradient(135deg,#00b6d4,#2bcfe2);color:#04222a;box-shadow:0 4px 14px #2bcfe233}
-#axm{max-width:1040px;padding-top:16px}
-#axo .c{border-radius:18px;border:1px solid #223a4b;background:linear-gradient(180deg,#1d2a38,#192432);box-shadow:0 1px 0 #ffffff08 inset,0 6px 18px #0004}
-#axo .c b{font-weight:700}
-#axo .k{border-radius:18px;border:1px solid #223a4b;background:linear-gradient(165deg,#1b3342,#15222e);position:relative;overflow:hidden}
-#axo .k:before{content:"";position:absolute;inset-inline-end:-18px;top:-18px;width:64px;height:64px;border-radius:50%;background:radial-gradient(circle,#2bcfe21f,transparent 70%)}
-#axo .k b{font-variant-numeric:tabular-nums}
-#axo .sh{margin:22px 2px 10px;font-size:1.05rem;letter-spacing:.2px}
-#axo .sh:before{width:4px;height:18px;background:linear-gradient(180deg,#2bcfe2,#00b6d4)}
-#axo .r > b,#axo .r > span.g + b{font-variant-numeric:tabular-nums}
-#axo .c .r{padding:3px 0}
-#axo input,#axo textarea,#axo select{border-radius:12px;border-color:#2a4a5c;background:#0c151e}
-#axo .b{border-radius:12px}
-#axo .b.p{box-shadow:0 4px 14px #2bcfe22e}
-/* خانات أنواع الإيراد */
-#axo .tbg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
-@media(min-width:700px){#axo .tbg{grid-template-columns:repeat(3,1fr)}}
-#axo .tb{background:linear-gradient(165deg,#1b2d3b,#15222e);border:1px solid #223a4b;border-radius:16px;padding:12px 14px;border-top:3px solid var(--tc,#2bcfe2);min-width:0}
-#axo .tb small{display:block;color:#9AA9B5;font-size:.8rem;font-weight:600}
-#axo .tb b{display:block;font-size:1.3rem;margin:3px 0 1px;font-variant-numeric:tabular-nums}
-#axo .tb .mu{font-size:.75rem}
-#axo .tb .sb{height:5px;border-radius:9px;background:#0b141c;margin-top:8px;overflow:hidden}#axo .tb .sb i{display:block;height:100%;background:var(--tc,#2bcfe2);border-radius:9px}
-#axo .tb.lia{border-style:dashed;border-top-style:solid}
-/* مخطط شهري */
-#axo .ch{display:flex;align-items:flex-end;gap:5px;height:150px;padding:6px 2px 0}
-#axo .ch .m{flex:1;height:100%;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
-#axo .ch .bars{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;gap:2px}
-#axo .ch .bars i{display:block;width:42%;border-radius:4px 4px 0 0;min-height:2px}
-#axo .ch .m span{font-size:.62rem;color:#9AA9B5;white-space:nowrap}
-#axo .ch .m.cur span{color:#2bcfe2;font-weight:700}
-#axo .lg{display:flex;gap:14px;font-size:.78rem;color:#9AA9B5;margin-top:8px}#axo .lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-inline-end:5px;vertical-align:-1px}
-#axo .hero2{background:linear-gradient(135deg,#0d7f93,#0a4f66 60%,#0b3550);border:1px solid #2bcfe266;border-radius:22px;padding:18px;margin-bottom:12px;box-shadow:0 10px 30px #00b6d422}
-#axo .hero2 small{color:#cdeff5;opacity:.85}#axo .hero2 .big{font-size:2rem;font-weight:800;line-height:1.2;font-variant-numeric:tabular-nums}
-#axo .hero2 .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
-#axo .hero2 .g3 div{background:#00000026;border-radius:14px;padding:9px 11px}#axo .hero2 .g3 b{display:block;font-size:1.05rem;font-variant-numeric:tabular-nums}
-@media(max-width:480px){#axo .hero2 .g3{gap:6px}#axo .hero2 .g3 div{padding:8px 8px}#axo .hero2 .g3 b{font-size:.82rem}#axo .hero2 .big{font-size:1.7rem}}
+/* ===== التصميم الموحّد (على نمط «تقارير مالية») ===== */
+#axo{--ta:#22d3ee}
+#axo .axn button{--c:#22d3ee;color:var(--c);border-color:color-mix(in srgb,var(--c) 40%,#0b141c);background:color-mix(in srgb,var(--c) 12%,#0f1a24)}
+#axo .axn button.on{background:var(--c);color:#06222b;border-color:var(--c);box-shadow:0 6px 18px color-mix(in srgb,var(--c) 35%,transparent)}
+#axo .c{background:linear-gradient(180deg,#1b2938,#172330);border:1.5px solid #264a5d;border-top:4px solid var(--ta);border-radius:24px}
+#axo .c.hero,#axo .hx{position:relative;overflow:hidden;border-radius:28px;padding:18px 16px 14px;margin-bottom:14px;color:#fff;background:linear-gradient(135deg,color-mix(in srgb,var(--ta) 62%,#06202e) 0%,color-mix(in srgb,var(--ta) 34%,#08263a) 55%,color-mix(in srgb,var(--ta) 16%,#0a1b2b) 100%);border:1.5px solid color-mix(in srgb,var(--ta) 70%,#0b141c);box-shadow:0 10px 36px color-mix(in srgb,var(--ta) 16%,transparent)}
+#axo .hx:before{content:"";position:absolute;inset-inline-start:-40px;top:-60px;width:190px;height:190px;border-radius:50%;background:radial-gradient(circle,#ffffff24,transparent 70%);pointer-events:none}
+#axo .hx .t{color:#c9eff6;font-size:.95rem;position:relative;display:flex;align-items:center;gap:8px}#axo .hx .t svg{width:18px;height:18px}
+#axo .hx .v{font-size:2.1rem;font-weight:800;line-height:1.3;margin:2px 0 12px;position:relative}#axo .hx .v small{font-size:.95rem;font-weight:600;color:#bfe9f1;margin-inline-start:6px}
+#axo .hx .hs{display:grid;grid-template-columns:repeat(var(--n,3),minmax(0,1fr));gap:6px;position:relative}
+#axo .hx .hs>div{background:#06304a80;border:1px solid #ffffff1a;border-radius:18px;padding:9px 10px;min-width:0}
+#axo .hx .hs small{display:block;color:#bfe3ec;font-size:.76rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#axo .hx .hs b{display:block;font-size:clamp(.8rem,3.5vw,1.02rem);white-space:nowrap}
+#axo .hx.neg{background:linear-gradient(135deg,#a3283d,#7a1f33 55%,#4d1624);border-color:#e0566f}
+#axo .tg2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+@media(min-width:760px){#axo .tg2{grid-template-columns:repeat(3,1fr)}}
+#axo .tl2{position:relative;background:linear-gradient(180deg,#1b2938,#172330);border:1.5px solid #264a5d;border-top:4px solid var(--c);border-radius:24px;padding:14px;min-width:0}
+#axo .tl2 small{display:block;color:#b4c2cf;font-size:.9rem;line-height:1.4}#axo .tl2 b{display:block;font-size:1.45rem;line-height:1.4;margin:4px 0 2px;overflow-wrap:anywhere}
+#axo .tl2 .mu{display:block;font-size:.78rem}#axo .tl2.lb{border-style:dashed;border-top-style:solid}
+#axo .pgb{height:8px;border-radius:99px;background:#0b141c;margin-top:12px;overflow:hidden}#axo .pgb i{display:block;height:100%;border-radius:99px;background:var(--c)}
+#axo .kg .k{border-top:4px solid var(--c,#22d3ee);background:linear-gradient(180deg,#1b2938,#172330)}
+#axo .kg .k:nth-child(6n+1){--c:#22d3ee}#axo .kg .k:nth-child(6n+2){--c:#f5b82e}#axo .kg .k:nth-child(6n+3){--c:#f0628c}#axo .kg .k:nth-child(6n+4){--c:#34d399}#axo .kg .k:nth-child(6n+5){--c:#2dd4bf}#axo .kg .k:nth-child(6n){--c:#a78bfa}
+#axo .kg .k small svg{color:var(--c,#22d3ee)}
+#axo .sh:before{background:var(--ta);width:6px}#axo .sh .tg{flex:none}
+#axo .note{display:flex;gap:8px;align-items:flex-start;color:#9AA9B5;font-size:.82rem;line-height:1.6;margin:0 2px 12px}#axo .note svg{flex:none;margin-top:4px;color:var(--ta);width:16px;height:16px}
+#axo .b.p{background:linear-gradient(90deg,color-mix(in srgb,var(--ta) 70%,#000),var(--ta));color:#06222b}
+#axo .bal span svg,#axo .fl svg,#axo .k small svg{color:var(--ta)}
+#axo input:focus,#axo textarea:focus,#axo select:focus{border-color:var(--ta);box-shadow:0 0 0 3px color-mix(in srgb,var(--ta) 25%,transparent)}
+#axo .seg button.on{background:var(--ta)}
+@media(max-width:360px){#axo .hx .v{font-size:1.7rem}#axo .hx .hs b{font-size:.9rem}}
 `;
   document.head.appendChild(css);
 
@@ -129,21 +113,23 @@
     x: '<path d="M6 6l12 12M18 6L6 18"/>', gem: '<path d="M6 3h12l3 6-9 12L3 9z"/><path d="M3 9h18M9 3l-2 6 5 12M15 3l2 6-5 12"/>', dollar: '<path d="M12 2v20M17 6.5C16 5 14.3 4.5 12 4.5c-2.8 0-4.5 1.1-4.5 3 0 4.5 9 2.2 9 7 0 1.900-1.800 3-4.500 3-2.300 0-4.100-.7-5-2.500"/>',
     plus: '<path d="M12 5v14M5 12h14"/>', chat: '<path d="M21 12a8 8 0 01-11.700 7L4 20l1.200-4.200A8 8 0 1121 12z"/>', shield: '<path d="M12 3l8 3v6c0 5-3.500 8-8 9-4.500-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>', bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
   };
+  I.info = '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>';
   I.heart = '<path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6c-2.5 4.5-9.5 9-9.5 9z"/>';
   const ico = (n) => `<svg viewBox="0 0 24 24">${I[n] || ''}</svg>`;
-  const TABS = [['overview', 'نظرة عامة', 'home'], ['users', 'المستخدمون', 'users'], ['reports', 'البلاغات', 'flag'], ['support', 'الدعم', 'head'], ['merchants', 'التجار', 'store'], ['fin', 'المالية', 'coin'], ['finrep', 'تقارير المالية', 'list'], ['ledger', 'سجل العمليات', 'list'], ['faq', 'الأسئلة الشائعة', 'help'], ['campaigns', 'حملات التبرع', 'heart'], ['agents', 'مراقبة الوكلاء', 'users']];
+  const TABS = [['overview', 'نظرة عامة', 'home', '#22d3ee'], ['users', 'المستخدمون', 'users', '#a78bfa'], ['reports', 'البلاغات', 'flag', '#fb7185'], ['support', 'الدعم', 'head', '#60a5fa'], ['merchants', 'التجار', 'store', '#34d399'], ['agbuys', 'طلبات الوكلاء', 'coin', '#f5b82e'], ['finset', 'المالية', 'coin', '#2dd4bf'], ['fin', 'تقارير مالية', 'list', '#22d3ee'], ['ledger', 'سجل العمليات', 'list', '#38bdf8'], ['faq', 'الأسئلة الشائعة', 'help', '#c084fc'], ['campaigns', 'حملات التبرع', 'heart', '#f472b6'], ['agents', 'مراقبة الوكلاء', 'users', '#fb923c']];
+  const TC = Object.fromEntries(TABS.map((t) => [t[0], t[3]]));
   const btn = document.createElement('button');
   btn.id = 'axb'; btn.innerHTML = ico('shield') + 'إدارة متقدمة<i hidden></i>';
   const ov = document.createElement('div');
   ov.id = 'axo';
   ov.innerHTML = `<div class="axh"><div class="ci">${ico('shield')}</div><h1>الإدارة المتقدمة</h1><button class="axx" data-x="1" aria-label="إغلاق">${ico('x')}</button></div>
-<div class="axn">${TABS.map((t) => `<button data-t="${t[0]}">${ico(t[2])}<span>${t[1]}</span><i hidden data-bd="${t[0]}"></i></button>`).join('')}</div><div id="axm"></div><div id="axmod"></div><div id="axt"></div>`;
+<div class="axn">${TABS.map((t) => `<button data-t="${t[0]}" style="--c:${t[3]}">${ico(t[2])}<span>${t[1]}</span><i hidden data-bd="${t[0]}"></i></button>`).join('')}</div><div id="axm"></div><div id="axmod"></div><div id="axt"></div>`;
   document.body.append(btn, ov);
   const M = ov.querySelector('#axm');
 
   const cpImg = {};
   let agSel = '';
-  let frYear = new Date().getFullYear(), lf = { kind: '', cat: '', q: '' }, tab = 'overview', thread = null, rep = 'open', busy = false, shot = null, uq = '';
+  let lf = { kind: '', cat: '', q: '' }, tab = 'overview', thread = null, rep = 'open', busy = false, shot = null, uq = '';
 
   const err = (e) => { M.insertAdjacentHTML('afterbegin', `<div class="c" style="color:#ef5350">${esc(e.message)}</div>`); };
 
@@ -176,15 +162,20 @@
   }
   const fmtAfter = (a) => `الرصيد الآن: ${nf(a.pts)} نقطة · ${nf(a.gems)} جوهرة · $${nf(a.usd)}`;
 
+  /* ---------- مكونات التصميم الموحّد ---------- */
+  const hero = (icn, title, big, unit, boxes, neg) => `<div class="hx${neg ? ' neg' : ''}"><div class="t">${ico(icn)}${title}</div><div class="v">${big}${unit ? `<small>${unit}</small>` : ''}</div><div class="hs" style="--n:${boxes.length}">${boxes.map((b) => `<div><small>${b[0]}</small><b>${b[1]}</b></div>`).join('')}</div></div>`;
+  const tile = (l, v, sub, c, pct, cls) => `<div class="tl2 ${cls || ''}" style="--c:${c}"><small>${l}</small><b>${v}</b>${sub ? `<span class="mu">${sub}</span>` : ''}${pct != null ? `<div class="pgb"><i style="width:${Math.min(100, Math.max(pct > 0 ? 3 : 0, pct))}%"></i></div>` : ''}</div>`;
+  const note = (t) => `<div class="note">${ico('info')}<span>${t}</span></div>`;
+  const PAL = ['#22d3ee', '#f5b82e', '#f0628c', '#34d399', '#2dd4bf', '#a78bfa', '#60a5fa', '#fb923c'];
+
   const V = {
     async overview() {
       const j = await api('/api/ctl/overview'), u = j.users || {}, rp = j.reports || {}, sp = j.support || {}, mc = j.merchants || {}, fr = j.friends || {}, ms = j.msgs || {}, wd = j.withdrawals || {};
       const k = (ic, l, v, em) => `<div class="k"><small>${ico(ic)}${l}</small><b>${v}</b>${em ? `<em>${em}</em>` : ''}</div>`;
       const att = (n, l, t, ic) => `<div class="lst"><span class="av" style="width:38px;height:38px;--hu:187">${ico(ic)}</span><div class="g"><b>${l}</b><div class="mu">${n ? 'يحتاج إلى معالجة' : 'لا يوجد شيء معلّق'}</div></div><span class="tg ${n ? 'd' : 'o'}">${nf(n)}</span>${t ? `<button class="b s" data-t="${t}">فتح</button>` : ''}</div>`;
-      return `<div class="c hero"><div class="r"><div class="g"><div style="font-size:1.25rem;font-weight:700">نظرة عامة على المنصة</div><div class="mu" style="color:#d7f6fb">${new Date().toLocaleString('ar-IQ')}</div></div><span class="av" style="width:50px;height:50px;--hu:187">${ico('shield')}</span></div></div>
-<div class="kg">${k('users', 'المستخدمون الحقيقيون', nf(u.real), 'جدد اليوم: ' + nf(u.new_day) + ' · الأسبوع: ' + nf(u.new_week))}${k('bolt', 'متصلون الآن', nf(u.online), 'نشطون خلال 24 ساعة: ' + nf(u.day))}${k('shield', 'حسابات موثقة', nf(u.kyc), 'محظورة: ' + nf(u.blk) + ' · تجريبية: ' + nf(u.demo))}
+      return hero('shield', 'نظرة عامة على المنصة', nf(u.real), 'مستخدم حقيقي', [['متصلون الآن', nf(u.online)], ['جدد اليوم', nf(u.new_day)], ['حسابات موثقة', nf(u.kyc)]]) + `<div class="kg">${k('users', 'المستخدمون الحقيقيون', nf(u.real), 'جدد اليوم: ' + nf(u.new_day) + ' · الأسبوع: ' + nf(u.new_week))}${k('bolt', 'متصلون الآن', nf(u.online), 'نشطون خلال 24 ساعة: ' + nf(u.day))}${k('shield', 'حسابات موثقة', nf(u.kyc), 'محظورة: ' + nf(u.blk) + ' · تجريبية: ' + nf(u.demo))}
 ${k('coin', 'إجمالي النقاط', nf(u.pts))}${k('gem', 'إجمالي الجواهر', nf(u.gems))}${k('dollar', 'إجمالي الدولار', '$' + nf(u.usd))}</div>
-<div class="sh"><span>يحتاج إلى إجراء</span></div><div class="c">${att(rp.open, 'بلاغات مفتوحة', 'reports', 'flag')}${att(sp.unread, 'رسائل دعم غير مقروءة', 'support', 'head')}${att(mc.pending, 'طلبات تجار بانتظار الموافقة', 'merchants', 'store')}${att(wd.pending, 'طلبات سحب معلقة', '', 'coin')}</div>
+<div class="sh"><span>يحتاج إلى إجراء</span></div><div class="c">${att(rp.open, 'بلاغات مفتوحة', 'reports', 'flag')}${att(sp.unread, 'رسائل دعم غير مقروءة', 'support', 'head')}${att(mc.pending, 'طلبات تجار بانتظار الموافقة', 'merchants', 'store')}${att((j.agbuys || {}).pending, 'طلبات شراء نقاط من الوكلاء', 'agbuys', 'coin')}${att(wd.pending, 'طلبات سحب معلقة', '', 'coin')}</div>
 <div class="sh"><span>النشاط الاجتماعي</span></div><div class="kg">${k('users', 'صداقات مقبولة', nf(fr.accepted), 'طلبات معلقة: ' + nf(fr.pending))}${k('chat', 'رسائل المستخدمين', nf(ms.total), 'آخر 24 ساعة: ' + nf(ms.day))}${k('store', 'التجار', nf(mc.active), 'مستلم: ' + nf(mc.received) + ' نقطة')}</div>
 <div class="sh"><span>أعلى الأرصدة</span><button class="b s" data-t="users">كل المستخدمين</button></div><div class="c">${(j.top || []).map((x) => `<div class="lst">${av(x, 40)}<div class="g"><b>${esc(x.name || x.email)}</b><div class="mu" dir="ltr" style="text-align:start">${esc(x.email)}</div></div><div style="text-align:end"><b>${nf(x.pts)}</b><div class="mu">${nf(x.gems)} جوهرة · $${nf(x.usd)}</div></div></div>`).join('') || '<div class="mu">لا بيانات</div>'}</div>
 <div class="sh"><span>أحدث المنضمين</span></div><div class="c">${(j.joined || []).map((x) => `<div class="lst">${av(x, 38)}<div class="g"><b>${esc(x.name || x.email)}</b><div class="mu" dir="ltr" style="text-align:start">${esc(x.email)}</div></div><span class="mu">${dt(x.created_at)}</span></div>`).join('') || '<div class="mu">لا بيانات</div>'}</div>
@@ -192,7 +183,7 @@ ${k('coin', 'إجمالي النقاط', nf(u.pts))}${k('gem', 'إجمالي ا�
     },
     async users() {
       const j = await api('/api/ctl/users?q=' + encodeURIComponent(uq));
-      return `<div class="c"><div class="r"><input id="uq" class="g" placeholder="بحث بالبريد أو الاسم أو الرقم أو الكود" value="${esc(uq)}"><button class="b p" data-a="usearch">بحث</button></div>
+      return hero('users', 'إدارة المستخدمين', nf(j.total.n), 'حساب', [['تجريبية', nf(j.total.demo)], ['محظورة', nf(j.total.blk)], ['المعروضون', nf(j.users.length)]]) + `<div class="c"><div class="r"><input id="uq" class="g" placeholder="بحث بالبريد أو الاسم أو الرقم أو الكود" value="${esc(uq)}"><button class="b p" data-a="usearch">بحث</button></div>
 <div class="mu" style="margin-top:6px">كل الحسابات: ${j.total.n} · تجريبية: ${j.total.demo} · محظورة: ${j.total.blk}</div>
 <button class="b d s" data-a="purge" style="margin-top:8px">حذف الحسابات التجريبية فقط</button></div>` +
         j.users.map((u) => `<div class="c"><div class="uc">${av(u, 56)}<div class="g"><b>${esc(u.name || '—')}</b>${u.kyc ? '<span class="tg o">موثق</span>' : ''}${u.demo ? '<span class="tg i">تجريبي</span>' : ''}${u.blk ? '<span class="tg d">محظور</span>' : ''}
@@ -212,13 +203,15 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
           : `<div class="r" style="margin-top:8px"><input class="mcap g" type="number" placeholder="السقف اليومي (نقاط)" value="${m.cap || ''}"><input class="mdis" type="number" placeholder="الخصم %" value="${m.discount}" style="max-width:100px"></div>
 <div class="r" style="margin-top:6px"><button class="b p" data-a="msave" data-st="${m.status === 'rejected' ? 'pending' : 'active'}">${m.status === 'active' ? 'حفظ' : m.status === 'rejected' ? 'إعادة للمراجعة' : 'تفعيل'}</button>${m.status === 'active' ? '<button class="b" data-a="msave" data-st="suspended">إيقاف</button>' : ''}<button class="b d" data-a="mdel">حذف</button></div>`}</div>`;
       const pend = j.merchants.filter((m) => m.status === 'pending'), rest = j.merchants.filter((m) => m.status !== 'pending');
-      return `<div class="c"><button class="b p" data-a="madd">${ico('plus')} إضافة تاجر معتمد</button><div class="mu" style="margin-top:6px">طلبات التجار تصل هنا بعد استقطاع الرسوم من المستخدم. عند الرفض تُعاد الرسوم تلقائياً.</div></div>` +
+      const lim = Number(j.pay_limit) || 0, act = j.merchants.filter((m) => m.status === 'active'), sT = (k) => act.reduce((t, m) => t + (+m[k] || 0), 0);
+      return hero('store', 'التجار المعتمدون', nf(act.length), 'تاجر', [['بانتظار الموافقة', nf(pend.length)], ['مستلم اليوم', nf(sT('today'))], ['إجمالي المستلم', nf(sT('total'))]]) + `<div class="c"><b>الحد اليومي للدفع للتجار</b><div class="mu" style="margin:4px 0 6px">أقصى عدد نقاط يستطيع المستخدم الواحد دفعه للتجار خلال اليوم (يُصفَّر منتصف الليل بتوقيت بغداد). اكتب 0 لإلغاء الحد.</div><div class="r"><input id="mpl" class="g" type="number" inputmode="numeric" min="0" value="${lim}" placeholder="1000000"><button class="b p" data-a="mplsave">حفظ</button></div></div>` +
+        `<div class="c"><button class="b p" data-a="madd">${ico('plus')} إضافة تاجر معتمد</button><div class="mu" style="margin-top:6px">طلبات التجار تصل هنا بعد استقطاع الرسوم من المستخدم. عند الرفض تُعاد الرسوم تلقائياً.</div></div>` +
         (pend.length ? `<div class="sh"><span>طلبات بانتظار الموافقة</span><span class="tg d">${pend.length}</span></div>` + pend.map(card).join('') : '') +
         `<div class="sh"><span>المتاجر</span></div>` + (rest.length ? rest.map(card).join('') : '<div class="c mu">لا توجد متاجر بعد</div>');
     },
     async reports() {
       const j = await api('/api/ctl/reports?status=' + rep);
-      return `<div class="r" style="margin-bottom:10px"><button class="b ${rep === 'open' ? 'p' : ''}" data-a="rtab" data-v="open">المفتوحة</button><button class="b ${rep === 'closed' ? 'p' : ''}" data-a="rtab" data-v="closed">المعالجة</button></div>` +
+      return hero('flag', rep === 'open' ? 'البلاغات المفتوحة' : 'البلاغات المعالجة', nf(j.reports.length), 'بلاغ', [['بصورة', nf(j.reports.filter((r) => r.shot).length)], ['محظورة', nf(j.reports.filter((r) => r.target_blk).length)], ['الحالة', rep === 'open' ? 'تحتاج معالجة' : 'مغلقة']]) + `<div class="r" style="margin-bottom:10px"><button class="b ${rep === 'open' ? 'p' : ''}" data-a="rtab" data-v="open">المفتوحة</button><button class="b ${rep === 'closed' ? 'p' : ''}" data-a="rtab" data-v="closed">المعالجة</button></div>` +
         (j.reports.map((r) => `<div class="c"><div class="r"><b>${esc(r.reason)}</b><span class="g"></span><span class="mu">${dt(r.created_at)}</span></div>
 <div class="mu" dir="ltr">المبلِّغ: ${esc(r.reporter)}</div><div dir="ltr">المبلَّغ عنه: <b>${esc(r.target)}</b> ${r.target_blk ? '<span style="color:#ef5350">[محظور]</span>' : ''}</div>
 <p>${esc(r.details)}</p>${r.shot ? `<img class="s" src="${r.shot}">` : ''}${r.status !== 'open' ? `<div class="mu">الحالة: ${esc(r.status)} ${esc(r.note || '')}</div>` : `
@@ -233,74 +226,60 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
           `</div><textarea id="ar" rows="2" placeholder="اكتب الرد..."></textarea><div class="r"><label class="b">صورة<input id="af" type="file" accept="image/*" hidden></label><span id="an" class="mu"></span><span class="g"></span><button class="b p" data-a="areply">إرسال</button></div>`;
       }
       const j = await api('/api/ctl/support/threads');
-      return j.threads.map((t) => `<div class="c" data-a="open" data-e="${esc(t.email)}" style="cursor:pointer"><div class="r"><b>${esc(t.name || t.email)}</b>${t.unread ? `<span style="background:#ef5350;border-radius:99px;padding:0 8px">${t.unread}</span>` : ''}<span class="g"></span><span class="mu">${dt(t.created_at)}</span></div>
+      return hero('head', 'الدعم الفني', nf(j.threads.length), 'محادثة', [['غير مقروءة', nf(j.threads.reduce((t, x) => t + (+x.unread || 0), 0))], ['بلا رد', nf(j.threads.filter((x) => !x.from_admin).length)], ['تم الرد', nf(j.threads.filter((x) => x.from_admin).length)]]) + j.threads.map((t) => `<div class="c" data-a="open" data-e="${esc(t.email)}" style="cursor:pointer"><div class="r"><b>${esc(t.name || t.email)}</b>${t.unread ? `<span style="background:#ef5350;border-radius:99px;padding:0 8px">${t.unread}</span>` : ''}<span class="g"></span><span class="mu">${dt(t.created_at)}</span></div>
 <div class="mu">${t.from_admin ? 'أنت: ' : ''}${esc(t.has_img && !t.body ? '📷 صورة' : t.body).slice(0, 90)}</div></div>`).join('') || '<div class="c mu">لا توجد محادثات. المحادثات تُحفظ دائماً ولا تُحذف.</div>';
     },
     async fin() {
+      const j = await api('/api/ctl/fin2/summary'), L = j.liability, types = j.types || [], cash = j.cash_in || 0, net = j.net || 0;
+      const typeCards = types.map((t, i) => tile(esc(t.label), nf(t.iqd), 'هذا الشهر ' + nf(t.mon) + (t.liab ? ' · التزام يُرد' : ''), PAL[i % PAL.length], cash ? Math.round(t.iqd * 100 / cash) : 0, t.liab ? 'lb' : '')).join('');
+      const pTot = j.parts.reduce((t, x) => t + Math.max(0, x.iqd), 0);
+      const partCards = j.parts.map((x, i) => tile(esc(x.label), (x.iqd < 0 ? '-' : '') + nf(Math.abs(x.iqd)), x.iqd < 0 ? 'خسارة' : 'د.ع', x.iqd < 0 ? '#ff7a75' : PAL[(i + 3) % PAL.length], pTot && x.iqd > 0 ? Math.round(x.iqd * 100 / pTot) : 0)).join('');
+      const k = (ic, l, v, em) => `<div class="k"><small>${ico(ic)}${l}</small><b>${v}</b>${em ? `<em>${em}</em>` : ''}</div>`;
+      return hero('list', 'صافي الربح ' + (j.year || new Date().getFullYear()), (net < 0 ? '-' : '') + nf(Math.abs(net)), 'د.ع', [['الوارد النقدي', nf(cash)], ['الأرباح', nf(j.profit)], ['المصاريف', nf(j.expenses)]], net < 0) +
+        note('تُحسب الأرقام منذ ' + (j.since ? dt(j.since) : 'بداية التشغيل') + '. إعادة التعيين (من تبويب «المالية») لا تحذف السجل، وتستثني حساب التطبيق إن فعّلت إخفاءه.') +
+        `<div class="sh"><span>أنواع الإيراد</span></div>` + (typeCards ? `<div class="tg2">${typeCards}</div>` : '<div class="c mu" style="text-align:center">لا إيرادات مسجّلة بعد</div>') +
+        `<div class="sh"><span>مصادر الأرباح</span></div><div class="tg2">${partCards}</div>` +
+        `<div class="sh"><span>المبيعات</span></div><div class="kg">${k('coin', 'القطع المباعة', nf(j.sales.units))}${k('dollar', 'إجمالي البيع', nf(j.sales.revenue) + ' د.ع')}${k('bolt', 'هامش الربح', j.sales.margin + '%')}</div>` +
+        `<div class="sh"><span>الأكثر طلباً</span></div><div class="c">${j.top.map((t) => `<div class="lst"><div class="g"><b>${esc(t.name)}</b> ${t.missing ? '<span class="tg w">بلا سعر شراء/بيع</span>' : ''}<div class="mu">العدد ${nf(t.units)} · البيع ${nf(t.revenue)} د.ع</div></div><b style="color:${t.profit < 0 ? '#ff7a75' : '#3ddc68'}">${nf(t.profit)}</b></div>`).join('') || '<div class="mu">لا مبيعات بعد</div>'}</div>` +
+        `<div class="sh"><span>أموال المستخدمين الواجب إرجاعها (${L.months} أشهر)</span></div><div class="tg2">${tile('المستلم من العدادات', nf(L.received), 'د.ع', '#22d3ee', 100)}${tile('رُدّ كعوائد', nf(L.paid), 'د.ع', '#34d399', L.received ? Math.round(L.paid * 100 / L.received) : 0)}${tile('المتبقي', nf(L.outstanding), 'د.ع', '#f5b82e', L.received ? Math.round(L.outstanding * 100 / L.received) : 0)}${tile('المطلوب تحويله شهرياً', nf(L.monthly), 'د.ع', '#a78bfa')}</div>`;
+    },
+    async finset() {
       const [j, c] = await Promise.all([api('/api/ctl/fin2/summary'), api('/api/ctl/fin2/costs')]);
-      const S = j.settings, L = j.liability, row = (a, b, col) => `<div class="r"><span class="g">${a}</span><b${col ? ` style="color:${col}"` : ''}>${b}</b></div>`;
+      const S = j.settings, row = (a, b, col) => `<div class="lst"><span class="g">${a}</span><b${col ? ` style="color:${col}"` : ''}>${b}</b></div>`;
       const names = new Set(c.items.map((x) => x.name)), extra = (typeof PR !== 'undefined' ? PR.map((p) => p[0]) : []).filter((n) => !names.has(n)).map((name) => ({ name, kind: 'product', buy: 0, sell: 0 }));
       const costRow = (x) => `<div class="c" data-cn="${esc(x.name)}" data-ck="${x.kind}"><b>${esc(x.name)}</b><div class="r"><input class="cb" type="number" placeholder="سعر الشراء (د.ع)" value="${x.buy || ''}"><input class="cs" type="number" placeholder="سعر البيع (د.ع)" value="${x.sell || ''}"><button class="b p" data-a="csave">حفظ</button></div></div>`;
-      return `<div class="c"><div class="mu">رصيد صاحب التطبيق${j.since ? ' · منذ آخر إعادة تعيين ' + dt(j.since) : ''}</div><div style="font-size:1.6rem;font-weight:700">${nf(j.owner.balance)} د.ع</div>
-<div class="mu" style="margin-top:6px">مصدر الرصيد:</div>${j.owner.sources.map((x) => row(esc(x.label), nf(x.iqd), x.iqd < 0 ? '#ef5350' : '')).join('')}</div>
-<div class="c"><b>الأرباح: ${nf(j.profit)} د.ع</b>${j.parts.map((x) => row(esc(x.label), nf(x.iqd))).join('')}</div>
-<div class="c"><b>المبيعات</b>${row('عدد القطع المباعة', nf(j.sales.units))}${row('إجمالي البيع', nf(j.sales.revenue) + ' د.ع')}${row('هامش الربح', j.sales.margin + '%')}</div>
-<div class="c"><b>الأكثر طلباً</b>${j.top.map((t) => `<div style="margin-top:6px">${esc(t.name)} ${t.missing ? '<span style="color:#f0b429" class="mu">(بلا سعر شراء/بيع)</span>' : ''}<div class="mu">العدد ${nf(t.units)} · البيع ${nf(t.revenue)} · الربح ${nf(t.profit)}</div></div>`).join('') || '<div class="mu">لا مبيعات بعد</div>'}</div>
-<div class="c"><b>أموال المستخدمين الواجب إرجاعها (${L.months} أشهر)</b>${row('المستلم من العدادات', nf(L.received))}${row('رُدّ كعوائد', nf(L.paid))}${row('المتبقي', nf(L.outstanding))}${row('المطلوب تحويله شهرياً', nf(L.monthly) + ' د.ع', '#2bcfe2')}</div>
-<div class="c"><b>الإعدادات</b><div class="mu">إيميل حساب التطبيق (يُخفى من الإحصائيات)</div><input id="fa" dir="ltr" value="${esc(S.app_email)}"><label class="r"><input id="fh" type="checkbox" style="width:auto" ${S.hide_app ? 'checked' : ''}> إخفاء رصيد حساب التطبيق وعدم احتسابه</label>
+      return hero('coin', 'رصيد صاحب التطبيق', nf(j.owner.balance), 'د.ع', [['الأرباح', nf(j.profit)], ['الرصيد الافتتاحي', nf(S.open_bal)], ['أشهر الإرجاع', nf(S.months)]], j.owner.balance < 0) +
+        `<div class="sh"><span>مصدر الرصيد${j.since ? ' · منذ ' + dt(j.since) : ''}</span></div><div class="c">${j.owner.sources.map((x) => row(esc(x.label), nf(x.iqd) + ' د.ع', x.iqd < 0 ? '#ef5350' : '')).join('') || '<div class="mu">لا بيانات</div>'}</div>` +
+        `<div class="sh"><span>إعدادات المالية</span></div><div class="c"><div class="mu">إيميل حساب التطبيق (يُخفى من الإحصائيات)</div><input id="fa" dir="ltr" value="${esc(S.app_email)}"><label class="r"><input id="fh" type="checkbox" style="width:auto" ${S.hide_app ? 'checked' : ''}> إخفاء رصيد حساب التطبيق وعدم احتسابه</label>
 <div class="r"><input id="fm" type="number" placeholder="أشهر الإرجاع" value="${S.months}"><input id="fd" type="number" placeholder="% ربح الاستدانة من القسط" value="${S.debt_pct}"></div>
 <div class="r"><input id="fo" type="number" placeholder="الرصيد الافتتاحي (د.ع)" value="${S.open_bal || ''}"><input id="fs" placeholder="مصدر الرصيد الافتتاحي" value="${esc(S.open_src)}"></div>
-<div class="r"><button class="b p" data-a="fset">حفظ</button><button class="b d" data-a="freset">إعادة تعيين الإحصائيات والبدء من جديد</button></div><div class="mu">إعادة التعيين لا تحذف السجل، فقط تبدأ الحساب من الآن.</div></div>
-<b>أسعار الشراء والبيع</b><div class="mu" style="margin-bottom:6px">الربح = (البيع − الشراء) × العدد، ويُحسب بعد حفظ السعرين.</div>${c.items.concat(extra).map(costRow).join('')}`;
-    },
-    async finrep() {
-      const [j, iv, du] = await Promise.all([api('/api/ctl/fin2/report?year=' + frYear), api('/api/ctl/fin2/invest'), api('/api/ctl/fin2/dues')]);
-      const T = j.totals, D = j.due, row = (a, b, col) => `<div class="r"><span class="g">${a}</span><b${col ? ` style="color:${col}"` : ''}>${b}</b></div>`;
-      const INC = { agency: 'رسوم الوكالات', trade: 'رسوم التجارة (صافي)', store: 'ربح المتجر والبطاقات', debt: 'ربح الاستدانة', games: 'الألعاب (عمولة + دخل العجلة)', donations: 'التبرعات', invest: 'عائد الاستثمار الخارجي', manual: 'إيرادات يدوية' };
-      const EXP = { ref: 'عمولات الإحالة', wheel: 'جوائز العجلة', manual: 'مصروفات يدوية', other: 'مصروفات أخرى' };
-      const yrs = []; for (let y = new Date().getFullYear() + 1; y >= 2024; y--) yrs.push(y);
-      const dueBox = (t, o, extra) => `<div class="k" style="min-width:0"><small>${t}</small><b style="color:#f0b429">${nf(o.total)}</b><div class="mu">أقساط عدادات ${nf(o.meter)}${o.sched_total != null ? ' · التزامات ' + nf(o.sched_total) : ' · التزامات ' + nf(o.sched)}</div>${extra || ''}</div>`;
-      const sch = (o) => (o.sched || []).map((x) => `<div class="mu">• ${esc(x.name)}: ${nf(x.iqd)}</div>`).join('');
-      const ivRow = (x) => `<div class="c" data-iv="${x.id || 0}"><input class="in" placeholder="اسم الاستثمار (مثال: صندوق، شركة...)" value="${esc(x.name || '')}">
-<div class="r"><input class="ia" type="number" placeholder="المبلغ المستثمَر (د.ع)" value="${x.amount || ''}"><input class="ir" type="number" step="0.01" placeholder="العائد السنوي %" value="${x.rate_pct || ''}"></div>
-<div class="r"><div class="g"><div class="mu">تاريخ البداية</div><input class="is" type="date" value="${esc(x.start || new Date().toISOString().slice(0, 10))}"></div><div class="g"><div class="mu">المدة بالأشهر (0 = مفتوح)</div><input class="it" type="number" min="0" value="${x.term_months || 0}"></div></div>
-<div class="r"><select class="im g"><option value="simple" ${x.mode !== 'compound' ? 'selected' : ''}>عائد بسيط (على أصل المبلغ)</option><option value="compound" ${x.mode === 'compound' ? 'selected' : ''}>عائد مركّب (يُضاف شهرياً للأساس)</option></select>
-<label class="mu" style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input class="ie" type="checkbox" ${x.active === false ? '' : 'checked'}> فعّال</label></div>
-${x.id ? `<div class="mu" style="margin-top:4px">المستحق حتى الآن <b style="color:#6fd3a0">${nf(x.accrued)}</b> · عائد هذا الشهر ${nf(x.monthly_now)} · عائد ${j.year} <b>${nf(x.year)}</b></div>` : ''}
-<div class="r" style="margin-top:8px"><span class="g"></span><button class="b p" data-a="ivsave">${x.id ? 'حفظ' : 'إضافة الاستثمار'}</button>${x.id ? '<button class="b d" data-a="ivdel">حذف</button>' : ''}</div></div>`;
-      const duRow = (x) => `<div class="c" data-du="${x.id || 0}"><input class="dn" placeholder="اسم الالتزام (إيجار، رواتب، قسط...)" value="${esc(x.name || '')}">
-<div class="r"><input class="da" type="number" placeholder="المبلغ الشهري (د.ع)" value="${x.amount || ''}"><div class="g"><div class="mu">يبدأ من شهر</div><input class="df" type="month" value="${esc(x.first || new Date().toISOString().slice(0, 7))}"></div><div class="g"><div class="mu">عدد الأشهر</div><input class="dt" type="number" min="1" value="${x.times || 1}"></div></div>
-<div class="r"><span class="g"></span><button class="b p" data-a="dusave">${x.id ? 'حفظ' : 'إضافة الالتزام'}</button>${x.id ? '<button class="b d" data-a="dudel">حذف</button>' : ''}</div></div>`;
-      return `<div class="r" style="margin-bottom:10px"><select id="fry" style="width:auto;margin:0">${yrs.map((y) => `<option ${y === j.year ? 'selected' : ''}>${y}</option>`).join('')}</select><span class="g"></span>
-<button class="b p" data-a="frcsv">تصدير Excel (CSV)</button><button class="b" data-a="frprint">طباعة / PDF</button></div>
-<div class="mu" style="margin-bottom:8px">كل المبالغ بالدينار العراقي. التقرير يشمل كامل السجل ولا يتأثر بإعادة التعيين، ويستثني حساب التطبيق إن فعّلت إخفاءه.</div>
-<div class="hero2"><small>صافي الربح ${j.year}</small><div class="big" style="color:${T.net < 0 ? '#ffb4b0' : '#fff'}">${nf(T.net)} <small style="font-size:.9rem">د.ع</small></div>
-<div class="g3"><div><small>الوارد النقدي</small><b>${nf(T.inflow)}</b></div><div><small>الأرباح</small><b>${nf(T.income)}</b></div><div><small>المصاريف</small><b>${nf(T.expenses)}</b></div></div></div>
-<div class="sh"><span>أنواع الإيراد</span></div>
-<div class="tbg">${j.types.map((t, i) => { const mx = Math.max(1, ...j.types.map((x) => x.year)), col = ['#f0b429', '#2bcfe2', '#6fd3a0', '#f06292', '#ba68c8', '#4db6ac', '#ff8a65', '#90caf9', '#b0bec5'][i % 9]; return `<div class="tb ${t.liability ? 'lia' : ''}" style="--tc:${col}"><small>${esc(t.name)}</small><b>${nf(t.year)}</b><div class="mu">هذا الشهر ${nf(t.month)}${t.liability ? ' · التزام يُرد' : ''}</div><div class="sb"><i style="width:${Math.round(t.year * 100 / mx)}%"></i></div></div>`; }).join('')}</div>
-<div class="sh"><span>الإيرادات والمصاريف شهرياً</span></div>
-<div class="c">${(() => { const mx = Math.max(1, ...j.months.map((m) => Math.max(m.income, m.expenses))); return `<div class="ch">${j.months.map((m) => `<div class="m ${m.ym === j.now ? 'cur' : ''}"><div class="bars"><i style="height:${Math.max(1, Math.round(m.income * 100 / mx))}%;background:#3ddc68" title="${nf(m.income)}"></i><i style="height:${Math.max(1, Math.round(m.expenses * 100 / mx))}%;background:#ef5350" title="${nf(m.expenses)}"></i></div><span>${m.ym.slice(5)}</span></div>`).join('')}</div><div class="lg"><span><i style="background:#3ddc68"></i>الأرباح</span><span><i style="background:#ef5350"></i>المصاريف</span></div>`; })()}</div>
-<div class="sh"><span>المطلوب دفعه</span></div>
-<div class="kg">${dueBox('خلال السنة (' + esc(D.year.from) + ')', { total: D.year.total, meter: D.year.meter, sched: D.year.sched })}${dueBox('الشهر الحالي · ' + esc(D.current.label), D.current, sch(D.current))}${dueBox('الشهر القادم · ' + esc(D.next.label), D.next, sch(D.next))}</div>
-<div class="c"><b>العدادات: مبالغ تُرد خلال ${D.months} أشهر بالتقسيط</b>${row('المتبقي إرجاعه للمستخدمين (حتى الآن)', nf(D.outstanding_meter) + ' د.ع', '#f0b429')}${row('مبالغ العدادات المستلمة في ' + j.year, nf(T.meter_in))}${row('عوائد العدادات المدفوعة فعلاً في ' + j.year, nf(T.yields_paid))}<div class="mu">كل عملية شراء عداد تُجدول على ${D.months} قسطاً شهرياً متساوياً تبدأ من الشهر التالي للشراء (يمكن تغيير عدد الأشهر من «المالية ← الإعدادات»). مبالغ العدادات تُحتسب وارداً نقدياً لكنها التزام، فلا تدخل في الأرباح.</div></div>
-<div class="c"><b>مصادر الأرباح</b>${Object.entries(INC).map(([k, l]) => row(l, nf(T.inc[k]))).join('')}</div>
-<div class="c"><b>المصاريف</b>${Object.entries(EXP).map(([k, l]) => row(l, nf(T.ex[k]), T.ex[k] ? '#ef5350' : '')).join('')}</div>
-<div class="sh"><span>التفصيل الشهري</span></div>
-<div class="c"><div class="ftw"><table class="ft"><tr><th>الشهر</th><th>الوارد</th><th>الأرباح</th><th>المصاريف</th><th>الصافي</th><th>المطلوب دفعه</th></tr>${j.months.map((m) => `<tr class="${m.ym === j.now ? 'cur' : ''}"><td>${esc(m.label.split(' ')[0])}</td><td>${nf(m.inflow)}</td><td>${nf(m.income)}</td><td>${nf(m.expenses)}</td><td style="color:${m.net < 0 ? '#ef5350' : '#6fd3a0'}">${nf(m.net)}</td><td style="color:#f0b429">${nf(m.due)}</td></tr>`).join('')}</table></div></div>
-<div class="sh"><span>الاستثمار الخارجي (عائد المالية)</span></div>
-<div class="mu" style="margin-bottom:8px">أضف أي مبلغ مستثمَر خارج المنصة وسيُحسب عائده شهرياً ويدخل في الأرباح والوارد. الحساب بسيط (على أصل المبلغ) أو مركّب (يُضاف عائد كل شهر إلى الأساس)، وبالتناسب للأشهر الجزئية.</div>${iv.items.map(ivRow).join('')}${ivRow({})}
-<div class="sh"><span>التزامات مجدولة (إيجار، رواتب، أقساط...)</span></div>
-<div class="mu" style="margin-bottom:8px">تُضاف إلى «المطلوب دفعه» في الأشهر التي تغطيها، وتخصم من الربح عند تسجيلها فعلاً كمصروف يدوي في «سجل العمليات».</div>${du.items.map(duRow).join('')}${duRow({})}`;
+<div class="r"><button class="b p" data-a="fset">حفظ</button><button class="b d" data-a="freset">إعادة تعيين الإحصائيات والبدء من جديد</button></div><div class="mu">إعادة التعيين لا تحذف السجل، فقط تبدأ الحساب من الآن.</div></div>` +
+        `<div class="sh"><span>أسعار الشراء والبيع</span></div><div class="mu" style="margin-bottom:6px">الربح = (البيع − الشراء) × العدد، ويُحسب بعد حفظ السعرين.</div>${c.items.concat(extra).map(costRow).join('')}`;
     },
     async ledger() {
       const j = await api(`/api/ctl/fin2/ledger?kind=${lf.kind}&cat=${lf.cat}&q=${encodeURIComponent(lf.q)}`);
-      return `<div class="c"><div class="r"><select id="lk"><option value="">الكل</option><option value="in" ${lf.kind === 'in' ? 'selected' : ''}>إيرادات</option><option value="out" ${lf.kind === 'out' ? 'selected' : ''}>مصروفات</option></select>
+      const lnet = j.totals.in - j.totals.out;
+      return hero('list', 'سجل العمليات', (lnet < 0 ? '-' : '') + nf(Math.abs(lnet)), 'د.ع الصافي', [['الإيرادات', nf(j.totals.in)], ['المصروفات', nf(j.totals.out)], ['عدد الحركات', nf(j.rows.length)]], lnet < 0) + `<div class="c"><div class="r"><select id="lk"><option value="">الكل</option><option value="in" ${lf.kind === 'in' ? 'selected' : ''}>إيرادات</option><option value="out" ${lf.kind === 'out' ? 'selected' : ''}>مصروفات</option></select>
 <select id="lc"><option value="">كل التصنيفات</option>${Object.entries(j.cats).map(([k, v]) => `<option value="${k}" ${lf.cat === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
 <div class="r"><input id="lq" class="g" placeholder="بحث بالبريد أو التفاصيل" value="${esc(lf.q)}"><button class="b p" data-a="lfilter">تطبيق</button></div>
 <div class="mu">إيرادات ${nf(j.totals.in)} · مصروفات ${nf(j.totals.out)} · الصافي ${nf(j.totals.in - j.totals.out)} د.ع</div></div>
 <div class="c"><b>إضافة قيد يدوي</b><div class="r"><select id="mk"><option value="in">إيراد</option><option value="out">مصروف</option></select><input id="mc" placeholder="التصنيف (مثل: إيجار)"></div><div class="r"><input id="mi" type="number" placeholder="المبلغ (د.ع)"><input id="mn" class="g" placeholder="التفاصيل"></div><button class="b p" data-a="ladd">إضافة</button></div>` +
         (j.rows.map((r) => `<div class="c" style="${r.pre_reset ? 'opacity:.6' : ''}"><div class="r"><b style="color:${r.kind === 'in' ? '#4caf50' : '#ef5350'}">${r.kind === 'in' ? '+' : '−'}${nf(r.iqd)} د.ع</b><span class="mu">${esc(r.cat_label)}</span><span class="g"></span><span class="mu">${dt(r.ts)}</span></div>
 <div class="mu" dir="ltr">من: ${esc(r.from)} ← إلى: ${esc(r.to)}${r.app ? ' [حساب التطبيق]' : ''}</div><div>${esc(r.note || '')}</div>${r.src === 'manual' ? `<button class="b d" data-a="ldel" data-id="${esc(r.uid)}">حذف</button>` : ''}</div>`).join('') || '<div class="c mu">لا توجد حركات</div>');
+    },
+    async agbuys() {
+      const j = await api('/api/ctl/agent-buys'), S = { pending: ['بانتظار الموافقة', 'w'], approved: ['تمت الموافقة', 'o'], rejected: ['مرفوض', 'd'] };
+      const card = (r) => `<div class="c" data-ab="${r.id}"><div class="r"><b style="font-size:1.1rem" class="g">${esc(r.agent || r.name || r.email)}</b><span class="tg ${(S[r.status] || ['', 'i'])[1]}">${(S[r.status] || [r.status])[0]}</span></div>
+<div class="mu" dir="ltr" style="text-align:start">${esc(r.email)}${r.name ? ' — ' + esc(r.name) : ''}</div>
+<div class="r" style="margin-top:4px"><span class="mu">📞 رقم الهاتف:</span><b dir="ltr" class="g" style="text-align:start">${r.phone ? esc(r.phone) : 'غير مسجّل'}</b>${r.phone ? `<a class="b s" style="text-decoration:none" href="tel:${esc(String(r.phone).replace(/[^\d+]/g, ''))}">اتصال</a>` : ''}</div>
+<div class="kg" style="margin:10px 0 6px"><div class="k"><small>${ico('dollar')}المبلغ المطلوب منه بالدينار</small><b>${nf(r.iqd)} د.ع</b><em>≈ $${nf(r.usd)} · ${nf(r.rate)} د.ع / 1000 نقطة</em></div><div class="k"><small>${ico('coin')}النقاط التي سيحصل عليها</small><b>${nf(r.pts)}</b></div></div>
+<div class="mu">${dt(r.at)}${r.decided ? ' · عولج: ' + dt(r.decided) : ''}${r.note ? ' · ' + esc(r.note) : ''}</div>` +
+        (r.status === 'pending' ? `<input class="abn" placeholder="ملاحظة / سبب الرفض (اختياري)"><div class="r" style="margin-top:6px"><button class="b ok g" data-a="abok">موافق — شحن السيولة بـ ${nf(r.pts)} نقطة</button><button class="b d" data-a="abno">رفض</button></div>` : '') + '</div>';
+      const pend = j.items.filter((r) => r.status === 'pending'), rest = j.items.filter((r) => r.status !== 'pending');
+      const apr = j.items.filter((r) => r.status === 'approved');
+      return hero('coin', 'طلبات شراء نقاط الوكلاء', nf(pend.length), 'طلب معلّق', [['نقاط معلّقة', nf(pend.reduce((t, r) => t + (+r.pts || 0), 0))], ['تمت الموافقة', nf(apr.length)], ['نقاط معتمدة', nf(apr.reduce((t, r) => t + (+r.pts || 0), 0))]]) + '<div class="c mu">يقدّم الوكيل من لوحته طلب شراء نقاط بالسعر الرسمي، فتظهر هنا بياناته والمبلغ المطلوب منه بالدينار ورقم هاتفه. عند «موافق» تُشحن سيولته بالنقاط المطلوبة فوراً وتصله على جهازه لحظياً، ويُسجَّل المبلغ في المالية.</div>' +
+        (pend.length ? `<div class="sh"><span>طلبات بانتظار الموافقة</span><span class="tg d">${pend.length}</span></div>` + pend.map(card).join('') : '<div class="c mu" style="text-align:center">لا توجد طلبات معلّقة</div>') +
+        (rest.length ? '<div class="sh"><span>السجل</span></div>' + rest.map(card).join('') : '');
     },
     async agents() {
       if (agSel) {
@@ -310,24 +289,25 @@ ${x.id ? `<div class="mu" style="margin-top:4px">المستحق حتى الآن 
       }
       const j = await api('/api/ctl/agents');
       const st = (l, v) => `<div style="flex:1;min-width:46%;margin:4px 0"><div class="mu">${l}</div><b>${v}</b></div>`;
-      return '<div class="mu" style="margin-bottom:8px">إجمالي كل وكيل: ما باعه، وما حُوّل إليه، وما أضافه لرصيده الرسمي، وسحوباته. الحركات تُسجَّل منذ تحديث هذه النسخة.</div>' + (j.items.map((a) => `<div class="c"><div class="r"><b>${esc(a.name)}</b><span class="g"></span><span class="mu">${a.last ? 'آخر حركة ' + dt(a.last) : 'لا حركات'}</span></div><div class="mu" dir="ltr" style="text-align:start">${esc(a.email)}</div><div class="r" style="flex-wrap:wrap;margin-top:6px">${st('رصيد حسابه', nf(a.balance) + ' نقطة')}${st('السيولة', nf(a.liq))}${st('الرصيد الرسمي', nf(a.off))}${st('باع (شحن أعضاء)', nf(a.sold.pts) + ' نقطة · ' + a.sold.n + ' عملية · ' + a.sold.members + ' عضو')}${st('حُوّل إليه من مستخدمين', nf(a.recv.pts) + ' نقطة · ' + a.recv.n + ' عملية')}${st('أضاف للرصيد الرسمي', nf(a.addoff.pts) + ' نقطة · ' + a.addoff.n)}${st('طلبات شراء بالسعر الرسمي', nf(a.buy.pts) + ' نقطة · ' + a.buy.n)}${st('شحن/خصم الإدارة', '+' + nf(a.admin.plus) + ' / −' + nf(a.admin.minus))}${st('طلبات سحب الرصيد', '$' + nf(a.wd.usd) + ' · ' + a.wd.n + (a.wd.pending ? ' (' + a.wd.pending + ' قيد المراجعة)' : ''))}</div><div class="r" style="margin-top:8px"><span class="g"></span><button class="b p" data-a="aglog" data-e="${esc(a.email)}">كل حركاته</button></div></div>`).join('') || '<div class="c mu">لا يوجد وكلاء معتمدون في الإعدادات المنشورة</div>');
+      return hero('users', 'مراقبة الوكلاء', nf(j.items.length), 'وكيل', [['مجموع الأرصدة', nf(j.items.reduce((t, a) => t + (+a.balance || 0), 0))], ['الرصيد الرسمي', nf(j.items.reduce((t, a) => t + (+a.off || 0), 0))], ['نشطون', nf(j.items.filter((a) => a.last).length)]]) + '<div class="mu" style="margin-bottom:8px">إجمالي كل وكيل: ما باعه، وما حُوّل إليه، وما أضافه لرصيده الرسمي، وسحوباته. الحركات تُسجَّل منذ تحديث هذه النسخة.</div>' + (j.items.map((a) => `<div class="c"><div class="r"><b>${esc(a.name)}</b><span class="g"></span><span class="mu">${a.last ? 'آخر حركة ' + dt(a.last) : 'لا حركات'}</span></div><div class="mu" dir="ltr" style="text-align:start">${esc(a.email)}</div><div class="r" style="flex-wrap:wrap;margin-top:6px">${st('رصيد حسابه', nf(a.balance) + ' نقطة')}${st('السيولة', nf(a.liq))}${st('الرصيد الرسمي', nf(a.off))}${st('باع (شحن أعضاء)', nf(a.sold.pts) + ' نقطة · ' + a.sold.n + ' عملية · ' + a.sold.members + ' عضو')}${st('حُوّل إليه من مستخدمين', nf(a.recv.pts) + ' نقطة · ' + a.recv.n + ' عملية')}${st('أضاف للرصيد الرسمي', nf(a.addoff.pts) + ' نقطة · ' + a.addoff.n)}${st('طلبات شراء بالسعر الرسمي', nf(a.buy.pts) + ' نقطة · ' + a.buy.n)}${st('شحن/خصم الإدارة', '+' + nf(a.admin.plus) + ' / −' + nf(a.admin.minus))}${st('طلبات سحب الرصيد', '$' + nf(a.wd.usd) + ' · ' + a.wd.n + (a.wd.pending ? ' (' + a.wd.pending + ' قيد المراجعة)' : ''))}</div><div class="r" style="margin-top:8px"><span class="g"></span><button class="b p" data-a="aglog" data-e="${esc(a.email)}">كل حركاته</button></div></div>`).join('') || '<div class="c mu">لا يوجد وكلاء معتمدون في الإعدادات المنشورة</div>');
     },
     async campaigns() {
       const j = await api('/api/ctl/campaigns');
       const row = (c) => { const id = c.id || 0; return `<div class="c" data-cp="${id}"><input class="cpt" placeholder="اسم الحملة (مثال: فشل كلوي)" value="${esc(c.title || '')}"><textarea class="cpd" rows="4" placeholder="وصف الحالة المرضية">${esc(c.descr || '')}</textarea><div class="r"><input class="cpg g" type="number" min="0" placeholder="الهدف بالنقاط (0 = بلا هدف)" value="${c.goal || ''}"><label class="mu" style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" class="cpa" style="width:auto" ${c.active === false ? '' : 'checked'}> تظهر للجميع</label></div>${c.img ? `<img src="${esc(c.img)}" alt="" style="max-width:100%;max-height:220px;border-radius:12px;margin:8px 0;object-fit:cover">` : ''}<input type="file" accept="image/*" class="cpf" style="margin-top:8px"><div class="mu cpn">${cpImg[id] ? 'تم اختيار صورة جديدة' : (id ? 'اختر صورة لتغيير الحالية' : 'اختر صورة الحالة (مطلوبة)')}</div>${id ? `<div class="mu" style="margin-top:6px">تم جمع <b>${(c.raised || 0).toLocaleString('en')}</b> نقطة · ${c.donors || 0} متبرع</div>` : ''}<div class="r" style="margin-top:8px"><span class="g"></span><button class="b p" data-a="cpsave">${id ? 'حفظ' : 'إضافة الحملة'}</button>${id ? '<button class="b d" data-a="cpdel">حذف</button>' : ''}</div></div>`; };
-      return '<div class="mu" style="margin-bottom:8px">كل حملة تظهر لجميع المستخدمين داخل نافذة «التبرع للجمعيات الخيرية» بصورتها ووصفها ومجموع ما جُمع لها.</div>' + row({}) + j.items.map(row).join('');
+      return hero('heart', 'حملات التبرع', nf(j.items.length), 'حملة', [['الظاهرة للجميع', nf(j.items.filter((c) => c.active !== false).length)], ['المخفية', nf(j.items.filter((c) => c.active === false).length)], ['مجموع الأهداف', nf(j.items.reduce((t, c) => t + (+c.goal || 0), 0))]]) + '<div class="mu" style="margin-bottom:8px">كل حملة تظهر لجميع المستخدمين داخل نافذة «التبرع للجمعيات الخيرية» بصورتها ووصفها ومجموع ما جُمع لها.</div>' + row({}) + j.items.map(row).join('');
     },
     async faq() {
       const j = await (await fetch('/api/faq')).json();
       const row = (f) => `<div class="c" data-f="${f.id || 0}"><input class="fc" placeholder="القسم" value="${esc(f.cat || '')}"><input class="fq" placeholder="السؤال" value="${esc(f.q || '')}"><textarea class="fa" rows="3" placeholder="الجواب">${esc(f.a || '')}</textarea>
 <div class="r"><input class="fs" type="number" style="width:90px" placeholder="الترتيب" value="${f.sort || 0}"><span class="g"></span><button class="b p" data-a="fsave">حفظ</button>${f.id ? '<button class="b d" data-a="fdel">حذف</button>' : ''}</div></div>`;
-      return '<div class="mu" style="margin-bottom:8px">تظهر هذه الأسئلة للمستخدمين في قسم المساعدة. إن كانت القائمة فارغة تُستخدم الأسئلة الافتراضية.</div>' + row({}) + j.items.map(row).join('');
+      return hero('help', 'الأسئلة الشائعة', nf(j.items.length), 'سؤال', [['الأقسام', nf(new Set(j.items.map((f) => f.cat)).size)], ['أسئلة مخصّصة', nf(j.items.length)], ['الحالة', j.items.length ? 'مخصّصة' : 'افتراضية']]) + '<div class="mu" style="margin-bottom:8px">تظهر هذه الأسئلة للمستخدمين في قسم المساعدة. إن كانت القائمة فارغة تُستخدم الأسئلة الافتراضية.</div>' + row({}) + j.items.map(row).join('');
     },
   };
 
   async function draw(keep) {
     if (busy) return; busy = true;
     ov.querySelectorAll('.axn [data-t]').forEach((b) => b.classList.toggle('on', b.dataset.t === tab));
+    ov.style.setProperty('--ta', TC[tab] || '#22d3ee');
     try {
       const y = M.scrollTop, html = await V[tab]();
       // لا نعيد الرسم أثناء الكتابة حتى لا يضيع النص
@@ -350,14 +330,14 @@ ${x.id ? `<div class="mu" style="margin-top:4px">المستحق حتى الآن 
       const g = (i) => (ov.querySelector(i) || {}).value || '';
       try {
         const r = await api('/api/ctl/bal', { email: e, op: chMode, pts: g('#cp'), gems: g('#cg'), usd: g('#cu'), note: g('#cn') });
-        closeModal(); flash('⚡ تم التنفيذ فوراً ✓ ' + fmtAfter(r.after) + (r.delivered ? ' · وصل للجهاز المتصل' : ' · المستخدم غير متصل، يصله عند فتح التطبيق')); draw(true);
+        closeModal(); flash('تم التنفيذ ✓ ' + fmtAfter(r.after)); draw(true);
       } catch (x) { flash(x.message, 1); }
       return;
     }
     if (a === 'zgo') {
       const c = (i) => ov.querySelector(i).checked ? 1 : 0, z = { p: c('#zp'), g: c('#zg'), d: c('#zd') };
       if (!z.p && !z.g && !z.d) return flash('اختر ما تريد تصفيره', 1);
-      try { const r = await api('/api/ctl/bal', { email: e, op: 'zero', z }); closeModal(); flash('⚡ تم التصفير فوراً ✓ ' + fmtAfter(r.after) + (r.delivered ? ' · وصل للجهاز المتصل' : ' · يصله عند فتح التطبيق')); draw(true); } catch (x) { flash(x.message, 1); }
+      try { const r = await api('/api/ctl/bal', { email: e, op: 'zero', z }); closeModal(); flash('تم التصفير ✓ ' + fmtAfter(r.after)); draw(true); } catch (x) { flash(x.message, 1); }
       return;
     }
     if (a === 'ban' || a === 'unban') return post('/api/ctl/users/act', { email: e, op: a });
@@ -370,43 +350,6 @@ ${x.id ? `<div class="mu" style="margin-top:4px">المستحق حتى الآن 
     if (a === 'fset') { const g = (i) => M.querySelector(i); return post('/api/ctl/fin2/settings', { app_email: g('#fa').value, hide_app: g('#fh').checked, months: +g('#fm').value, debt_pct: +g('#fd').value, open_bal: +g('#fo').value, open_src: g('#fs').value }); }
     if (a === 'freset') return confirm('إعادة تعيين الإحصائيات المالية والبدء من جديد؟ السجل القديم يبقى محفوظاً.') && post('/api/ctl/fin2/reset', { confirm: true });
     if (a === 'csave') { const c = el.closest('[data-cn]'); return post('/api/ctl/fin2/costs', { name: c.dataset.cn, kind: c.dataset.ck, buy: +c.querySelector('.cb').value, sell: +c.querySelector('.cs').value }); }
-    if (a === 'frcsv') {
-      try {
-        const r = await fetch('/api/ctl/fin2/report.csv?year=' + frYear, { headers: { 'X-Admin-Key': key() } });
-        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'تعذر التصدير');
-        const u = URL.createObjectURL(await r.blob()), l = document.createElement('a'); l.href = u; l.download = 'finance-report-' + frYear + '.csv'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
-      } catch (x) { flash(x.message, 1); }
-      return;
-    }
-    if (a === 'frprint') {
-      try {
-        const j = await api('/api/ctl/fin2/report?year=' + frYear), T = j.totals, D = j.due, w = window.open('', '_blank');
-        if (!w) return flash('اسمح بالنوافذ المنبثقة للطباعة', 1);
-        const L = { agency: 'رسوم الوكالات', trade: 'رسوم التجارة', store: 'ربح المتجر', debt: 'ربح الاستدانة', games: 'الألعاب', donations: 'التبرعات', invest: 'عائد الاستثمار', manual: 'إيرادات يدوية' }, X = { ref: 'عمولات الإحالة', wheel: 'جوائز العجلة', manual: 'مصروفات يدوية', other: 'أخرى' };
-        const kv = (o, m) => Object.entries(m).map(([k, l]) => `<tr><td>${l}</td><td>${nf(o[k])}</td></tr>`).join('');
-        w.document.write(`<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>التقرير المالي ${j.year}</title><style>body{font:14px Cairo,Tahoma,sans-serif;padding:24px;color:#111}h1{font-size:20px}h2{font-size:15px;margin:18px 0 6px;border-bottom:2px solid #00b6d4}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:5px 8px;text-align:right}th{background:#eef}</style></head><body>
-<h1>التقرير المالي لسنة ${j.year} (دينار عراقي)</h1>
-<h2>المطلوب دفعه</h2><table><tr><td>خلال السنة (${esc(D.year.from)})</td><td>${nf(D.year.total)}</td></tr><tr><td>الشهر الحالي (${esc(D.current.label)})</td><td>${nf(D.current.total)}</td></tr><tr><td>الشهر القادم (${esc(D.next.label)})</td><td>${nf(D.next.total)}</td></tr><tr><td>المتبقي إرجاعه من مبالغ العدادات</td><td>${nf(D.outstanding_meter)}</td></tr></table>
-<h2>الملخص</h2><table><tr><td>الوارد النقدي</td><td>${nf(T.inflow)}</td></tr><tr><td>الأرباح</td><td>${nf(T.income)}</td></tr><tr><td>المصاريف</td><td>${nf(T.expenses)}</td></tr><tr><td>صافي الربح</td><td>${nf(T.net)}</td></tr></table>
-<h2>مصادر الأرباح</h2><table>${kv(T.inc, L)}</table><h2>المصاريف</h2><table>${kv(T.ex, X)}</table>
-<h2>التفصيل الشهري</h2><table><tr><th>الشهر</th><th>الوارد</th><th>الأرباح</th><th>المصاريف</th><th>الصافي</th><th>المطلوب دفعه</th></tr>${j.months.map((m) => `<tr><td>${esc(m.label)}</td><td>${nf(m.inflow)}</td><td>${nf(m.income)}</td><td>${nf(m.expenses)}</td><td>${nf(m.net)}</td><td>${nf(m.due)}</td></tr>`).join('')}</table>
-<script>setTimeout(function(){print()},300)<\/script></body></html>`);
-        w.document.close();
-      } catch (x) { flash(x.message, 1); }
-      return;
-    }
-    if (a === 'ivsave' || a === 'ivdel') {
-      const c = el.closest('[data-iv]'), id = +c.dataset.iv, v = (k) => c.querySelector(k);
-      if (a === 'ivdel') return confirm('حذف هذا الاستثمار؟') && post('/api/ctl/fin2/invest/del', { id });
-      try { await api('/api/ctl/fin2/invest', { id, name: v('.in').value, amount: +v('.ia').value, rate_pct: +v('.ir').value, start: v('.is').value, term_months: +v('.it').value || 0, mode: v('.im').value, active: v('.ie').checked }); flash('تم الحفظ'); draw(); } catch (x) { flash(x.message, 1); }
-      return;
-    }
-    if (a === 'dusave' || a === 'dudel') {
-      const c = el.closest('[data-du]'), id = +c.dataset.du, v = (k) => c.querySelector(k);
-      if (a === 'dudel') return confirm('حذف هذا الالتزام؟') && post('/api/ctl/fin2/dues/del', { id });
-      try { await api('/api/ctl/fin2/dues', { id, name: v('.dn').value, amount: +v('.da').value, first: v('.df').value, times: +v('.dt').value || 1 }); flash('تم الحفظ'); draw(); } catch (x) { flash(x.message, 1); }
-      return;
-    }
     if (a === 'lfilter') { lf = { kind: M.querySelector('#lk').value, cat: M.querySelector('#lc').value, q: M.querySelector('#lq').value.trim() }; return draw(); }
     if (a === 'ladd') { const g = (i) => M.querySelector(i); return post('/api/ctl/fin/add', { kind: g('#mk').value, cat: g('#mc').value, iqd: +g('#mi').value, note: g('#mn').value }); }
     if (a === 'ldel') return confirm('حذف هذا القيد اليدوي؟') && post('/api/ctl/fin/del', { uid: id });
@@ -417,6 +360,13 @@ ${x.id ? `<div class="mu" style="margin-top:4px">المستحق حتى الآن 
       const g = (i) => (ov.querySelector(i) || {}).value || '';
       if (!g('#mo') || !g('#mnm')) return flash('أدخل بريد صاحب المتجر واسم المتجر', 1);
       try { await api('/api/ctl/merchants/add', { owner: g('#mo'), name: g('#mnm'), province: g('#mpv'), discount: +g('#mdc') || 10, daily_cap: +g('#mcp') || 0 }); closeModal(); flash('تمت الإضافة'); draw(true); } catch (x) { flash(x.message, 1); }
+      return;
+    }
+    if (a === 'mplsave') { const v = (ov.querySelector('#mpl') || {}).value; try { await api('/api/ctl/merchants/settings', { pay_limit: v }); flash('تم حفظ الحد اليومي'); draw(); } catch (x) { flash(x.message, 1); } return; }
+    if (a === 'abok' || a === 'abno') {
+      const c = el.closest('[data-ab]'), ok = a === 'abok', note = (c.querySelector('.abn') || {}).value || '';
+      if (ok && !confirm('تأكيد الموافقة؟ ستُضاف النقاط إلى سيولة الوكيل فوراً ولا يمكن التراجع.')) return;
+      try { await api('/api/ctl/agent-buys/act', { id: +c.dataset.ab, act: ok ? 'approve' : 'reject', note }); flash(ok ? 'تمت الموافقة ✓ شُحنت سيولة الوكيل' : 'تم الرفض'); draw(); } catch (x) { flash(x.message, 1); }
       return;
     }
     if (a === 'mreject') { const c = el.closest('[data-m]'); if (!confirm('رفض الطلب وإعادة الرسوم للمستخدم؟')) return; return post('/api/ctl/merchants/save', { id: +c.dataset.m, status: 'rejected', note: (c.querySelector('.mnote') || {}).value || '' }); }
@@ -450,7 +400,6 @@ ${x.id ? `<div class="mu" style="margin-top:4px">المستحق حتى الآن 
     act(t);
   });
   ov.addEventListener('change', async (ev) => {
-    if (ev.target.id === 'fry') { frYear = +ev.target.value; return draw(); }
     if (ev.target.classList.contains('cpf') && ev.target.files[0]) {
       const c = ev.target.closest('[data-cp]');
       try { cpImg[+c.dataset.cp] = await shrink(ev.target.files[0], 1000); c.querySelector('.cpn').textContent = 'تم اختيار صورة جديدة'; } catch (e) { alert('تعذر قراءة الصورة'); }
@@ -464,10 +413,10 @@ ${x.id ? `<div class="mu" style="margin-top:4px">المستحق حتى الآن 
   // تحديث دوري كل 5 ثوانٍ
   setInterval(async () => {
     if (!key()) return;
-    if (ov.classList.contains('on') && !document.hidden && tab !== 'campaigns' && tab !== 'finrep') draw(true);
+    if (ov.classList.contains('on') && !document.hidden && tab !== 'campaigns') draw(true);
     try {
-      const c = await api('/api/ctl/counts'), n = c.reports + c.support + (c.merchants || 0), b = btn.querySelector('i'); b.hidden = !n; b.textContent = n;
-      [['reports', c.reports], ['support', c.support], ['merchants', c.merchants]].forEach(([t, v]) => { const x = ov.querySelector(`[data-bd="${t}"]`); if (x) { x.hidden = !v; x.textContent = v; } });
+      const c = await api('/api/ctl/counts'), n = c.reports + c.support + (c.merchants || 0) + (c.agbuys || 0), b = btn.querySelector('i'); b.hidden = !n; b.textContent = n;
+      [['reports', c.reports], ['support', c.support], ['merchants', c.merchants], ['agbuys', c.agbuys]].forEach(([t, v]) => { const x = ov.querySelector(`[data-bd="${t}"]`); if (x) { x.hidden = !v; x.textContent = v; } });
     } catch (e) {}
   }, 5000);
 })();

@@ -24,6 +24,43 @@
     fr.readAsDataURL(file);
   });
 
+
+  /* ---- هيكل الدردشة الثابت (مثل واتساب): الهيدر وخانة الكتابة ثابتان والرسائل فقط تتحرك ---- */
+  (function () {
+    const css = document.createElement('style');
+    css.textContent = `
+    html.cs-on,html.cs-on body{overflow:hidden!important;overscroll-behavior:none}
+    .cs{position:fixed;left:50%;transform:translateX(-50%);top:var(--vt,0px);width:min(520px,100%);height:var(--vh,100dvh);display:flex;flex-direction:column;z-index:30;background:var(--bg);overflow:hidden}
+    .cs>.u2-hdn{position:static!important;transform:none!important;width:auto!important;flex:none;margin:0!important;padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px!important;background:var(--bg);border-bottom:1px solid #ffffff14;box-shadow:0 4px 14px #0005;z-index:2}
+    .cs>.sc-bar{flex:none;margin:6px 12px 0}
+    .cs-m,.cs .u2-ms{flex:1 1 auto;min-height:0!important;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:10px 14px!important;display:flex;flex-direction:column;justify-content:flex-start!important;gap:4px}
+    .cs-m>:first-child,.cs .u2-ms>:first-child{margin-top:auto}
+    .cs>.u2-in{position:static!important;transform:none!important;width:auto!important;flex:none;margin:6px 12px calc(10px + env(safe-area-inset-bottom,0px))!important;border-radius:26px;align-items:flex-end}
+    .u2-in textarea{margin:0;border:0;background:none;flex:1;min-width:0;padding:11px 14px;resize:none;height:46px;max-height:120px;overflow-y:auto;color:inherit;font:inherit;line-height:1.5;outline:0;box-shadow:none}
+    .u2-in textarea:focus-visible{outline:0}`;
+    document.head.appendChild(css);
+    const vv = window.visualViewport, r = document.documentElement;
+    const fit = () => {
+      const h = vv ? vv.height : window.innerHeight, t = vv ? vv.offsetTop : 0;
+      r.style.setProperty('--vh', Math.round(h) + 'px'); r.style.setProperty('--vt', Math.max(0, Math.round(t)) + 'px');
+      const m = document.querySelector('.cs-m,.cs .u2-ms');
+      if (m && document.activeElement && document.activeElement.closest && document.activeElement.closest('.u2-in')) m.scrollTop = m.scrollHeight;
+    };
+    if (vv) { vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit); }
+    window.addEventListener('resize', fit); fit();
+    window.csSync = () => { r.classList.toggle('cs-on', !!document.querySelector('.cs')); fit(); };
+    window.csEnd = (force) => requestAnimationFrame(() => {
+      const m = document.querySelector('.cs-m,.cs .u2-ms'); if (!m) return;
+      if (force || m.scrollHeight - m.scrollTop - m.clientHeight < 160) m.scrollTop = m.scrollHeight;
+    });
+    // خانة الكتابة تكبر تلقائياً حتى 5 أسطر، وزر Enter في كيبورد الجوال يرسل
+    document.addEventListener('input', (e) => { const t = e.target; if (t && t.tagName === 'TEXTAREA' && t.closest && t.closest('.u2-in')) { t.style.height = '46px'; t.style.height = Math.min(120, t.scrollHeight) + 'px'; } }, true);
+    document.addEventListener('beforeinput', (e) => {
+      const t = e.target; if (!t || t.tagName !== 'TEXTAREA' || !t.closest || !t.closest('.u2-in') || e.inputType !== 'insertLineBreak') return;
+      e.preventDefault(); const b = t.closest('.u2-in').querySelector('.u2-snd'); if (b) b.click();
+    }, true);
+  })();
+
   /* ---- محادثة الدعم: المحادثة كاملة محفوظة على السيرفر لكل مستخدم، والتحميل تزايدي ---- */
   const SUPX = (window.SUPX = { msgs: [], last: 0, who: '' });
   const tmS = (t) => { try { return new Date(t).toLocaleTimeString('ar-u-nu-latn', { hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } };
@@ -37,12 +74,14 @@
     }).join('');
   };
   const HELLO = '<div class="bub me">مرحباً! كيف يمكنني مساعدتك اليوم؟</div>';
-  const toEndS = () => requestAnimationFrame(() => scrollTo({ top: document.body.scrollHeight }));
-  function paintSup(sc) { const c = document.querySelector('#ch'); if (!c) return; c.innerHTML = '<p class="mu" style="text-align:center;margin:4px 0">المحادثة محفوظة</p>' + HELLO + supHtml(); if (sc) toEndS(); }
+  const toEndS = (force) => window.csEnd(force);
+  function paintSup(sc, force) { const c = document.querySelector('#ch'); if (!c) return; const near = c.scrollHeight - c.scrollTop - c.clientHeight < 160; c.innerHTML = '<p class="mu" style="text-align:center;margin:4px 0">المحادثة محفوظة</p>' + HELLO + supHtml(); if (sc && (force || near)) toEndS(true); }
 
-  V.chat = () => `<div class="u2-hdn fx"><button class="ib" data-r="support" aria-label="رجوع">${ic('back')}</button><div class="ci" style="width:46px;height:46px">${ic('head', 22)}</div><div class="sp"><b>الدعم الفني</b><small class="u2-on">فريق خدمة العملاء</small></div></div><div class="dm-st"></div>
-<div id="ch" style="min-height:calc(100vh - 230px);display:flex;flex-direction:column;justify-content:flex-end"><p class="mu" style="text-align:center;margin:4px 0">المحادثة محفوظة</p>${HELLO}${supHtml()}</div>
-<div class="u2-in fx"><button class="ib" id="cimg" aria-label="إرفاق صورة" style="width:46px;height:46px;flex:none">${ic('img')}</button><input id="cm" maxlength="2000" autocomplete="off" placeholder="اكتب رسالتك هنا..."><button class="u2-snd" data-a="send" aria-label="إرسال">${ic('send')}</button></div>`;
+  const NOFILL = 'autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false" enterkeyhint="send" inputmode="text" data-lpignore="true" data-1p-ignore="true" data-form-type="other" aria-autocomplete="none"';
+  window.CHAT_NOFILL = NOFILL;
+  V.chat = () => `<div class="cs"><div class="u2-hdn"><button class="ib" data-r="support" aria-label="رجوع">${ic('back')}</button><div class="ci" style="width:46px;height:46px">${ic('head', 22)}</div><div class="sp"><b>الدعم الفني</b><small class="u2-on">فريق خدمة العملاء</small></div></div>
+<div id="ch" class="cs-m"><p class="mu" style="text-align:center;margin:4px 0">المحادثة محفوظة</p>${HELLO}${supHtml()}</div>
+<div class="u2-in"><button class="ib" id="cimg" aria-label="إرفاق صورة" style="width:46px;height:46px;flex:none">${ic('img')}</button><textarea id="cm" rows="1" maxlength="2000" name="support-note-${Date.now() % 99999}" ${NOFILL} placeholder="اكتب رسالتك هنا..."></textarea><button class="u2-snd" data-a="send" aria-label="إرسال">${ic('send')}</button></div></div>`;
 
   let busy = false;
   async function supLoad(force) {
@@ -66,9 +105,9 @@
     const x = document.querySelector('#cm'), id = me();
     if (!x || !id) return say('سجّل الدخول أولاً');
     const body = x.value.trim(); if (!body && !pend) return;
-    const img = pend; x.value = ''; pend = null; resetImgBtn();
+    const img = pend; x.value = ''; x.style.height = '46px'; pend = null; resetImgBtn();
     const tmp = { id: -Date.now(), from_admin: false, body, img, created_at: new Date().toISOString(), pending: 1 };
-    SUPX.msgs.push(tmp); paintSup(true); x.focus();
+    SUPX.msgs.push(tmp); paintSup(true, true); x.focus();
     try { await J('/api/u/support/send', { ...id, body, img }); await supLoad(true); }
     catch (e) { SUPX.msgs = SUPX.msgs.filter((m) => m !== tmp); paintSup(); x.value = body; pend = img; say(e.message); }
   };
@@ -126,5 +165,5 @@
   setInterval(() => faqLoad().catch(() => {}), 15000);
   setTimeout(() => { tick(); faqLoad().catch(() => {}); }, 2500);
   const _dr = window.draw; let lr = '';
-  window.draw = function () { const r = _dr.apply(this, arguments); if (S.r === 'chat' && lr !== 'chat') { toEndS(); supLoad(true).catch(() => {}); } lr = S.r; return r; };
+  window.draw = function () { const r = _dr.apply(this, arguments); try { window.csSync(); } catch (e) {} if (S.r === 'chat' && lr !== 'chat') { toEndS(true); supLoad(true).catch(() => {}); } lr = S.r; return r; };
 })();

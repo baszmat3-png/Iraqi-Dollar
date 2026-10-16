@@ -8,7 +8,7 @@
   #scbn{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));left:50%;transform:translate(-50%,-140%);width:min(480px,94vw);z-index:100000;
     background:linear-gradient(135deg,hsl(calc(var(--h) + 8) 58% 24%),hsl(calc(var(--h) + 8) 55% 16%));border:1.5px solid var(--cy);border-radius:18px;padding:12px 16px;
     color:#fff;box-shadow:0 10px 34px #000b;transition:transform .35s cubic-bezier(.2,.9,.3,1.2);cursor:pointer;direction:rtl}
-  #scbn.on{transform:translate(-50%,0)}#scbn b{display:block;color:var(--cy);margin-bottom:2px}#scbn span{font-size:.92rem;opacity:.95}
+  #scbn[popover]{right:auto;bottom:auto;height:auto;margin:0;overflow:visible}#scbn.on{transform:translate(-50%,0)}#scbn b{display:block;color:var(--cy);margin-bottom:2px}#scbn span{font-size:.92rem;opacity:.95}
   .sc-st{display:flex;gap:6px;align-items:center;margin-top:2px}
   .sc-nm{font-weight:700;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .sc-bar{display:flex;align-items:center;gap:8px;justify-content:space-between;background:#2c2a18;border:1.5px solid #6f6228;color:#f1c40f;border-radius:14px;padding:8px 12px;margin:8px 0;font-size:.88rem}
@@ -126,9 +126,10 @@
   let bnT = 0;
   function banner(title, body, tap) {
     let b = document.querySelector('#scbn');
-    if (!b) { b = document.createElement('div'); b.id = 'scbn'; document.body.append(b); }
+    if (!b) { b = document.createElement('div'); b.id = 'scbn'; b.setAttribute('popover', 'manual'); document.body.append(b); }
     b.innerHTML = `<b>${esc(title)}</b><span>${esc(body)}</span>`;
     b.onclick = () => { b.classList.remove('on'); try { tap && tap(); } catch (e) {} };
+    try { if (b.showPopover) { if (b.matches(':popover-open')) b.hidePopover(); b.showPopover(); } } catch (e) {}
     requestAnimationFrame(() => b.classList.add('on'));
     clearTimeout(bnT); bnT = setTimeout(() => b.classList.remove('on'), 5500);
     try { navigator.vibrate && navigator.vibrate(60); } catch (e) {}
@@ -137,17 +138,26 @@
     if (!notes || !notes.length) return false;
     let fresh = false;
     notes.forEach((n) => {
+      // الرسائل لا تدخل لوحة الإشعارات ولا تظهر منبثقة؛ يظهر فقط العداد على أيقونة المستخدمين وصندوق الرسائل
+      if (n.kind === 'dm') { fresh = true; return; }
       try { typeof unAddE === 'function' && S.acc && unAddE(S.acc.e, n.title, n.body); } catch (e) {}
-      if (n.kind === 'dm') {
-        if (S.r === 'users' && SO.uv === 'dm') return; // المحادثة مفتوحة، لا حاجة للمنبثق
-        banner(n.title, n.body, () => { SO.uv = 'inbox'; go('users'); });
-      } else if (n.kind === 'friend_ok') { banner('تمت الموافقة ✅', n.body, () => { SO.uv = 'list'; go('users'); }); say('تمت الموافقة ✅'); }
+      if (n.kind === 'friend_ok') { banner('تمت الموافقة ✅', n.body, () => { SO.uv = 'list'; go('users'); }); say('تمت الموافقة ✅'); }
       else if (n.kind === 'friend_req') banner(n.title, n.body, () => { SO.uv = 'list'; go('users'); });
       else say(n.title);
       fresh = true;
     });
     return fresh;
   }
+
+  /* عداد الرسائل غير المقروءة فوق أيقونة «المستخدمون» في الشريط السفلي */
+  window.msgBadgeHTML = () => { const n = SO.unread || 0; return n ? `<b class="cnt" id="nvb">${n > 9 ? '9+' : n}</b>` : ''; };
+  window.paintMsgBadge = () => {
+    const sp = document.querySelector('nav button[data-r="users"] span'); if (!sp) return;
+    const old = sp.querySelector('.cnt'), n = SO.unread || 0;
+    if (!n) { old && old.remove(); return; }
+    const t = n > 9 ? '9+' : String(n);
+    if (old) { if (old.textContent !== t) old.textContent = t; } else sp.insertAdjacentHTML('beforeend', window.msgBadgeHTML());
+  };
 
   /* ---------- التحميل الدوري ---------- */
   let busy = false;
@@ -159,6 +169,7 @@
       const j = await post('/api/soc/state', { ...me, mode, peer: dm ? SO.up : undefined, after: dm ? SO.last : undefined });
       const fresh = handleNotes(j.notes);
       const prevUnread = SO.unread; SO.unread = j.unread || 0;
+      try { window.paintMsgBadge && window.paintMsgBadge(); } catch (e) {}
       if (mode === 'light') { if (prevUnread !== SO.unread && S.r === 'users') render(true); return; }
       SO.people = j.people || []; SO.friends = j.friends || []; SO.incoming = j.incoming || []; SO.sent = j.sent || []; SO.convos = j.convos || []; SO.loaded = true;
       let newMsgs = false;
@@ -227,12 +238,12 @@
   };
   const dmV = () => {
     const p = find(SO.up) || SO.peer || { uid: SO.up, name: '...', on: false, av: 0, rel: 'none' };
-    return `<div class="u2-hdn fx"><button class="ib" data-a="scback" aria-label="رجوع">${ic('back')}</button>${avatar(p, 44)}<div class="sp"><b>${esc(p.name)}</b><small class="${p.on ? 'u2-on' : 'mu'}">${seen(p)}</small></div><button class="ib s r" data-a="screp" data-v="${esc(p.uid)}" aria-label="إبلاغ">${ic('warn')}</button></div><div class="dm-st"></div>` +
+    return `<div class="cs"><div class="u2-hdn"><button class="ib" data-a="scback" aria-label="رجوع">${ic('back')}</button>${avatar(p, 44)}<div class="sp"><b>${esc(p.name)}</b><small class="${p.on ? 'u2-on' : 'mu'}">${seen(p)}</small></div><button class="ib s r" data-a="screp" data-v="${esc(p.uid)}" aria-label="إبلاغ">${ic('warn')}</button></div>` +
       (p.rel === 'none' ? `<div class="sc-bar"><span>لستما أصدقاء بعد، لكن يمكنك مراسلته.</span><button data-a="scadd" data-v="${esc(p.uid)}">إضافة صديق</button></div>` : p.rel === 'sent' ? `<div class="sc-bar"><span>تم إرسال طلب الصداقة وبانتظار القبول</span></div>` : p.rel === 'recv' ? `<div class="sc-bar"><span>أرسل لك طلب صداقة</span><button data-a="scacc" data-v="${esc(p.uid)}">قبول</button></div>` : '') +
-      `<div class="u2"><div class="u2-ms" id="scm">${bubbles()}</div></div><div class="u2-in fx"><button class="u2-gf" data-a="scgift" aria-label="إرسال هدية">🎁</button><input id="sci" maxlength="500" autocomplete="off" placeholder="اكتب رسالتك..." value="${esc(SO.dr)}"><button class="u2-snd" data-a="scsend" aria-label="إرسال">${ic('send')}</button></div>`;
+      `<div class="u2-ms cs-m" id="scm">${bubbles()}</div><div class="u2-in"><button class="u2-gf" data-a="scgift" aria-label="إرسال هدية">🎁</button><textarea id="sci" rows="1" maxlength="500" name="dm-note-${Date.now() % 99999}" ${window.CHAT_NOFILL || 'autocomplete="off"'} placeholder="اكتب رسالتك...">${esc(SO.dr)}</textarea><button class="u2-snd" data-a="scsend" aria-label="إرسال">${ic('send')}</button></div></div>`;
   };
-  const toEnd = () => requestAnimationFrame(() => scrollTo({ top: document.body.scrollHeight }));
-  function paintDm(sc) { const c = document.querySelector('#scm'); if (c) c.innerHTML = bubbles(); if (sc) toEnd(); }
+  const toEnd = (force) => { try { window.csEnd(force !== false); } catch (e) {} };
+  function paintDm(sc) { const c = document.querySelector('#scm'); if (!c) return; const near = c.scrollHeight - c.scrollTop - c.clientHeight < 160; c.innerHTML = bubbles(); if (sc) toEnd(near); }
 
   V.users = () => {
     if (!S.acc) return V.welcome();
@@ -260,11 +271,11 @@
       case 'scsend': {
         const x = document.querySelector('#sci'); if (!x) return; const t = x.value.trim().slice(0, 500); if (!t) return;
         if (demoBlock()) return;
-        x.value = ''; SO.dr = '';
-        const tmp = { id: -Date.now(), mine: true, x: t, t: Date.now() }; SO.msgs.push(tmp); paintDm(true); x.focus();
+        x.value = ''; x.style.height = '46px'; SO.dr = '';
+        const tmp = { id: -Date.now(), mine: true, x: t, t: Date.now() }; SO.msgs.push(tmp); paintDm(true); toEnd(true); x.focus();
         try {
           const j = await post('/api/soc/dm/send', { ...me, to: SO.up, body: t });
-          SO.msgs = SO.msgs.filter((m) => m.id !== tmp.id); if (!SO.msgs.some((m) => m.id === j.msg.id)) SO.msgs.push(j.msg); SO.msgs.sort((p, q) => p.id - q.id); paintDm(true);
+          SO.msgs = SO.msgs.filter((m) => m.id !== tmp.id); if (!SO.msgs.some((m) => m.id === j.msg.id)) SO.msgs.push(j.msg); SO.msgs.sort((p, q) => p.id - q.id); paintDm(true); toEnd(true);
         } catch (e) { SO.msgs = SO.msgs.filter((m) => m.id !== tmp.id); paintDm(); x.value = t; say(e.message); }
         return;
       }

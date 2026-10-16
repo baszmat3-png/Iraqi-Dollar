@@ -8,9 +8,9 @@
   let es = null, delay = 1000, curEmail = null, timer = 0;
   const myEmail = () => { try { return (S.acc && S.acc.e ? String(S.acc.e) : '').toLowerCase(); } catch (e) { return ''; } };
 
-  async function poll(force) { // سحب الأوامر الأحدث من آخر رقم مطبَّق (بالترتيب وبدون فجوات)
+  async function poll() { // سحب الأوامر الأحدث من آخر رقم مطبَّق (بالترتيب وبدون فجوات)
     try {
-      if (document.hidden && !force) return;
+      if (document.hidden) return;
       const r = await fetch('/api/sync?since=' + (+LS(SYNK, 0) || 0) + '&nocfg=1', { cache: 'no-store' });
       if (!r.ok) return;
       const j = await r.json();
@@ -22,9 +22,8 @@
     try {
       const last = +LS(SYNK, 0) || 0;
       if (!c || !c.id || c.id <= last) return;
-      if (c.id === last + 1 && c.skip) { LSset(SYNK, c.id); return; } // أمر لحساب آخر: تقدّم الترقيم فقط
       if (c.id === last + 1 && c.body) applyCmds([c]); // التالي مباشرة: طبّقه فوراً
-      else poll(true);                                   // فجوة: اسحب المفقود بالترتيب
+      else poll();                                       // فجوة: اسحب المفقود بالترتيب
     } catch (e) { console.warn('instant cmd:', e); }
   }
 
@@ -42,7 +41,6 @@
 
   // أعد الاتصال عند تغيّر الحساب (لتصفية الأوامر الموجهة) أو عند العودة للتطبيق
   setInterval(() => { if (myEmail() !== curEmail) connect(); }, 5000);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) return; if (!es) connect(); poll(); }); // عند العودة للتطبيق: اسحب فوراً ما فاته
-  window.addEventListener('online', () => { if (!es) connect(); poll(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && !es) connect(); });
   setTimeout(connect, 800);
 })();
