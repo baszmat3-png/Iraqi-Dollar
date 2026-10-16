@@ -106,8 +106,8 @@ module.exports = function mountGame(app, opts) {
     if (!EMAIL.test(e)) { res.status(400).json({ error: 'حساب غير صالح' }); return null; }
     if (dk.length < 16 || dk.length > 80) { res.status(400).json({ error: 'جهاز غير معروف' }); return null; }
     const p = P(e, b.n), h = sha(dk);
-    if (!p.dkh) { p.dkh = h; save(); }
-    else if (p.dkh !== h) { res.status(403).json({ error: 'هذا الحساب مرتبط بجهاز آخر. تواصل مع الإدارة.' }); return null; }
+    // السماح باللعب من أي جهاز: لا يوجد ربط بجهاز واحد (يُحدَّث آخر جهاز فقط)
+    if (p.dkh !== h) { p.dkh = h; save(); }
     p.last = now();
     return { e, p, b };
   }
