@@ -106,6 +106,7 @@
         return dlg(`<h2 style="text-align:center;margin-top:0;color:#3ddc68">تم إنشاء حسابك بنجاح ✓</h2><p class="mu" style="text-align:center">مرحباً ${esc(a.n)}، تم إنشاء حسابك عبر Google ويمكنك الدخول لاحقاً بنفس الطريقة.${saved ? '' : '<br><span style="color:#f4c20d">تنبيه: المتصفح الحالي يمنع الحفظ الدائم، فالحساب يعمل حتى إغلاق الصفحة فقط.</span>'}</p><button class="btn" onclick="d.close()">متابعة</button>`);
       }
       enter();
-    } finally { setBusy(false); }
+    } catch (e) { console.error('google login', e); fail('حدث خطأ أثناء الدخول: ' + (e && e.message ? e.message : e)); }
+    finally { setBusy(false); }
   }
 })();
