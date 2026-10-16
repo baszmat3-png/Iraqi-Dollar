@@ -1089,9 +1089,14 @@ async function syncRefFin(a, email, RC, out) {
     if (!u) continue;
     const c = amt > 0 ? finCls(ev.l, ev.d === 'in' ? 'in' : 'out') : null;
     if (c && !EXCL.has(email)) {
+      let cat = c[1];
+      if (cat === 'agency') { // وكالة مجانية: لا تُحسب ربحاً
+        const fr = await pool.query('SELECT 1 FROM agency_free WHERE LOWER(email)=LOWER($1)', [email]).catch(() => ({ rows: [] }));
+        if (fr.rows[0]) cat = 'agency_free';
+      }
       await pool.query(
         `INSERT INTO fin_ev(uid,email,kind,cat,pts,iqd,note,src) VALUES($1,$2,$3,$4,$5,$6,$7,'auto') ON CONFLICT DO NOTHING`,
-        ['u:' + email + ':' + u, email, c[0], c[1], amt, Math.round(amt * RC.pr * 100) / 100, String(ev.l || '').slice(0, 80)]);
+        ['u:' + email + ':' + u, email, c[0], cat, amt, Math.round(amt * RC.pr * 100) / 100, String(ev.l || '').slice(0, 80)]);
     }
     fea.push(u);
   }
@@ -1345,7 +1350,7 @@ app.get('/api/ctl/fin', ...ctl, wrap(async (_req, res) => {
   const rows = (await pool.query(
     `SELECT to_char(ts AT TIME ZONE 'Asia/Baghdad','YYYY-MM') AS m, kind, cat,
             SUM(iqd)::float8 AS iqd, SUM(pts)::float8 AS pts, COUNT(*)::int AS n
-       FROM fin_ev WHERE ts > NOW() - INTERVAL '25 months' AND NOT (LOWER(COALESCE(email,''))=ANY($1::text[])) GROUP BY 1,2,3 ORDER BY 1 DESC`, [EXCL.list()])).rows;
+       FROM fin_ev WHERE ts > NOW() - INTERVAL '25 months' AND cat<>'agency_free' AND NOT (LOWER(COALESCE(email,''))=ANY($1::text[])) GROUP BY 1,2,3 ORDER BY 1 DESC`, [EXCL.list()])).rows;
   if (GAME) {
     const RC = await refCfg(), gr = Number(GAME.cfg().gemRate) || 100, agg = {};
     const add = (m, kind, cat, p) => {

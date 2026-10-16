@@ -51,7 +51,7 @@ module.exports = function (app, express) {
     KINDS.forEach(k => Object.values(DB[k]).forEach(r => {
       if (owner(k, r) !== e) return;
       o.idx[k][r.id] = +r.paid || 0;
-      if (r._mt > since) { const m = { id: r.id, _mt: r._mt, st: r.st, why: r.why }; if (k === 'rq') { m.s = r.s; m.rf = r.rf; } if (k === 'ords') { m.h = r.h; m.rej = r.rej; m.paid = r.paid; } o.recs[k].push(m); }
+      if (r._mt > since) { const m = { id: r.id, _mt: r._mt, st: r.st, why: r.why }; if (k === 'rq') { m.s = r.s; m.rf = r.rf; } if (k === 'ords') { m.h = r.h; m.rej = r.rej; m.paid = r.paid; } if (r.del) m.del = 1; o.recs[k].push(m); }
     }));
     res.set('Cache-Control', 'no-store'); res.json(o);
   });
@@ -75,9 +75,25 @@ module.exports = function (app, express) {
     const mt = {};
     (Array.isArray(b.recs) ? b.recs : []).slice(0, 100).forEach(r => {
       if (!r || !okId(r.id) || !rqOk(k, r)) return;
-      const id = String(r.id), ex = DB[k][id] || {}, rec = Object.assign({}, ex, r);
+      const id = String(r.id), ex = DB[k][id] || {};
+      if (ex.del && !r.del) return; // طلب محذوف: لا يُعاد إحياؤه من نسخة قديمة
+      const rec = Object.assign({}, ex, r);
       if (k === 'ords') rec.paid = Math.max(+ex.paid || 0, +r.paid || 0) || rec.paid;
       mt[id] = touch(k, id, rec);
+    });
+    save(); res.json({ ok: 1, mt, seq: DB.seq });
+  });
+  /* لوحة التحكم: حذف طلبات المتجر نهائياً (يبقى أثر «محذوف» لمنع عودتها من أجهزة المستخدمين) */
+  app.post('/api/ctl/inbox/delete', parse, (req, res) => {
+    if (!admin(req, res)) return;
+    const b = req.body || {};
+    if (b.kind !== 'ords') return res.status(400).json({ error: 'kind' });
+    const mt = {};
+    (Array.isArray(b.ids) ? b.ids : []).slice(0, 500).forEach(x => {
+      const id = String(x);
+      if (!okId(id)) return;
+      const ex = DB.ords[id] || {};
+      mt[id] = touch('ords', id, { id, u: ex.u || '', paid: +ex.paid || 0, del: 1 });
     });
     save(); res.json({ ok: 1, mt, seq: DB.seq });
   });

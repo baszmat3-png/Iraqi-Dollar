@@ -1,7 +1,7 @@
 /* المرحلة 1ج — المالية: الأرباح + الالتزامات + سجل العمليات + أسعار الشراء والبيع */
 const CATS = {
   counters: 'شراء عدادات', agency: 'رسوم وكالة', trade: 'رسوم تجارة', orders: 'دفعات طلبات المتجر', store: 'بطاقات وألعاب',
-  yields: 'عوائد العدادات للمستخدمين', ref: 'عمولات إحالة', game_comm: 'عمولة الألعاب', wheel_in: 'دخل العجلة', wheel_prizes: 'جوائز العجلة', debt: 'تسديد استدانة', agent_pts: 'بيع نقاط للوكلاء',
+  yields: 'عوائد العدادات للمستخدمين', ref: 'عمولات إحالة', game_comm: 'عمولة الألعاب', wheel_in: 'دخل العجلة', wheel_prizes: 'جوائز العجلة', debt: 'تسديد استدانة', agent_pts: 'بيع نقاط للوكلاء', agency_free: 'رسوم وكالة (مجانية — غير محسوبة)',
 };
 const EXCL = require('./excl-ext');
 const num = (v, d = 0) => { v = Number(v); return Number.isFinite(v) ? v : d; };
@@ -13,6 +13,26 @@ exports.routes = (app, { pool, wrap, ctl, SYNC, GAME }) => {
 
   q(`CREATE TABLE IF NOT EXISTS fin_costs(name TEXT PRIMARY KEY, kind TEXT NOT NULL DEFAULT 'product', buy NUMERIC(16,2) NOT NULL DEFAULT 0, sell NUMERIC(16,2) NOT NULL DEFAULT 0)`)
     .catch((e) => console.error('fin-ext migrate', e));
+
+  q(`CREATE TABLE IF NOT EXISTS agency_free(email TEXT PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`)
+    .catch((e) => console.error('agency_free migrate', e));
+  // الوكالات المجانية: رسومها لا تدخل في الأرباح (تُنقل حركاتها إلى الفئة agency_free ويمكن إرجاعها)
+  app.get('/api/ctl/fin2/agency-free', ...ctl, wrap(async (_req, res) => {
+    res.json({ ok: true, emails: (await q(`SELECT LOWER(email) e FROM agency_free`)).rows.map((r) => r.e) });
+  }));
+  app.post('/api/ctl/fin2/agency-free', ...ctl, wrap(async (req, res) => {
+    const emails = [...new Set((Array.isArray(req.body.emails) ? req.body.emails : []).map((e) => txt(e, 200).toLowerCase()).filter(Boolean))].slice(0, 2000);
+    if (!emails.length) fail(400, 'لا توجد حسابات');
+    const free = req.body.free !== false;
+    if (free) {
+      await q(`INSERT INTO agency_free(email) SELECT UNNEST($1::text[]) ON CONFLICT DO NOTHING`, [emails]);
+      await q(`UPDATE fin_ev SET cat='agency_free' WHERE cat='agency' AND LOWER(COALESCE(email,''))=ANY($1::text[])`, [emails]);
+    } else {
+      await q(`DELETE FROM agency_free WHERE LOWER(email)=ANY($1::text[])`, [emails]);
+      await q(`UPDATE fin_ev SET cat='agency' WHERE cat='agency_free' AND LOWER(COALESCE(email,''))=ANY($1::text[])`, [emails]);
+    }
+    res.json({ ok: true, n: emails.length, free });
+  }));
 
   const DEF = { reset_ts: 0, resets: [], app_email: '', hide_app: false, months: 10, debt_pct: 5, open_bal: 0, open_src: '' };
   async function settings() {
@@ -30,7 +50,7 @@ exports.routes = (app, { pool, wrap, ctl, SYNC, GAME }) => {
     const S = await settings(), pr = await ptRate(), since = new Date(S.reset_ts || 0);
     const app = S.hide_app && S.app_email ? S.app_email.toLowerCase() : '', EX = EXCL.list(), EXS = EXCL.set();
     const ev = (await q(
-      `SELECT kind,cat,src,SUM(iqd)::float8 iqd,COALESCE(SUM(iqd) FILTER (WHERE ts>=date_trunc('month',NOW())),0)::float8 mon,COUNT(*)::int n FROM fin_ev WHERE ts>=$1 AND ($2='' OR LOWER(COALESCE(email,''))<>$2) AND NOT (LOWER(COALESCE(email,''))=ANY($3::text[])) GROUP BY 1,2,3`, [since, app, EX])).rows;
+      `SELECT kind,cat,src,SUM(iqd)::float8 iqd,COALESCE(SUM(iqd) FILTER (WHERE ts>=date_trunc('month',NOW())),0)::float8 mon,COUNT(*)::int n FROM fin_ev WHERE ts>=$1 AND cat<>'agency_free' AND ($2='' OR LOWER(COALESCE(email,''))<>$2) AND NOT (LOWER(COALESCE(email,''))=ANY($3::text[])) GROUP BY 1,2,3`, [since, app, EX])).rows;
     const sum = (kind, cat) => ev.filter((r) => r.kind === kind && r.cat === cat && r.src !== 'manual').reduce((t, r) => t + r.iqd, 0);
     const cost = {}; (await q(`SELECT name,kind,buy::float8 buy,sell::float8 sell FROM fin_costs`)).rows.forEach((c) => (cost[c.name] = c));
 
@@ -138,7 +158,7 @@ exports.routes = (app, { pool, wrap, ctl, SYNC, GAME }) => {
     const lim = Math.min(500, Math.max(10, Math.floor(num(req.query.limit, 200)))), off = Math.max(0, Math.floor(num(req.query.offset, 0)));
     const w = `($1='' OR kind=$1) AND ($2='' OR cat=$2) AND ($3='' OR COALESCE(email,'') ILIKE '%'||$3||'%' OR COALESCE(note,'') ILIKE '%'||$3||'%')`;
     const rows = (await q(`SELECT uid,ts,email,kind,cat,pts::float8 pts,iqd::float8 iqd,note,src FROM fin_ev WHERE ${w} ORDER BY ts DESC LIMIT $4 OFFSET $5`, [kind, cat, s, lim, off])).rows;
-    const t = (await q(`SELECT kind,SUM(iqd)::float8 iqd,COUNT(*)::int n FROM fin_ev WHERE ${w} AND NOT (LOWER(COALESCE(email,''))=ANY($4::text[])) GROUP BY kind`, [kind, cat, s, EXCL.list()])).rows;
+    const t = (await q(`SELECT kind,SUM(iqd)::float8 iqd,COUNT(*)::int n FROM fin_ev WHERE ${w} AND cat<>'agency_free' AND NOT (LOWER(COALESCE(email,''))=ANY($4::text[])) GROUP BY kind`, [kind, cat, s, EXCL.list()])).rows;
     const app = S.app_email.toLowerCase();
     res.json({
       rows: rows.map((r) => ({
