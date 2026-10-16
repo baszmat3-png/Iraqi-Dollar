@@ -30,6 +30,7 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     await q(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS ref_code TEXT NOT NULL DEFAULT ''`);
     await q(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS fee BIGINT NOT NULL DEFAULT 0`);
     await q(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS reject_note TEXT NOT NULL DEFAULT ''`);
+    await q(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS img_at TIMESTAMPTZ`); // وقت آخر تغيير لصورة المتجر (مستقلة عن الصورة الشخصية)
     await q(`CREATE TABLE IF NOT EXISTS merchant_tx(
       id BIGSERIAL PRIMARY KEY, merchant_id INT NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
       payer TEXT NOT NULL, payer_name TEXT, pts BIGINT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
@@ -70,11 +71,11 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     if (!r.rows[0]) fail(401, 'غير مسجّل الدخول');
     return { email: String(r.rows[0].email).toLowerCase(), name: r.rows[0].name || e.split('@')[0] };
   }
-  const cols = `id, owner, name, province, area, ref_code, fee, reject_note, discount, daily_cap, status, details, address, landmark, services, phone, received, updated_at, created_at, (image IS NOT NULL AND image<>'') AS has_img`;
+  const cols = `id, owner, name, province, area, ref_code, fee, reject_note, discount, daily_cap, status, details, address, landmark, services, phone, received, updated_at, created_at, (image IS NOT NULL AND image<>'') AS has_img, (EXTRACT(EPOCH FROM COALESCE(img_at, updated_at))*1000)::bigint AS img_v`;
   const pub = (m) => ({
     id: m.id, name: m.name, province: m.province, area: m.area || '', discount: m.discount, details: m.details, address: m.address,
     landmark: m.landmark, services: m.services, phone: m.phone, cap: Number(m.daily_cap) || 0, owner: String(m.owner).toLowerCase(),
-    img: m.has_img ? `/api/m/img/${m.id}?v=${new Date(m.updated_at).getTime()}` : '',
+    img: m.has_img ? `/api/m/img/${m.id}?v=${Number(m.img_v) || 0}` : '',
   });
   const today = async (id) => Number((await q(`SELECT COALESCE(SUM(pts),0) s FROM merchant_tx WHERE merchant_id=$1 AND created_at >= ${DAY_START}`, [id])).rows[0].s);
   const sendImg = (res, d, pubCache) => {
@@ -213,8 +214,9 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     const ex = (await q(`SELECT id FROM merchants WHERE LOWER(owner)=$1 AND status IN ('pending','active')`, [u.email])).rows[0];
     if (ex) return res.json({ ok: true, dup: true });
     // الرسوم تُستقطع مقدماً من رصيد المستخدم على جهازه (تُسجَّل في المالية ضمن «رسوم تجارة» تلقائياً)
-    await q(`INSERT INTO merchants(owner,name,province,area,landmark,phone,ref_code,fee,discount) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [u.email, name, province, area, landmark, phone, txt(b.ref_code, 20), Math.floor(num(b.fee, 1e10)), Math.min(100, Math.round(num(b.discount, 100)) || 10)]);
+    const shopImg = isImg(b.image) ? b.image : null; // صورة المتجر اختيارية عند التقديم
+    await q(`INSERT INTO merchants(owner,name,province,area,landmark,phone,ref_code,fee,discount,image,img_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::text,CASE WHEN $10::text IS NULL THEN NULL ELSE NOW() END)`,
+      [u.email, name, province, area, landmark, phone, txt(b.ref_code, 20), Math.floor(num(b.fee, 1e10)), Math.min(100, Math.round(num(b.discount, 100)) || 10), shopImg]);
     res.json({ ok: true });
   }));
 
@@ -227,6 +229,21 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     if (!Number.isFinite(dc) || dc < 0 || dc > 100) fail(400, 'نسبة الخصم بين 0 و100');
     await q(`UPDATE merchants SET discount=$2,details=$3,services=COALESCE($4,services),updated_at=NOW() WHERE id=$1`,
       [m.id, Math.round(dc), txt(req.body.details, 600), req.body.services == null ? null : txt(req.body.services, 400)]);
+    res.json({ ok: true });
+  }));
+
+  /* صورة المتجر: مستقلة تماماً عن الصورة الشخصية، تُحفظ في قاعدة البيانات وتظهر لكل المستخدمين (image فارغة = حذف) */
+  app.post('/api/m/shop-img', wLim, wrap(async (req, res) => {
+    const u = await who(req.body);
+    const m = (await q(`SELECT id FROM merchants WHERE LOWER(owner)=$1 AND status IN ('pending','active','suspended') ORDER BY id DESC LIMIT 1`, [u.email])).rows[0];
+    if (!m) fail(403, 'لا تملك متجراً');
+    const img = req.body.image;
+    if (img === '' || img === null) {
+      await q(`UPDATE merchants SET image=NULL, img_at=NOW() WHERE id=$1`, [m.id]);
+      return res.json({ ok: true, removed: true });
+    }
+    if (!isImg(img)) fail(400, 'الصورة غير صالحة أو كبيرة');
+    await q(`UPDATE merchants SET image=$2, img_at=NOW() WHERE id=$1`, [m.id, img]);
     res.json({ ok: true });
   }));
 
@@ -374,6 +391,11 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     if (!owner || !name) fail(400, 'أدخل بريد صاحب المتجر واسم المتجر');
     await q(`INSERT INTO merchants(owner,name,province,discount,daily_cap,status) VALUES($1,$2,$3,$4,$5,'active')`,
       [owner, name, txt(b.province, 40), Math.min(100, Math.floor(num(b.discount, 100))), Math.floor(num(b.daily_cap))]);
+    res.json({ ok: true });
+  }));
+  // إزالة صورة متجر مخالفة من لوحة التحكم
+  app.post('/api/ctl/merchants/img-del', ...ctl, wrap(async (req, res) => {
+    await q(`UPDATE merchants SET image=NULL, img_at=NOW() WHERE id=$1`, [parseInt(req.body.id, 10) || 0]);
     res.json({ ok: true });
   }));
   app.post('/api/ctl/merchants/del', ...ctl, wrap(async (req, res) => {
