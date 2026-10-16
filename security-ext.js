@@ -92,7 +92,7 @@ exports.routes = (app, { pool, wrap, sendWhatsApp, normPhone }) => {
   app.post('/api/sec/login', loginLim, wrap(async (req, res) => {
     const acc = await account(req.body), email = acc.email.toLowerCase(), did = devId(req.body);
     const ts = await trustState(email, did);
-    const reason = acc.tfa ? 'tfa' : (ts.any && !ts.ok ? 'new_device' : '');
+    const reason = acc.tfa ? 'tfa' : ''; // الدخول المباشر: لا رمز واتساب إلا إذا فعّل المستخدم المصادقة الثنائية بنفسه
     if (reason) {
       if (!req.body.otp) {
         await sendOtp(acc, 'login', reason === 'tfa' ? 'رمز المصادقة الثنائية لتسجيل الدخول' : 'رمز التحقق لتسجيل الدخول من جهاز جديد');
@@ -117,9 +117,7 @@ exports.routes = (app, { pool, wrap, sendWhatsApp, normPhone }) => {
       if (s) { await q(`UPDATE sec_sessions SET last_seen=NOW() WHERE id=$1`, [sid]); return res.json({ ok: true, sid, tfa: !!acc.tfa }); }
     }
     // جلسة مستعادة (قبل التحديث) أو حساب جديد: لا نخرجه إلا إذا كان الجهاز غير موثوق وللحساب أجهزة أخرى
-    const ts = await trustState(email, did);
-    if (ts.any && !ts.ok) return res.json({ ok: true, revoked: true });
-    await trust(email, did);
+    await trust(email, did); // أي جهاز دخل بالبريد وكلمة المرور الصحيحين يُعتمد مباشرة
     res.json({ ok: true, sid: await openSession(req, acc, did), tfa: !!acc.tfa });
   }));
 

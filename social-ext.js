@@ -210,6 +210,24 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     res.json({ ok: true });
   }));
 
+  /* ---------------- صور الوكلاء المعتمدين (من صور حساباتهم) ----------------
+     تُرجع فقط صور الحسابات الموجودة في قائمة الوكلاء المنشورة للمستخدمين */
+  app.get('/api/soc/agent-avatars', wrap(async (_req, res) => {
+    const c = (await q(`SELECT val FROM sync_kv WHERE key='config'`)).rows[0];
+    const ag = (c && c.val && Array.isArray(c.val.agents)) ? c.val.agents : [];
+    const emails = [...new Set(ag.filter((o) => Array.isArray(o) && o[8]).map((o) => String(o[8]).trim().toLowerCase()))].slice(0, 300);
+    const map = {};
+    if (emails.length) {
+      const r = (await q(
+        `SELECT LOWER(a.email) AS e, a.uid, (EXTRACT(EPOCH FROM v.updated_at)*1000)::bigint AS av
+           FROM sync_accounts a JOIN avatars v ON v.email=LOWER(a.email)
+          WHERE LOWER(a.email)=ANY($1) AND a.uid IS NOT NULL`, [emails])).rows;
+      r.forEach((x) => { map[x.e] = { uid: x.uid, av: Number(x.av) || 1 }; });
+    }
+    res.set('Cache-Control', 'no-store');
+    res.json({ ok: true, map });
+  }));
+
   /* ---------------- صورة المستخدم بالمعرّف العام ---------------- */
   app.get('/api/soc/avatar/:uid', wrap(async (req, res) => {
     const r = (await q(`SELECT v.img FROM avatars v JOIN sync_accounts a ON LOWER(a.email)=v.email WHERE a.uid=$1`, [txt(req.params.uid, 64)])).rows[0];
