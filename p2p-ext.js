@@ -50,6 +50,7 @@ module.exports = (app, express, deps) => {
 
   /* ---------------- المخطط ---------------- */
   const ddl = [
+    `ALTER TABLE sync_accounts ADD COLUMN IF NOT EXISTS cl_at TIMESTAMPTZ`,
     `CREATE TABLE IF NOT EXISTS p2p_settings(k TEXT PRIMARY KEY, v JSONB NOT NULL)`,
     `CREATE TABLE IF NOT EXISTS p2p_sellers(
        email TEXT PRIMARY KEY, status TEXT NOT NULL DEFAULT 'pending', level TEXT NOT NULL DEFAULT 'bronze',
@@ -139,6 +140,18 @@ module.exports = (app, express, deps) => {
       if (u2 && u2.uid) a.uid = u2.uid;
     }
     a.email = String(a.email).toLowerCase();
+    // مزامنة عدادات المستخدم (تُحفظ محلياً في التطبيق) إلى السيرفر ليتحقق منها نظام P2P
+    if (Array.isArray(b.cl)) {
+      const now = Date.now();
+      const cl = b.cl.slice(0, 30).map((x) => ({ i: Math.floor(Number(x && x.i)), e: Math.floor(Number(x && x.e)) }))
+        .filter((x) => x.i >= 0 && x.i <= 20 && x.e > now && x.e < now + 400 * 864e5);
+      if (cl.length && JSON.stringify(cl) !== JSON.stringify(Array.isArray(a.cl) ? a.cl : [])) {
+        await c.query(`UPDATE sync_accounts SET cl=$2::jsonb, cl_at=NOW() WHERE LOWER(email)=$1`, [a.email, JSON.stringify(cl)]);
+        a.cl = cl;
+      } else if (cl.length) {
+        await c.query(`UPDATE sync_accounts SET cl_at=NOW() WHERE LOWER(email)=$1`, [a.email]).catch(() => {});
+      }
+    }
     return a;
   }
   const hasCounter = (acc, idx) => {
@@ -235,6 +248,39 @@ module.exports = (app, express, deps) => {
     rows.forEach((r) => { m[r.email] = { uid: r.uid, name: r.name || r.email.split('@')[0], level: r.level, status: r.status, waive: r.waive, cl: r.cl, av: r.av ? Number(r.av) : 0, stats: pubStats(st[r.email]) }; });
     return m;
   }
+
+  /* مزامنة عدادات المستخدم إلى السيرفر (تُستدعى تلقائياً من التطبيق) */
+  app.post('/api/p2p/cl', express.json({ limit: '30kb' }), wrap(async (req, res) => {
+    const b = req.body || {};
+    throttle('cl:' + txt(b.e, 200).toLowerCase(), 40, 60000);
+    const cl = await pool.connect();
+    try { await getAcc(cl, b, false); res.json({ ok: true }); } finally { cl.release(); }
+  }));
+
+  /* لوحة التحكم: كل عدادات المستخدمين المحفوظة على السيرفر */
+  const CTN = ['بسيط', 'الاعتيادي', 'برونزي', 'الفضي', 'الذهبي', 'الماسي', 'الناري', 'عشرة آلاف', 'تيتانيوم'];
+  const CTD = [50, 100, 100, 500, 500, 1000, 5000, 10000, 100000];
+  app.get('/api/ctl/p2p/counters', ...ctl, wrap(async (req, res) => {
+    let rows;
+    try {
+      rows = (await q(`SELECT email,name,phone,uid,pts,cl,cl_at,COALESCE(ncl,0) ncl,last_seen FROM sync_accounts ORDER BY cl_at DESC NULLS LAST, last_seen DESC NULLS LAST LIMIT 5000`)).rows;
+    } catch (e) {
+      rows = (await q(`SELECT email,name,phone,uid,pts,cl,cl_at,0 ncl,last_seen FROM sync_accounts LIMIT 5000`)).rows;
+    }
+    const now = Date.now();
+    const byType = CTN.map((n, i) => ({ i, name: n, daily: CTD[i], count: 0, users: 0 }));
+    let totalActive = 0, usersWith = 0, unsynced = 0, dailyTotal = 0;
+    const users = rows.map((r) => {
+      const act = (Array.isArray(r.cl) ? r.cl : []).filter((x) => x && Number(x.e) > now)
+        .map((x) => ({ i: Number(x.i), name: CTN[Number(x.i)] || ('#' + x.i), daily: CTD[Number(x.i)] || 0, exp: Number(x.e), days: Math.ceil((Number(x.e) - now) / 864e5) }));
+      const seen = new Set();
+      act.forEach((x) => { if (byType[x.i]) { byType[x.i].count++; if (!seen.has(x.i)) { byType[x.i].users++; seen.add(x.i); } } });
+      totalActive += act.length; dailyTotal += act.reduce((t, x) => t + x.daily, 0);
+      const un = !act.length && Number(r.ncl) > 0; if (act.length) usersWith++; if (un) unsynced++;
+      return { email: r.email, name: r.name, phone: r.phone, uid: r.uid, pts: Number(r.pts) || 0, ncl: Number(r.ncl) || 0, counters: act, unsynced: un, syncedAt: r.cl_at ? new Date(r.cl_at).getTime() : 0 };
+    }).filter((u) => u.counters.length || u.unsynced);
+    res.json({ ok: true, now, totalActive, usersWith, unsynced, dailyTotal, byType, users });
+  }));
 
   app.post('/api/p2p/home', J, wrap(async (req, res) => {
     const b = req.body || {};
