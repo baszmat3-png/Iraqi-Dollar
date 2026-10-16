@@ -1440,6 +1440,7 @@ EXCL.routes(app, { pool, wrap, ctl, GAME }); // المرحلة 14: المستث�
 require('./instant-sync')(app, express, { pool, wrap, ctl, fail }); // بث فوري SSE + البحث بكود الإحالة
 require('./security-server')(app, express, { pool, wrap, ctl, fail }); // الحماية: بصمة الجهاز + VPN + تلاعب الوقت
 require('./gifts-ext')(app, express, { pool, wrap, ctl, fail });
+require('./google-auth-ext')(app, { pool, wrap, fail }); // الدخول وإنشاء الحساب عبر Google
 P2PX(app, express, { pool, wrap, ctl, fail }); // المرحلة 20: P2P
 STOREX(app, express, { pool, wrap, ctl, fail }); // المرحلة 12: مخزون أكواد البطاقات + الطلبات + التسليم التلقائي // الهدايا بين المستخدمين (تُشترى بالنقاط) + قسم الهدايا في لوحة التحكم
 
