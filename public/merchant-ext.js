@@ -195,6 +195,7 @@ ${own ? '<div class="card mu" style="margin-top:12px">هذا متجرك. حسا�
 <div style="margin-top:8px">السقف اليومي: <b>${cap > 0 ? nf(cap) + ' نقطة' : 'غير محدد'}</b>${left != null ? ` · المتبقي: <b>${nf(left)}</b>` : ''}</div>
 ${cap > 0 ? `<div style="height:8px;border-radius:99px;background:#0003;margin-top:6px;overflow:hidden"><div style="height:100%;width:${pc}%;background:var(--cy)"></div></div>` : ''}
 <div class="mu" style="font-size:.85rem;margin-top:6px">السقف يحدده مدير لوحة التحكم. المستخدمون يحوّلون إليك، ولا يمكنك التحويل من هذه اللوحة.</div></div>
+<div class="card"><h3 style="margin:0 0 6px">صورة المتجر</h3><div class="row" style="gap:12px;align-items:center"><div class="ci" style="width:84px;height:84px;flex:none;${m.img ? `background:url('${m.img}') center/cover` : ''}">${m.img ? '' : ic('store', 34)}</div><div class="sp"><label class="btn" for="mxsi" style="display:block;margin:0;text-align:center;cursor:pointer">${m.img ? 'تغيير الصورة' : 'رفع صورة'}</label><input id="mxsi" type="file" accept="image/*" hidden>${m.img ? '<button class="btn o" style="margin-top:6px" data-a="mxsirm">حذف الصورة</button>' : ''}</div></div><div class="mu" style="font-size:.8rem;margin-top:8px">صورة مستقلة عن صورتك الشخصية، تظهر لجميع المستخدمين في قائمة التجار وقائمة الدفع للتاجر.</div></div>
 <div class="card"><h3 style="margin:0 0 6px">بيانات المتجر</h3>${ro('المحافظة', m.province)}${ro('المنطقة', m.area)}${ro('أقرب نقطة دالة', m.landmark)}${ro('الهاتف', m.phone)}
 <div class="mu" style="font-size:.8rem;margin-top:8px">هذه البيانات تُغيَّر من لوحة التحكم فقط.</div></div>
 <div class="card"><h3 style="margin:0 0 6px">ما يمكنك تعديله</h3>
@@ -217,7 +218,9 @@ ${cap > 0 ? `<div style="height:8px;border-radius:99px;background:#0003;margin-t
   /* ---------- طلب الانضمام كتاجر (يُستقطع المبلغ مقدماً ويُرسل للوحة التحكم) ---------- */
   const mrFee = () => { try { return Math.max(0, Math.floor(+CFG.mrFee || 200000)); } catch (e) { return 200000; } };
   const hasCounter = () => { try { return S.ctr.slice(5).some((n) => n > 0); } catch (e) { return false; } };
+  let applyImg = '';
   function applyDlg() {
+    applyImg = '';
     if (!S.acc) return say('سجّل الدخول أولاً');
     if (MX.me && MX.me.status === 'active') { try { document.querySelector('#d').close(); } catch (e) {} return go('mxdash'); }
     const ok = hasCounter(), fee = mrFee(), enough = S.pts >= fee, code = code_();
@@ -234,6 +237,7 @@ ${fld('mxap', 'رقم الهاتف', 'أدخل رقم الهاتف', S.phone && 
 ${fld('mxaa', 'المنطقة', 'أدخل المنطقة')}
 ${fld('mxal', 'أقرب نقطة دالة', 'مثال: مقابل مدرسة، قرب جسر...')}
 ${fld('mxar', 'رمز الإحالة', '', code, 'readonly dir="ltr" style="opacity:.8"')}
+<div style="margin-top:8px"><span class="mu">صورة المتجر (اختيارية، تظهر للجميع في قائمة التجار)</span><div class="row" style="margin-top:6px;gap:12px"><div id="mxaip" class="ci" style="width:72px;height:72px;flex:none">${ic('store', 30)}</div><label class="btn o" for="mxai" style="margin:0;text-align:center;cursor:pointer">اختيار صورة</label><input id="mxai" type="file" accept="image/*" hidden></div></div>
 <button class="btn" style="margin-top:10px" data-a="mxapply" ${enough ? '' : 'disabled style="opacity:.5;margin-top:10px"'}>دفع ${nf(fee)} نقطة وإرسال الطلب</button>`
         : '<button class="btn" data-a="go" data-v="counter">شراء عداد الماسي</button>'}
 <button class="btn o" style="margin-top:8px" onclick="d.close()">إلغاء</button>`);
@@ -254,7 +258,7 @@ ${fld('mxar', 'رمز الإحالة', '', code, 'readonly dir="ltr" style="opac
     if (S.pts < fee) return say('رصيدك غير كافٍ، المطلوب ' + nf(fee) + ' نقطة');
     applying = true;
     try {
-      const j = await post('/api/m/apply', { ...me, name, phone, province, area, landmark, ref_code: code_(), fee });
+      const j = await post('/api/m/apply', { ...me, name, phone, province, area, landmark, ref_code: code_(), fee, image: applyImg || undefined });
       if (j.dup) { say('لديك طلب قائم بالفعل'); }
       else {
         try { lrs('رسوم طلب تجارة', 'المبلغ ' + nf(fee) + ' · يُعاد عند رفض الطلب'); } catch (e) {}
@@ -346,6 +350,25 @@ ${methodsOf().map((x, i) => `<div class="row" style="margin-top:8px;gap:8px"><in
     } catch (e) { say(e.message); } finally { buying = false; }
   }
 
+  /* ---------- صورة المتجر (مستقلة عن الصورة الشخصية) ---------- */
+  async function shopImgSet(image) {
+    const me = id(); if (!me) return say('سجّل الدخول أولاً');
+    try {
+      await post('/api/m/shop-img', { ...me, image });
+      say(image ? 'تم حفظ صورة المتجر' : 'تم حذف صورة المتجر'); await poll(true);
+    } catch (e) { say(e.message); }
+  }
+  window.addEventListener('change', async (ev) => {
+    const t = ev.target; if (!t || (t.id !== 'mxsi' && t.id !== 'mxai')) return;
+    const f = t.files && t.files[0]; if (!f) return;
+    try {
+      const image = await shrink(f, 480, 0.82);
+      if (t.id === 'mxsi') { await shopImgSet(image); return; }
+      applyImg = image;
+      const p = document.querySelector('#mxaip'); if (p) { p.innerHTML = ''; p.style.background = `url('${image}') center/cover`; }
+    } catch (e) { say('تعذر قراءة الصورة'); }
+  }, true);
+
   /* ---------- النقرات ---------- */
   window.addEventListener('click', (ev) => {
     const t = ev.target.closest && ev.target.closest('[data-a]'); if (!t) return;
@@ -365,6 +388,7 @@ ${methodsOf().map((x, i) => `<div class="row" style="margin-top:8px;gap:8px"><in
     else if (a === 'mxchip') payChip(v);
     else if (a === 'mxagbuy') sendAgentBuy();
     else if (a === 'mxsave') saveShop();
+    else if (a === 'mxsirm') shopImgSet('');
     else if (a === 'mxagsave') saveAgent();
     else if (a === 'mxinv') inviteDlg();
     else if (a === 'mxshare') share();

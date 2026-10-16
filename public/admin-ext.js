@@ -195,7 +195,7 @@ ${k('coin', 'إجمالي النقاط', nf(u.pts))}${k('gem', 'إجمالي ا�
     async merchants() {
       const j = await api('/api/ctl/merchants'), B = { pending: ['بانتظار الموافقة', 'w'], active: ['معتمد', 'o'], suspended: ['موقوف', 'd'], rejected: ['مرفوض', 'd'] };
       const row = (l, v) => (v ? `<div class="r" style="margin-top:4px"><span class="mu" style="min-width:92px">${l}</span><b class="g">${esc(v)}</b></div>` : '');
-      const card = (m) => `<div class="c" data-m="${m.id}"><div class="r"><b style="font-size:1.1rem" class="g">${esc(m.name)}</b><span class="tg ${(B[m.status] || ['', 'i'])[1]}">${(B[m.status] || [m.status])[0]}</span></div>
+      const card = (m) => `<div class="c" data-m="${m.id}">${m.img ? `<div class="r" style="margin-bottom:8px;align-items:center"><img src="${m.img}" alt="" style="width:64px;height:64px;border-radius:14px;object-fit:cover"><button class="b d" data-a="mimgdel">حذف صورة المتجر</button></div>` : ''}<div class="r"><b style="font-size:1.1rem" class="g">${esc(m.name)}</b><span class="tg ${(B[m.status] || ['', 'i'])[1]}">${(B[m.status] || [m.status])[0]}</span></div>
 ${row('صاحب الحساب', (m.owner_name ? m.owner_name + ' — ' : '') + m.owner)}${row('الهاتف', m.phone)}${row('المحافظة', m.province)}${row('المنطقة', m.area)}${row('أقرب دالة', m.landmark)}${row('رمز الإحالة', m.ref_code)}${m.fee ? row('الرسوم المدفوعة', nf(m.fee) + ' نقطة') : ''}
 <div class="mu" style="margin-top:6px">خصم ${m.discount}% · السقف اليومي: ${m.cap ? nf(m.cap) : 'غير محدد'} · اليوم: ${nf(m.today)} · الإجمالي: ${nf(m.total)}</div>
 ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="mcap g" type="number" placeholder="السقف اليومي (نقاط)" value="${m.cap || ''}"><input class="mdis" type="number" placeholder="الخصم %" value="${m.discount}" style="max-width:100px"></div><input class="mnote" placeholder="سبب الرفض (اختياري)">
@@ -359,6 +359,7 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
     }
     if (a === 'mreject') { const c = el.closest('[data-m]'); if (!confirm('رفض الطلب وإعادة الرسوم للمستخدم؟')) return; return post('/api/ctl/merchants/save', { id: +c.dataset.m, status: 'rejected', note: (c.querySelector('.mnote') || {}).value || '' }); }
     if (a === 'msave') { const c = el.closest('[data-m]'); return post('/api/ctl/merchants/save', { id: +c.dataset.m, status: el.dataset.st, daily_cap: c.querySelector('.mcap').value, discount: c.querySelector('.mdis').value }); }
+    if (a === 'mimgdel') { const c = el.closest('[data-m]'); return confirm('حذف صورة هذا المتجر؟') && post('/api/ctl/merchants/img-del', { id: +c.dataset.m }); }
     if (a === 'mdel') { const c = el.closest('[data-m]'); return confirm('حذف المتجر وسجل عملياته؟') && post('/api/ctl/merchants/del', { id: +c.dataset.m }); }
     if (a === 'aglog') { agSel = e; return draw(); }
     if (a === 'agback') { agSel = ''; return draw(); }
