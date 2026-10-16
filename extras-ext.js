@@ -147,7 +147,7 @@ exports.routes = (app, { pool, wrap, ctl, SYNC }) => {
     return a.filter((o) => Array.isArray(o) && !o[6] && o[8]).map((o) => ({ name: String(o[0] || ''), email: String(o[8]).toLowerCase(), liq: Number(o[4]) || 0, off: Number(o[9]) || 0 }));
   };
   const isAgent = async (email) => (await agentsCfg()).find((a) => a.email === email);
-  const KIND = { charge: 'شحن عضو (بيع نقاط)', addoff: 'إضافة للرصيد الرسمي', buy: 'طلب شراء نقاط بالسعر الرسمي', transfer_in: 'تحويل نقاط إليه من مستخدم' };
+  const KIND = { charge: 'شحن عضو (بيع نقاط)', addoff: 'تحويل من حسابه إلى سيولة الوكالة', buy: 'طلب شراء نقاط بالسعر الرسمي', transfer_in: 'تحويل نقاط إليه من مستخدم', admin_liq: 'سيولة من الإدارة (موافقة على طلب شراء)' };
 
   // التطبيق يبلّغ عن حركات الوكيل (شحن عضو / إضافة رصيد رسمي / طلب شراء)
   app.post('/api/u/agent/log', lim, wrap(async (req, res) => {
@@ -176,6 +176,7 @@ exports.routes = (app, { pool, wrap, ctl, SYNC }) => {
     const me = (await q(`SELECT name FROM sync_accounts WHERE LOWER(email)=$1`, [email])).rows[0];
     await q(`INSERT INTO agent_tx(uid,agent_email,agent_name,kind,pts,target_email,target_name,note) VALUES($1,$2,$3,'transfer_in',$4,$5,$6,$7) ON CONFLICT DO NOTHING`,
       [email + ':x:' + (txt(req.body.uid, 40) || Date.now().toString(36)), hit.email, hit.name, pts, email, (me && me.name) || email, 'من ' + ((me && me.name) || email)]);
+    try { if (app.locals.agentPing) app.locals.agentPing(hit.email); } catch (e) {} // يظهر في سجل الوكيل لحظياً
     res.json({ ok: true, agent: true });
   }));
 

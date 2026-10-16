@@ -47,6 +47,9 @@ exports.routes = (app, { pool, wrap, ctl }) => {
       note TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), decided_at TIMESTAMPTZ)`);
     await q(`CREATE INDEX IF NOT EXISTS agent_buys_email_idx ON agent_buys(email, id DESC)`);
     await q(`CREATE INDEX IF NOT EXISTS agent_buys_status_idx ON agent_buys(status)`);
+    await q(`CREATE TABLE IF NOT EXISTS agent_tx(uid TEXT PRIMARY KEY, agent_email TEXT NOT NULL, agent_name TEXT, kind TEXT NOT NULL, pts BIGINT NOT NULL DEFAULT 0,
+       target_email TEXT, target_name TEXT, note TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+    await q(`CREATE INDEX IF NOT EXISTS agent_tx_idx ON agent_tx(LOWER(agent_email), created_at DESC)`);
   })().catch((e) => console.error('merchant-ext schema:', e.message));
 
   const DEFAULT_PAY_LIMIT = 1000000; // الحد اليومي الافتراضي لما يدفعه المستخدم الواحد للتجار (نقطة)
@@ -199,7 +202,101 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e; } finally { c.release(); }
     try { if (app.locals.broadcastCmd) cmds.forEach(([id, b]) => app.locals.broadcastCmd(id, b)); } catch (e) {}
     q(`INSERT INTO agent_tx(uid,agent_email,agent_name,kind,pts,target_email,target_name,note) VALUES($1,$2,$3,'charge',$4,$5,$6,$7) ON CONFLICT DO NOTHING`,
-      [u.email + ':c:' + crypto.randomBytes(6).toString('hex'), u.email, out.agent, pts, out.email, out.name, 'شحن رصيد عضو']).catch(() => {});
+      [u.email + ':c:' + crypto.randomBytes(6).toString('hex'), u.email, out.agent, pts, out.email, out.name, 'شحن رصيد عضو']).then(() => agentPing(u.email), () => {});
+    res.json(out);
+  }));
+
+  /* ===== مزامنة لحظية لسجل الوكيل: قناة SSE تُرسل «تنبيه» فقط (بلا بيانات)، والتطبيق يجلب السجل بطلب موثّق ===== */
+  const agClients = new Map(); // email -> Set(res)
+  function agentPing(email) {
+    const set = agClients.get(String(email || '').toLowerCase()); if (!set) return;
+    set.forEach((r) => { try { r.write('event: ping\ndata: {"t":' + Date.now() + '}\n\n'); } catch (e) { set.delete(r); } });
+  }
+  app.locals.agentPing = agentPing;
+  app.get('/api/m/agent/stream', (req, res) => {
+    const email = txt(req.query.e, 200).toLowerCase();
+    if (!email) return res.status(400).end();
+    let n = 0; agClients.forEach((s) => { n += s.size; });
+    if (n >= 3000) return res.status(503).end();
+    res.set({ 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
+    if (req.socket) { req.socket.setTimeout(0); req.socket.setNoDelay(true); }
+    if (typeof res.flushHeaders === 'function') res.flushHeaders();
+    res.write('retry: 2000\n\n: connected\n\n');
+    if (!agClients.has(email)) agClients.set(email, new Set());
+    const set = agClients.get(email); set.add(res);
+    const hb = setInterval(() => { try { res.write(': hb\n\n'); } catch (e) { done(); } }, 20000);
+    const done = () => { clearInterval(hb); set.delete(res); if (!set.size) agClients.delete(email); };
+    req.on('close', done); req.on('error', done); res.on('close', done);
+  });
+
+  /* سجل عمليات الوكيل: الشحن للأعضاء + ما يصله من الإدارة + التحويلات الواردة + التحويل من حسابه — مع اسم الطرف ورمز إحالته وصورته */
+  const logLim = rateLimit({ windowMs: 60 * 1000, limit: 240, standardHeaders: true, legacyHeaders: false });
+  app.post('/api/m/agent/log', logLim, wrap(async (req, res) => {
+    const u = await who(req.body);
+    const ag = await agentRow(u.email);
+    if (!ag) fail(403, 'حسابك غير مسجل كوكيل');
+    res.set('Cache-Control', 'no-store');
+    const lim = Math.min(Math.max(parseInt(req.body.limit, 10) || 200, 20), 400);
+    const rows = (await q(`SELECT t.uid, t.kind, t.pts, t.target_email, t.target_name, t.note, (EXTRACT(EPOCH FROM t.created_at)*1000)::bigint AS ts,
+        a.uid AS suid, a.name AS sname, COALESCE((SELECT o.code FROM ref_owned o WHERE LOWER(o.email)=LOWER(t.target_email) LIMIT 1), a.rcode) AS rcode,
+        (SELECT (EXTRACT(EPOCH FROM v.updated_at)*1000)::bigint FROM avatars v WHERE v.email=LOWER(t.target_email)) AS av
+      FROM agent_tx t LEFT JOIN sync_accounts a ON LOWER(a.email)=LOWER(t.target_email)
+      WHERE LOWER(t.agent_email)=$1 AND t.kind IN ('charge','admin_liq','transfer_in','addoff')
+      ORDER BY t.created_at DESC LIMIT $2`, [u.email, lim])).rows;
+    const items = rows.map((r) => ({
+      id: r.uid, k: r.kind, pts: Number(r.pts), ts: Number(r.ts),
+      name: r.sname || r.target_name || '', email: r.target_email || '', uid: r.suid || '', code: r.rcode || '', av: Number(r.av) || 0, note: r.note || '',
+    }));
+    // تعديلات الإدارة على رصيد حساب الوكيل نفسه (شحن/خصم)
+    try {
+      (await q(`SELECT id, op, pts, note, (EXTRACT(EPOCH FROM created_at)*1000)::bigint AS ts FROM bal_log WHERE LOWER(email)=$1 AND pts<>0 ORDER BY id DESC LIMIT 100`, [u.email])).rows
+        .forEach((r) => items.push({ id: 'bl:' + r.id, k: 'admin_adj', pts: Number(r.pts), ts: Number(r.ts), name: 'الإدارة', email: '', uid: '', code: '', av: 0, note: r.note || '' }));
+    } catch (e) { /* الجدول يُنشأ من لوحة الإدارة */ }
+    items.sort((a, b) => b.ts - a.ts);
+    const st = (await q(`SELECT kind, COUNT(*)::int n, COALESCE(SUM(pts),0)::float8 pts, COUNT(DISTINCT target_email)::int m FROM agent_tx WHERE LOWER(agent_email)=$1 GROUP BY kind`, [u.email])).rows;
+    const g = (k) => st.find((r) => r.kind === k) || { n: 0, pts: 0, m: 0 };
+    const chart = (await q(`SELECT to_char(created_at AT TIME ZONE 'Asia/Baghdad','YYYY-MM-DD') d, COALESCE(SUM(pts),0)::float8 p
+      FROM agent_tx WHERE LOWER(agent_email)=$1 AND kind='charge' AND created_at >= NOW() - INTERVAL '8 days' GROUP BY 1 ORDER BY 1`, [u.email])).rows
+      .map((r) => ({ d: r.d, p: Number(r.p) }));
+    const cfgAg = await agentRow(u.email);
+    res.json({
+      ok: true, items: items.slice(0, lim), chart,
+      sum: { sold: g('charge').pts, soldN: g('charge').n, members: g('charge').m, admin: g('admin_liq').pts, adminN: g('admin_liq').n, recv: g('transfer_in').pts, recvN: g('transfer_in').n, own: g('addoff').pts, ownN: g('addoff').n },
+      agent: { liq: Number(cfgAg[4]) || 0, off: Number(cfgAg[9]) || 0 }, now: Date.now(),
+    });
+  }));
+
+  /* تحويل نقاط من حساب الوكيل إلى سيولة وكالته (على السيرفر: يُخصم من حسابه وتُضاف للسيولة وتُبثّ لكل أجهزته) */
+  app.post('/api/m/agent/topup', wLim, wrap(async (req, res) => {
+    const u = await who(req.body);
+    const pts = Math.floor(num(req.body.pts, 1e11));
+    if (pts < 1) fail(400, 'أدخل عدد النقاط');
+    const c = await pool.connect();
+    let cmd = null, cid = null, out = null;
+    try {
+      await c.query('BEGIN');
+      const acc = (await c.query(`SELECT pts FROM sync_accounts WHERE LOWER(email)=$1 FOR UPDATE`, [u.email])).rows[0];
+      if (!acc) fail(404, 'الحساب غير موجود');
+      const have = Math.floor(Number(acc.pts) || 0);
+      if (pts > have) { const e = new Error('رصيد حسابك المتزامن مع الخادم ' + have.toLocaleString('en-US') + ' نقطة فقط'); e.http = 409; throw e; }
+      const kv = (await c.query(`SELECT val FROM sync_kv WHERE key='config' FOR UPDATE`)).rows[0];
+      const cv = kv && kv.val, ags = cv && Array.isArray(cv.agents) ? cv.agents : [];
+      const ix = ags.findIndex((o) => Array.isArray(o) && !o[6] && String(o[8] || '').toLowerCase() === u.email);
+      if (ix < 0) fail(403, 'حسابك غير مسجل كوكيل');
+      const ag = ags[ix];
+      ag[4] = (Number(ag[4]) || 0) + pts;
+      await c.query(`UPDATE sync_kv SET val=$1, updated_at=NOW() WHERE key='config'`, [JSON.stringify(cv)]);
+      await c.query(`UPDATE sync_accounts SET pts=GREATEST(COALESCE(pts,0)-$2,0) WHERE LOWER(email)=$1`, [u.email, pts]);
+      await c.query(`UPDATE users SET pts=GREATEST(pts-$2,0) WHERE LOWER(email)=$1`, [u.email, pts]).catch(() => {});
+      cmd = { t: 'agl', sc: 'all', e: u.email, v: Number(ag[4]), o: Number(ag[9]) || 0 }; // قيم مطلقة فلا تتكرر الإضافة
+      cid = (await c.query(`INSERT INTO sync_cmds(body) VALUES($1) RETURNING id`, [JSON.stringify(cmd)])).rows[0].id;
+      await c.query(`INSERT INTO agent_tx(uid,agent_email,agent_name,kind,pts,target_email,target_name,note) VALUES($1,$2,$3,'addoff',$4,NULL,$5,$6) ON CONFLICT DO NOTHING`,
+        [u.email + ':t:' + crypto.randomBytes(6).toString('hex'), u.email, String(ag[0] || ''), pts, 'حسابي', 'تحويل من حسابه إلى سيولة الوكالة']);
+      await c.query('COMMIT');
+      out = { ok: true, liq: Number(ag[4]), off: Number(ag[9]) || 0 };
+    } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e; } finally { c.release(); }
+    try { if (cmd && app.locals.broadcastCmd) app.locals.broadcastCmd(Number(cid), cmd); } catch (e) {}
+    agentPing(u.email);
     res.json(out);
   }));
 
@@ -350,6 +447,8 @@ exports.routes = (app, { pool, wrap, ctl }) => {
           ['agbuy:' + id, email, pts, Number(row.iqd), 'بيع نقاط للوكيل ' + row.agent_name + ' بالسعر الرسمي']);
         await c.query(`UPDATE agent_buys SET status='approved', note=$2, decided_at=NOW() WHERE id=$1`, [id, note]);
         await c.query(`INSERT INTO notices(email,body) VALUES($1,$2)`, [row.email, '✅ تمت الموافقة على طلبك وأُضيفت ' + pts.toLocaleString('en-US') + ' نقطة إلى سيولتك.']);
+        await c.query(`INSERT INTO agent_tx(uid,agent_email,agent_name,kind,pts,target_email,target_name,note) VALUES($1,$2,$3,'admin_liq',$4,NULL,'الإدارة',$5) ON CONFLICT DO NOTHING`,
+          ['agbuy:' + id, email, row.agent_name, pts, 'سيولة من الإدارة بعد الموافقة على طلب الشراء' + (note ? ' · ' + note : '')]);
       } else {
         await c.query(`UPDATE agent_buys SET status='rejected', note=$2, decided_at=NOW() WHERE id=$1`, [id, note]);
         await c.query(`INSERT INTO notices(email,body) VALUES($1,$2)`, [row.email, 'تم رفض طلب شراء ' + pts.toLocaleString('en-US') + ' نقطة' + (note ? ': ' + note : '') + '.']);
@@ -357,6 +456,7 @@ exports.routes = (app, { pool, wrap, ctl }) => {
       await c.query('COMMIT');
     } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e; } finally { c.release(); }
     try { if (cmd && app.locals.broadcastCmd) app.locals.broadcastCmd(Number(cid), cmd); } catch (e) {} // وصول لحظي بدون انتظار المراقب
+    try { if (row) agentPing(row.email); } catch (e) {}
     res.json({ ok: true, status: approve ? 'approved' : 'rejected' });
   }));
 
