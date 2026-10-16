@@ -110,6 +110,31 @@
     return _dl(); // يكمل الدخول المحلي المعتاد بعد نجاح التحقق من السيرفر
   };
 
+  /* ---------- جسر للدخول عبر Google (يستخدمه google-ext.js): نفس الجلسات والمصادقة الثنائية ---------- */
+  window.SECX = {
+    pushNow,
+    wipeLocal(e) { // حساب جديد: أي بقايا قديمة لنفس البريد على هذا الجهاز تُمسح
+      try { [ 'ctr_state:' + e, 'led:' + e, 'rfl:' + e, 'adjx:' + e, 'cldt:' + e.toLowerCase(), 'cldv:' + e.toLowerCase(), sidKey(e) ].forEach(lsDel); lastAcc = ''; resetMem(); } catch (x) {}
+    },
+    async openSession(e, h) { // يرجع true عند النجاح، أو نصاً يشرح سبب الفشل
+      const body = { e, h, device_id: did() };
+      let r = await api('/api/sec/login', body);
+      if (r.s === 200 && r.j.need_otp) {
+        const resend = async () => { const x = await api('/api/sec/login', body); return x.s === 200 ? '' : (x.j.error || 'تعذر إرسال الرمز'); };
+        for (;;) {
+          const code = await askOtp('المصادقة الثنائية', r.j.to, resend);
+          if (!code) return 'تم إلغاء تسجيل الدخول';
+          r = await api('/api/sec/login', { ...body, otp: code });
+          if (r.s === 200 && r.j.ok) break;
+          say(r.j.error || 'الرمز غير صحيح');
+          if (r.s === 429 || (r.j.error || '').includes('انتهت')) return r.j.error || 'حاول لاحقاً';
+        }
+      }
+      if (r.s === 200 && r.j.ok) { lsSet(sidKey(e), r.j.sid); SEC.tfa = !!r.j.tfa; return true; }
+      return r.j.error || 'تعذر تسجيل الدخول، حاول مجدداً';
+    },
+  };
+
   /* ---------- الخروج وإلغاء الجلسة ---------- */
   const _cs = window.clearSes;
   window.clearSes = function () {
