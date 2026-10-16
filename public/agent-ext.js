@@ -3,6 +3,8 @@
    2) شراء النقاط بالسعر الرسمي: معاينة المبلغ بالدينار أثناء الكتابة (والإرسال للإدارة في merchant-ext.js) */
 (function () {
   if (typeof S === 'undefined' || typeof AG === 'undefined') return;
+  // تصميم لوحة الوكيل الجديد (معلومات الوكالة + تحويل من الحساب + سجل العمليات اللحظي)
+  try { if (!window.__agpLoad) { window.__agpLoad = 1; const sc = document.createElement('script'); sc.src = '/agent-panel.js?v=1'; document.head.appendChild(sc); } } catch (e) {}
   const css = document.createElement('style');
   css.textContent = `
   #agres{display:grid;gap:8px;margin:2px 0 10px}
@@ -107,13 +109,28 @@
     if (!AV.map || Date.now() - AV.at > 20000) loadAv();
     if (!AV.map) return;
     document.querySelectorAll('#app [data-a="ag"][data-i]').forEach((b) => {
-      const o = AG[+b.dataset.i], x = AV.map[String((o && o[8]) || '').trim().toLowerCase()];
+      const o = AG[+b.dataset.i], em = String((o && o[8]) || '').trim().toLowerCase(), x = AV.map[em];
       const card = b.closest('.card'), ci = card && card.querySelector('.ci');
-      if (!x || !ci) return;
+      if (!em || !ci) return;
+      // المصدر الأول: نقطة صور الوكلاء، والاحتياطي: خريطة الصور العامة (merchant-ext) بحسب البريد
+      const mv = window.MX && MX.av && MX.av[em];
+      const url = x ? '/api/soc/avatar/' + encodeURIComponent(x.uid) + '?v=' + x.av : (mv ? '/api/m/avatar?e=' + encodeURIComponent(em) + '&v=' + mv : '');
+      if (!url) return;
       ci.innerHTML = '';
-      ci.style.cssText += ';width:52px;height:52px;min-width:52px;border-radius:50%;flex:none;background:url(/api/soc/avatar/' + encodeURIComponent(x.uid) + '?v=' + x.av + ') center/cover no-repeat;border:2px solid #3ddc68';
+      ci.style.cssText += ';width:52px;height:52px;min-width:52px;border-radius:50%;flex:none;background:url(' + url + ') center/cover no-repeat;border:2px solid #3ddc68';
     });
   }
+
+  /* رفع صورة الحساب المحفوظة محلياً على الجهاز للسيرفر مرة واحدة (حتى تظهر للمستخدمين، ومنها صورة الوكيل) */
+  async function upLocalAvatar() {
+    try {
+      const id = me(); if (!id || !S.av || !/^data:image\/(png|jpe?g|webp);base64,/.test(S.av)) return;
+      const k = 'avup:' + id.e.toLowerCase() + ':' + S.av.length; if (localStorage.getItem(k)) return;
+      const r = await fetch('/api/m/avatar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...id, image: S.av }) });
+      if (r.ok) { localStorage.setItem(k, '1'); loadAv(); }
+    } catch (e) {}
+  }
+  setInterval(upLocalAvatar, 15000); setTimeout(upLocalAvatar, 4000);
 
   const _draw = window.draw;
   window.draw = function () {

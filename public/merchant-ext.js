@@ -277,16 +277,14 @@ ${fld('mxar', 'رمز الإحالة', '', code, 'readonly dir="ltr" style="opac
       const m = MX.me; if (!m || m.status !== 'active' || !S.acc || S.r === 'panel') return;
       const d = document.querySelector('#d'); if (!d || d.open) return;
       const k = 'mxseen:' + S.acc.e + ':' + m.id; if (localStorage.getItem(k)) return; localStorage.setItem(k, '1');
-      dlg(`<h2 style="margin-top:0;color:#3ddc68">🎉 أنت تاجر الآن</h2><div class="card" style="padding:12px;line-height:2">✓ اسم متجرك <b>${esc(m.name)}</b> مثبّت في أعلى التطبيق<br>✓ يحوّل لك المستخدمون النقاط مباشرة<br>✓ تعدّل وصف المتجر ونسبة الخصم من قسم التجار<br>✓ لوحة متجر خاصة داخل التطبيق<br><span class="mu">السقف اليومي: <b>${m.cap > 0 ? nf(m.cap) : 'غير محدد'}</b> نقطة</span></div><button class="btn" data-a="go" data-v="mxdash">فتح لوحة المتجر</button>`);
+      dlg(`<h2 style="margin-top:0;color:#3ddc68">🎉 أنت تاجر الآن</h2><div class="card" style="padding:12px;line-height:2">✓ اسم متجرك <b>${esc(m.name)}</b> يظهر للمستخدمين في قائمة التجار<br>✓ يحوّل لك المستخدمون النقاط مباشرة<br>✓ تعدّل وصف المتجر ونسبة الخصم من قسم التجار<br>✓ لوحة متجر خاصة بك تجدها داخل «قائمة التجار»<br><span class="mu">السقف اليومي: <b>${m.cap > 0 ? nf(m.cap) : 'غير محدد'}</b> نقطة</span></div><button class="btn" data-a="go" data-v="mxdash">فتح لوحة المتجر</button>`);
     } catch (e) {}
   }
 
-  /* شريط اسم المتجر المثبت في الأعلى */
+  /* الشريط العلوي المثبّت للتاجر أُلغي: لوحة المتجر تظهر داخل «قائمة التجار» فقط لمن كان تاجراً معتمداً (انظر V.merchants) */
   function bar() {
-    let b = document.querySelector('#mxbar'); const m = MX.me && MX.me.status === 'active' && S.acc && S.r !== 'panel' ? MX.me : null;
-    if (!m) { if (b) { b.remove(); document.body.style.paddingTop = ''; } return; }
-    if (!b) { b = document.createElement('div'); b.id = 'mxbar'; b.setAttribute('data-a', 'go'); b.setAttribute('data-v', 'mxdash'); b.style.cssText = 'position:fixed;top:0;inset-inline:0;z-index:50;height:34px;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--cy);color:#fff;font-weight:700;cursor:pointer'; document.body.append(b); document.body.style.paddingTop = '34px'; }
-    b.innerHTML = '🏪 ' + esc(m.name) + ' · لوحة المتجر';
+    const b = document.querySelector('#mxbar'); if (b) b.remove();
+    if (document.body.style.paddingTop === '34px') document.body.style.paddingTop = '';
   }
 
   /* ---------- دعوة الإحالة + المشاركة ---------- */
