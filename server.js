@@ -107,6 +107,7 @@ EXT5.parsers(app, express); // صور حملات التبرع
 STOREX.parsers(app, express); // دفعات أكواد المتجر الكبيرة
 P2PX.parsers(app, express); // صور إثبات التحويل ورسائل P2P (حد أكبر)
 app.set('trust proxy', 1);
+const CLOUD = require('./cloud-state-ext'); CLOUD.parsers(app, express); // مزامنة حالة الحساب (حد أكبر لهذا المسار)
 require('./poke-ext')(app); // مزامنة فورية لكل الأقسام
 app.use(helmet({ contentSecurityPolicy: false }));
 // نافذة Google المنبثقة تحتاج هذا (القيمة الافتراضية same-origin في helmet تمنع إرجاع نتيجة الدخول للصفحة)
@@ -122,6 +123,7 @@ const wrap = (fn) => (req, res) => fn(req, res).catch((e) => {
   res.status(500).json({ error: 'خطأ داخلي في الخادم' });
 });
 const fail = (http, message) => { const e = new Error(message); e.http = http; throw e; };
+CLOUD.routes(app, { pool, wrap, fail }); // حالة الحساب السحابية
 require('./account-delete-ext')(app, { pool, wrap, fail }); // حذف الحساب (متطلب Google Play)
 
 async function tx(fn) {
@@ -1161,8 +1163,22 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
         const nc = Math.max(0, Math.min(100000, Math.floor(Number(a.ncl)) || 0));
         await pool.query(`UPDATE sync_accounts SET ncl=$2, nrun=$3 WHERE LOWER(email)=LOWER($1)`, [email, nc, a.nrun ? 1 : 0]).catch(() => {});
       }
+      // العدادات: الجهاز يرفع قائمته فقط إن كانت نسخة السيرفر لم تتغير منذ آخر مزامنة له (clb)، وإلا يُرفض الرفع ويأخذ نسخة السيرفر
+      let clrej = false;
+      if (own && !isDemo && Array.isArray(a.cl) && typeof a.clb === 'string') {
+        const nowMs = Date.now();
+        const sg = (l) => (Array.isArray(l) ? l : []).filter((c) => c && Number(c.e) > nowMs).map((c) => (Math.floor(Number(c.i)) | 0) + ':' + Math.round(Number(c.e))).sort().join(',');
+        const cr = (await pool.query('SELECT cl FROM sync_accounts WHERE LOWER(email)=LOWER($1)', [email])).rows[0];
+        if (sg(cr && cr.cl) === a.clb) {
+          const nl = a.cl.slice(0, 100).map((c) => ({ i: Math.floor(Number(c && c.i)), e: Math.round(Number(c && c.e)) }))
+            .filter((c) => c.i >= 0 && c.i < 20 && c.e > nowMs && c.e < nowMs + 400 * 864e5);
+          try { await pool.query(`UPDATE sync_accounts SET cl=$2::jsonb, ncl=$3, cl_at=NOW() WHERE LOWER(email)=LOWER($1)`, [email, JSON.stringify(nl), nl.length]); }
+          catch (e2) { await pool.query(`UPDATE sync_accounts SET cl=$2::jsonb, cl_at=NOW() WHERE LOWER(email)=LOWER($1)`, [email, JSON.stringify(nl)]).catch(() => {}); }
+        } else clrej = true;
+      }
       const row = (await pool.query('SELECT * FROM sync_accounts WHERE LOWER(email)=LOWER($1)', [email])).rows[0];
       returnedAccounts.push({
+        clrej,
         e: row.email,
         n: row.name,
         pts: Number(row.pts) || 0,

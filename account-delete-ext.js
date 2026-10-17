@@ -72,7 +72,7 @@ module.exports = (app, { pool, wrap, fail }) => {
         catch (e) { await c.query('ROLLBACK TO SAVEPOINT sp'); return { rowCount: 0 }; }
       };
       const E = [email];
-      for (const t of ['avatars', 'agent_profiles', 'sec_sessions', 'sec_trusted', 'sec_otps', 'user_devices', 'notices', 'soc_notes', 'support_msgs', 'ref_owned', 'agency_free', 'fin_excl'])
+      for (const t of ['avatars', 'agent_profiles', 'sec_sessions', 'sec_trusted', 'sec_otps','cloud_state', 'user_devices', 'notices', 'soc_notes', 'support_msgs', 'ref_owned', 'agency_free', 'fin_excl'])
         await run(`DELETE FROM ${t} WHERE LOWER(email)=$1`, E);
       await run(`DELETE FROM soc_friends WHERE LOWER(a)=$1 OR LOWER(b)=$1`, E);
       await run(`DELETE FROM soc_msgs WHERE LOWER(f)=$1 OR LOWER(t)=$1`, E);
