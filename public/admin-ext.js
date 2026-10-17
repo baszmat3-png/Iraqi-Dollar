@@ -116,7 +116,7 @@
   I.info = '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>';
   I.heart = '<path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6c-2.5 4.5-9.5 9-9.5 9z"/>';
   const ico = (n) => `<svg viewBox="0 0 24 24">${I[n] || ''}</svg>`;
-  const TABS = [['overview', 'نظرة عامة', 'home', '#22d3ee'], ['users', 'المستخدمون', 'users', '#a78bfa'], ['reports', 'البلاغات', 'flag', '#fb7185'], ['merchants', 'التجار', 'store', '#34d399'], ['agbuys', 'طلبات الوكلاء', 'coin', '#f5b82e'], ['finset', 'المالية', 'coin', '#2dd4bf'], ['fin', 'تقارير مالية', 'list', '#22d3ee'], ['ledger', 'سجل العمليات', 'list', '#38bdf8'], ['faq', 'الأسئلة الشائعة', 'help', '#c084fc'], ['campaigns', 'حملات التبرع', 'heart', '#f472b6'], ['agents', 'مراقبة الوكلاء', 'users', '#fb923c']];
+  const TABS = [['overview', 'نظرة عامة', 'home', '#22d3ee'], ['users', 'المستخدمون', 'users', '#a78bfa'], ['reports', 'البلاغات', 'flag', '#fb7185'], ['merchants', 'التجار', 'store', '#34d399'], ['agbuys', 'طلبات الوكلاء', 'coin', '#f5b82e'], ['ptsreq', 'طلبات النقاط', 'coin', '#22d3ee'], ['finset', 'المالية', 'coin', '#2dd4bf'], ['fin', 'تقارير مالية', 'list', '#22d3ee'], ['ledger', 'سجل العمليات', 'list', '#38bdf8'], ['faq', 'الأسئلة الشائعة', 'help', '#c084fc'], ['campaigns', 'حملات التبرع', 'heart', '#f472b6'], ['agents', 'مراقبة الوكلاء', 'users', '#fb923c']];
   const TC = Object.fromEntries(TABS.map((t) => [t[0], t[3]]));
   const btn = document.createElement('button');
   btn.id = 'axb'; btn.innerHTML = ico('shield') + 'إدارة متقدمة<i hidden></i>';
@@ -175,7 +175,7 @@
       const att = (n, l, t, ic) => `<div class="lst"><span class="av" style="width:38px;height:38px;--hu:187">${ico(ic)}</span><div class="g"><b>${l}</b><div class="mu">${n ? 'يحتاج إلى معالجة' : 'لا يوجد شيء معلّق'}</div></div><span class="tg ${n ? 'd' : 'o'}">${nf(n)}</span>${t ? `<button class="b s" data-t="${t}">فتح</button>` : ''}</div>`;
       return hero('shield', 'نظرة عامة على المنصة', nf(u.real), 'مستخدم حقيقي', [['متصلون الآن', nf(u.online)], ['جدد اليوم', nf(u.new_day)], ['حسابات موثقة', nf(u.kyc)]]) + `<div class="kg">${k('users', 'المستخدمون الحقيقيون', nf(u.real), 'جدد اليوم: ' + nf(u.new_day) + ' · الأسبوع: ' + nf(u.new_week))}${k('bolt', 'متصلون الآن', nf(u.online), 'نشطون خلال 24 ساعة: ' + nf(u.day))}${k('shield', 'حسابات موثقة', nf(u.kyc), 'محظورة: ' + nf(u.blk) + ' · تجريبية: ' + nf(u.demo))}
 ${k('coin', 'إجمالي النقاط', nf(u.pts))}${k('gem', 'إجمالي الجواهر', nf(u.gems))}${k('dollar', 'إجمالي الدولار', '$' + nf(u.usd))}</div>
-<div class="sh"><span>يحتاج إلى إجراء</span></div><div class="c">${att(rp.open, 'بلاغات مفتوحة', 'reports', 'flag')}${att(mc.pending, 'طلبات تجار بانتظار الموافقة', 'merchants', 'store')}${att((j.agbuys || {}).pending, 'طلبات شراء نقاط من الوكلاء', 'agbuys', 'coin')}${att(wd.pending, 'طلبات سحب معلقة', '', 'coin')}</div>
+<div class="sh"><span>يحتاج إلى إجراء</span></div><div class="c">${att(rp.open, 'بلاغات مفتوحة', 'reports', 'flag')}${att(mc.pending, 'طلبات تجار بانتظار الموافقة', 'merchants', 'store')}${att((j.agbuys || {}).pending, 'طلبات شراء نقاط من الوكلاء', 'agbuys', 'coin')}${att((j.ptsreq || {}).pending, 'طلبات شراء نقاط من المستخدمين', 'ptsreq', 'coin')}${att(wd.pending, 'طلبات سحب معلقة', '', 'coin')}</div>
 <div class="sh"><span>النشاط الاجتماعي</span></div><div class="kg">${k('users', 'صداقات مقبولة', nf(fr.accepted), 'طلبات معلقة: ' + nf(fr.pending))}${k('chat', 'رسائل المستخدمين', nf(ms.total), 'آخر 24 ساعة: ' + nf(ms.day))}${k('store', 'التجار', nf(mc.active), 'مستلم: ' + nf(mc.received) + ' نقطة')}</div>
 <div class="sh"><span>أعلى الأرصدة</span><button class="b s" data-t="users">كل المستخدمين</button></div><div class="c">${(j.top || []).map((x) => `<div class="lst">${av(x, 40)}<div class="g"><b>${esc(x.name || x.email)}</b><div class="mu" dir="ltr" style="text-align:start">${esc(x.email)}</div></div><div style="text-align:end"><b>${nf(x.pts)}</b><div class="mu">${nf(x.gems)} جوهرة · $${nf(x.usd)}</div></div></div>`).join('') || '<div class="mu">لا بيانات</div>'}</div>
 <div class="sh"><span>أحدث المنضمين</span></div><div class="c">${(j.joined || []).map((x) => `<div class="lst">${av(x, 38)}<div class="g"><b>${esc(x.name || x.email)}</b><div class="mu" dir="ltr" style="text-align:start">${esc(x.email)}</div></div><span class="mu">${dt(x.created_at)}</span></div>`).join('') || '<div class="mu">لا بيانات</div>'}</div>
@@ -270,6 +270,21 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
         (pend.length ? `<div class="sh"><span>طلبات بانتظار الموافقة</span><span class="tg d">${pend.length}</span></div>` + pend.map(card).join('') : '<div class="c mu" style="text-align:center">لا توجد طلبات معلّقة</div>') +
         (rest.length ? '<div class="sh"><span>السجل</span></div>' + rest.map(card).join('') : '');
     },
+    async ptsreq() {
+      const j = await api('/api/ctl/pts-requests'), S = { pending: ['بانتظار الموافقة', 'w'], approved: ['تمت الموافقة', 'o'], rejected: ['مرفوض', 'd'] };
+      const card = (r) => `<div class="c" data-pr="${r.id}"><div class="r"><b style="font-size:1.1rem" class="g">${esc(r.name || r.email)}</b><span class="tg ${(S[r.status] || ['', 'i'])[1]}">${(S[r.status] || [r.status])[0]}</span></div>
+<div class="mu" dir="ltr" style="text-align:start">${esc(r.email)}</div>
+<div class="r" style="margin-top:4px"><span class="mu">📞 رقم الهاتف:</span><b dir="ltr" class="g" style="text-align:start">${r.phone ? esc(r.phone) : 'غير مسجّل'}</b>${r.phone ? `<a class="b s" style="text-decoration:none" href="tel:${esc(String(r.phone).replace(/[^\d+]/g, ''))}">اتصال</a>` : ''}</div>
+<div class="kg" style="margin:10px 0 6px"><div class="k"><small>${ico('coin')}النقاط المطلوبة (ستُشحن لحسابه)</small><b>${nf(r.pts)}</b></div><div class="k"><small>${ico('dollar')}المبلغ المقابل بالدينار</small><b>${nf(r.iqd)} د.ع</b><em>≈ $${nf(r.usd)} · ${nf(r.rate)} د.ع / 1000 نقطة</em></div></div>
+<div class="mu">رصيده الحالي: ${nf(r.bal)} نقطة · ${dt(r.at)}${r.decided ? ' · عولج: ' + dt(r.decided) : ''}${r.note ? ' · ' + esc(r.note) : ''}</div>` +
+        (r.status === 'pending' ? `<input class="prn" placeholder="ملاحظة / سبب الرفض (اختياري)"><div class="r" style="margin-top:6px"><button class="b ok g" data-a="prok">موافق — شحن ${nf(r.pts)} نقطة لحسابه</button><button class="b d" data-a="prno">رفض</button></div>` : '') + '</div>';
+      const pend = j.items.filter((r) => r.status === 'pending'), rest = j.items.filter((r) => r.status !== 'pending'), apr = j.items.filter((r) => r.status === 'approved');
+      const wa = `<div class="c"><div class="r"><b class="g">أزرار واتساب في شاشة «طلب شراء وكالة»</b><span class="tg ${j.wa ? 'o' : 'd'}">${j.wa ? 'ظاهرة' : 'مخفية'}</span></div><div class="mu" style="margin:4px 0 8px">عند الإخفاء يرى المستخدم زر «تقديم طلب عبر لوحة التحكم» فقط. عند الإظهار تظهر أزرار واتساب بجانبه.</div><button class="b ${j.wa ? 'd' : 'ok g'}" data-a="prwa" data-v="${j.wa ? 0 : 1}">${j.wa ? 'إخفاء أزرار واتساب' : 'إظهار أزرار واتساب'}</button></div>`;
+      return hero('coin', 'طلبات شراء النقاط', nf(pend.length), 'طلب معلّق', [['نقاط معلّقة', nf(pend.reduce((t, r) => t + (+r.pts || 0), 0))], ['تمت الموافقة', nf(apr.length)], ['نقاط مشحونة', nf(apr.reduce((t, r) => t + (+r.pts || 0), 0))]]) + wa +
+        '<div class="c mu">يقدّم المستخدم طلب نقاط من شاشة «طلب شراء وكالة»، فيصلك هنا اسمه وبريده ورقم هاتفه والمبلغ المقابل. عند «موافق» يُشحن رصيده بالنقاط التي طلبها فوراً وتصله على جهازه لحظياً، ويُسجَّل المبلغ في المالية.</div>' +
+        (pend.length ? `<div class="sh"><span>طلبات بانتظار الموافقة</span><span class="tg d">${pend.length}</span></div>` + pend.map(card).join('') : '<div class="c mu" style="text-align:center">لا توجد طلبات معلّقة</div>') +
+        (rest.length ? '<div class="sh"><span>السجل</span></div>' + rest.map(card).join('') : '');
+    },
     async agents() {
       if (agSel) {
         const [L, J] = await Promise.all([api('/api/ctl/agents/log?email=' + encodeURIComponent(agSel)), api('/api/ctl/agents')]);
@@ -351,6 +366,16 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
       return;
     }
     if (a === 'mplsave') { const v = (ov.querySelector('#mpl') || {}).value; try { await api('/api/ctl/merchants/settings', { pay_limit: v }); flash('تم حفظ الحد اليومي'); draw(); } catch (x) { flash(x.message, 1); } return; }
+    if (a === 'prok' || a === 'prno') {
+      const c = el.closest('[data-pr]'), ok = a === 'prok', note = (c.querySelector('.prn') || {}).value || '';
+      if (ok && !confirm('تأكيد الموافقة؟ سيُشحن رصيد المستخدم بالنقاط المطلوبة فوراً ولا يمكن التراجع.')) return;
+      try { await api('/api/ctl/pts-requests/act', { id: +c.dataset.pr, act: ok ? 'approve' : 'reject', note }); flash(ok ? 'تمت الموافقة ✓ شُحن رصيد المستخدم' : 'تم الرفض'); draw(); } catch (x) { flash(x.message, 1); }
+      return;
+    }
+    if (a === 'prwa') {
+      try { const r = await api('/api/ctl/pts-requests/settings', { wa: el.dataset.v === '1' }); flash(r.wa ? 'ظهرت أزرار واتساب للمستخدمين' : 'تم إخفاء أزرار واتساب'); draw(); } catch (x) { flash(x.message, 1); }
+      return;
+    }
     if (a === 'abok' || a === 'abno') {
       const c = el.closest('[data-ab]'), ok = a === 'abok', note = (c.querySelector('.abn') || {}).value || '';
       if (ok && !confirm('تأكيد الموافقة؟ ستُضاف النقاط إلى سيولة الوكيل فوراً ولا يمكن التراجع.')) return;
@@ -404,8 +429,8 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
     if (!key()) return;
     if (ov.classList.contains('on') && !document.hidden && tab !== 'campaigns') draw(true);
     try {
-      const c = await api('/api/ctl/counts'), n = c.reports + (c.merchants || 0) + (c.agbuys || 0), b = btn.querySelector('i'); b.hidden = !n; b.textContent = n;
-      [['reports', c.reports], ['merchants', c.merchants], ['agbuys', c.agbuys]].forEach(([t, v]) => { const x = ov.querySelector(`[data-bd="${t}"]`); if (x) { x.hidden = !v; x.textContent = v; } });
+      const c = await api('/api/ctl/counts'), n = c.reports + (c.merchants || 0) + (c.agbuys || 0) + (c.ptsreq || 0), b = btn.querySelector('i'); b.hidden = !n; b.textContent = n;
+      [['reports', c.reports], ['merchants', c.merchants], ['agbuys', c.agbuys], ['ptsreq', c.ptsreq]].forEach(([t, v]) => { const x = ov.querySelector(`[data-bd="${t}"]`); if (x) { x.hidden = !v; x.textContent = v; } });
     } catch (e) {}
   }, 5000);
 })();

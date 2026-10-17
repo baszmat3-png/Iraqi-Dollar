@@ -1,7 +1,7 @@
 /* المرحلة 2 — التجار + الصورة الشخصية الدائمة + دعوة الإحالة والمشاركة (تحديث كل 5 ثوانٍ من السيرفر) */
 (function () {
   if (typeof S === 'undefined' || typeof V === 'undefined') return;
-  const MX = (window.MX = { merchants: [], me: null, av: {}, agents: {}, sig: '', mpLimit: 1000000, mpUsed: 0, abuys: [] });
+  const MX = (window.MX = { merchants: [], me: null, av: {}, agents: {}, sig: '', mpLimit: 1000000, mpUsed: 0, abuys: [], agWa: false, preqs: [] });
   const id = () => (S.acc && S.acc.e && S.acc.h ? { e: S.acc.e, h: S.acc.h } : null);
   const say = (m) => { try { toast(m); } catch (e) { alert(m); } };
   const post = async (p, b) => {
@@ -348,6 +348,39 @@ ${methodsOf().map((x, i) => `<div class="row" style="margin-top:8px;gap:8px"><in
     } catch (e) { say(e.message); } finally { buying = false; }
   }
 
+  /* ---------- شاشة «طلب شراء وكالة»: أزرار واتساب تُدار من لوحة التحكم + زر «تقديم طلب عبر لوحة التحكم» ---------- */
+  const prSt = { pending: ['بانتظار الموافقة', 'no'], approved: ['تمت الموافقة · شُحن رصيدك', 'ok'], rejected: ['مرفوض', 'no'] };
+  const prList = () => (MX.preqs.length ? `<div style="margin-top:10px"><b>طلباتي</b>${MX.preqs.map((r) => `<div class="card row2" style="padding:10px 14px;margin-top:8px"><div><b>${nf(r.pts)} نقطة</b><div class="mu" style="font-size:.8rem">${nf(r.iqd)} دينار · ${dt(r.t)}${r.note ? ' · ' + esc(r.note) : ''}</div></div><span class="bdg ${(prSt[r.st] || ['', 'no'])[1]}" style="white-space:nowrap;flex:none">${(prSt[r.st] || [r.st])[0]}</span></div>`).join('')}</div>` : '');
+  const ptsBox = (wa) => `<b>طلب شراء نقاط عبر لوحة التحكم</b><div class="mu" style="font-size:.85rem;margin:4px 0 8px">اكتب عدد النقاط التي تحتاجها، يصل طلبك إلى لوحة التحكم مع بياناتك ورقم هاتفك، وعند الموافقة تُشحن النقاط في حسابك مباشرة.</div><input id="agpts" type="number" inputmode="numeric" min="1" placeholder="عدد النقاط المطلوبة" style="margin:0 0 6px"><div id="mxprm" class="mu" style="min-height:1.4em;margin-bottom:6px;font-size:.88rem"></div><button class="btn" data-a="mxptsreq">${ic('coin', 18)} تقديم طلب عبر لوحة التحكم</button>${wa ? `<div style="margin-top:8px">${wa}</div>` : ''}<div id="mxprl">${prList()}</div>`;
+  function patchAgy() {
+    const d = document.querySelector('#d'); if (!d) return;
+    const b = d.querySelector('[data-a="agpb"]');
+    if (b && !d.querySelector('#mxpr')) { const box = b.parentElement, wa = MX.agWa ? b.outerHTML : ''; box.id = 'mxpr'; box.innerHTML = ptsBox(wa); }
+    if (!MX.agWa) d.querySelectorAll('a[href*="wa.me"]').forEach((x) => x.remove()); // زر «تواصل عبر واتساب» يظهر فقط إذا فعّلته لوحة التحكم
+  }
+  const refreshPtsList = () => { const l = document.querySelector('#mxprl'); if (l) l.innerHTML = prList(); };
+  if (typeof window.agyDlg === 'function') { const _agy = window.agyDlg; window.agyDlg = function () { const r = _agy.apply(this, arguments); try { patchAgy(); } catch (e) {} return r; }; }
+  let ptsBusy = false;
+  async function sendPtsReq() {
+    if (ptsBusy) return; const me = id(); if (!me) return say('سجّل الدخول أولاً');
+    const inp = document.querySelector('#agpts'), n = Math.floor(+(inp || {}).value || 0);
+    if (!(n > 0)) return say('اكتب عدد النقاط التي تحتاجها');
+    ptsBusy = true;
+    try {
+      const j = await post('/api/m/pts/request', { ...me, pts: n, phone: String((S.phone || (S.acc && S.acc.p)) || '') });
+      if (inp) inp.value = ''; const m = document.querySelector('#mxprm'); if (m) m.textContent = '';
+      say('تم تقديم طلبك (' + nf(n) + ' نقطة = ' + nf(j.iqd) + ' دينار) إلى لوحة التحكم');
+      await poll(true); refreshPtsList();
+    } catch (e) { say(e.message); } finally { ptsBusy = false; }
+  }
+  // لو كان زر واتساب القديم مخفياً ووصل إليه أي استدعاء، يُحوَّل الطلب إلى لوحة التحكم
+  if (typeof window.agyBuyPts === 'function') { const _pb = window.agyBuyPts; window.agyBuyPts = function () { if (!MX.agWa) return sendPtsReq(); return _pb.apply(this, arguments); }; }
+  document.addEventListener('input', (e) => {
+    if (!e.target || e.target.id !== 'agpts') return;
+    const m = document.querySelector('#mxprm'); if (!m) return;
+    const n = Math.floor(+e.target.value || 0); m.textContent = n > 0 ? '= ' + nf(iqdOf(n)) + ' دينار (≈ ' + usdOf(iqdOf(n)) + ')' : '';
+  });
+
   /* ---------- صورة المتجر (مستقلة عن الصورة الشخصية) ---------- */
   async function shopImgSet(image) {
     const me = id(); if (!me) return say('سجّل الدخول أولاً');
@@ -385,6 +418,7 @@ ${methodsOf().map((x, i) => `<div class="row" style="margin-top:8px;gap:8px"><in
     else if (a === 'mxddp') payPick(v);
     else if (a === 'mxchip') payChip(v);
     else if (a === 'mxagbuy') sendAgentBuy();
+    else if (a === 'mxptsreq') sendPtsReq();
     else if (a === 'mxsave') saveShop();
     else if (a === 'mxsirm') shopImgSet('');
     else if (a === 'mxagsave') saveAgent();
@@ -429,8 +463,9 @@ ${methodsOf().map((x, i) => `<div class="row" style="margin-top:8px;gap:8px"><in
       let j = await post('/api/m/state', me);
       MX.me = j.me;
       if (await mirrorRequests()) j = await post('/api/m/state', me);
-      const sig = JSON.stringify([j.merchants, j.me, j.av, j.abuys, j.mpLimit]);
+      const sig = JSON.stringify([j.merchants, j.me, j.av, j.abuys, j.mpLimit, j.agWa, j.preqs]);
       MX.mpLimit = Number(j.mpLimit) >= 0 ? Number(j.mpLimit) : 1000000; MX.mpUsed = Number(j.mpUsed) || 0; MX.abuys = j.abuys || [];
+      MX.agWa = !!j.agWa; MX.preqs = j.preqs || []; try { refreshPtsList(); } catch (e) {}
       MX.merchants = j.merchants; MX.me = j.me; MX.av = j.av || {}; MX.agents = j.agents || {};
       const mine = myAv(); if (mine && S.av !== mine) { S.av = mine; }
       if (j.me && j.me.status === 'active') for (const x of RQ()) if (x.t === 'انضمام تاجر' && x.e === S.acc.e && !x.s) { const l = RQ(); const o = l.find((y) => y.id === x.id); if (o) { o.s = 1; LSset('rq', l); } }
