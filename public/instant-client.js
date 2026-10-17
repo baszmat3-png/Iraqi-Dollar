@@ -33,7 +33,9 @@
     curEmail = myEmail();
     try { es = new EventSource('/api/sync/stream' + (curEmail ? '?email=' + encodeURIComponent(curEmail) : '')); }
     catch (e) { return retry(); }
-    es.addEventListener('hello', () => { delay = 1000; poll(); try { if (typeof syncPoll === 'function') syncPoll(); } catch (e) {} }); // تعويض ما فات أثناء الانقطاع
+    const sdp = (d) => { try { window.dispatchEvent(new CustomEvent('store-evt', { detail: d })); } catch (e) {} };
+    es.addEventListener('store', (e) => { try { sdp(JSON.parse(e.data)); } catch (x) {} }); // أحداث المتجر: مخزون/طلبات
+    es.addEventListener('hello', () => { delay = 1000; sdp({ k: 'hello' }); poll(); try { if (typeof syncPoll === 'function') syncPoll(); } catch (e) {} }); // تعويض ما فات أثناء الانقطاع
     es.addEventListener('cfg', () => { // إعدادات جديدة: اسحبها وطبّقها فوراً
       clearTimeout(cfgT);
       cfgT = setTimeout(() => { try { if (typeof syncFetch === 'function') syncFetch().then((j) => { if (j && window._cfgChanged && window._cfgH) window._cfgH(j); }).catch(() => {}); } catch (e) {} }, 250);
