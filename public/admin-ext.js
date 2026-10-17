@@ -110,6 +110,8 @@
 #axo .ctt small{display:flex;align-items:center;gap:7px;color:#cfdbe6;font-weight:700;font-size:.9rem}#axo .ctt small i{width:11px;height:11px;border-radius:50%;background:var(--c);box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 28%,transparent)}
 #axo .ctt b{display:block;font-size:1.5rem;line-height:1.3;margin-top:4px}#axo .ctt .mu{font-size:.76rem;display:block}
 #axo .cbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}#axo .cbar .fl{flex:1;min-width:200px;margin:0}
+#axo .cmore{display:flex;gap:8px;margin:4px 0 18px}#axo .cmore .b{flex:1;padding:13px 10px;font-weight:800}
+#axo .cc{animation:none!important;transition:none!important;contain:layout paint}#axo #clist{min-height:40px}
 #axo .cc{--cc:#22d3ee;position:relative;overflow:hidden;background:linear-gradient(180deg,#1c2b3a 0%,#152230 100%);border:1.5px solid color-mix(in srgb,var(--cc) 38%,#1f3a4c);border-radius:26px;margin-bottom:14px;box-shadow:0 10px 30px #00000040}
 #axo .cc:before{content:"";position:absolute;inset:0 0 auto 0;height:96px;background:linear-gradient(135deg,color-mix(in srgb,var(--cc) 34%,#0d1b27),transparent 85%);pointer-events:none}
 #axo .cc>div{position:relative}
@@ -174,8 +176,13 @@
   const hue = (x) => { let h = 7; for (const c of String(x || '')) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
   const av = (u, z) => `<span class="av" style="width:${z}px;height:${z}px;font-size:${Math.round(z * 0.42)}px;--hu:${hue(u.email)}">${esc(String(u.name || u.email || '?').trim().charAt(0).toUpperCase() || '?')}${u.av ? `<img loading="lazy" alt="" src="/api/m/avatar?e=${encodeURIComponent(String(u.email).toLowerCase())}&v=${u.av}" onerror="this.remove()">` : ''}</span>`;
   const flash = (m, bad) => { const t = ov.querySelector('#axt'); t.textContent = m; t.className = 'on' + (bad ? ' bad' : ''); clearTimeout(flash.k); flash.k = setTimeout(() => (t.className = ''), 3200); };
-  const modal = (html) => { const m = ov.querySelector('#axmod'); m.innerHTML = `<div class="sheet">${html}</div>`; m.classList.add('on'); };
-  const closeModal = () => ov.querySelector('#axmod').classList.remove('on');
+  const modal = (html) => {
+    const m = ov.querySelector('#axmod'), old = m.querySelector('.sheet');
+    // إن كانت النافذة مفتوحة نحدّث محتواها في نفس العنصر: لا حركة دخول جديدة ولا قفز ولا وميض
+    if (old && m.classList.contains('on')) { const y = old.scrollTop; old.innerHTML = html; old.scrollTop = y; return; }
+    m.innerHTML = `<div class="sheet">${html}</div>`; m.classList.add('on');
+  };
+  const closeModal = () => { const m = ov.querySelector('#axmod'); m.classList.remove('on'); m.innerHTML = ''; };
   let chMode = 'add';
   function chargeModal(email, name, mode) {
     chMode = mode || 'add';
@@ -207,7 +214,7 @@
   const PAL = ['#22d3ee', '#f5b82e', '#f0628c', '#34d399', '#2dd4bf', '#a78bfa', '#60a5fa', '#fb923c'];
 
   /* ---------- مركز العدادات: بيانات مؤقتة + التصوير + الشحن ---------- */
-  let cq = '', CTD = { types: [], users: [], base: 100 }, ctMode = 'add', ctIdx = 0, ctN = 1, lastShot = null;
+  let cq = '', ctLimit = 20, CTD = { types: [], users: [], base: 100 }, ctMode = 'add', ctIdx = 0, ctN = 1, lastShot = null;
   const dOnly = (t) => new Date(t).toLocaleDateString('ar-IQ', { year: 'numeric', month: 'short', day: 'numeric' });
   const topColor = (u) => (u.groups && u.groups[0] ? u.groups[0].color : '#22d3ee');
   function avatarImg(u) {
@@ -278,7 +285,7 @@
   }
   async function renderSummary() {
     await (document.fonts && document.fonts.ready).catch(() => {});
-    const us = CTD.users.slice(0, 10), W = 760, H = 392 + us.length * 52 + 44 + CTD.types.length * 0, [cv, c] = mkCanvas(W, H);
+    const us = CTD.users.filter((x) => x.n).slice(0, 10), W = 760, H = 392 + us.length * 52 + 44 + CTD.types.length * 0, [cv, c] = mkCanvas(W, H);
     frame(c, W, H, '#ffb020', 'ملخص العدادات', CTD.search ? 'نتائج البحث' : 'كل المستخدمين الذين يملكون عدادات');
     const bw = (W - 72 - 24) / 3, by = 96, bh = 92;
     [['عدادات فعّالة', nf(CTD.total), '#ffb020'], ['العائد اليومي الكلي', nf(CTD.daily), '#22d3ee'], ['مستخدمون بعدادات', nf(CTD.withC), '#34d399']].forEach((b, k) => {
@@ -353,15 +360,16 @@ ${k('coin', 'إجمالي النقاط', nf(u.pts))}${k('gem', 'إجمالي ا�
 <button class="b s" data-a="${u.blk ? 'unban' : 'ban'}" data-e="${esc(u.email)}">${u.blk ? 'فك الحظر' : 'حظر'}</button><button class="b d s" data-a="del" data-e="${esc(u.email)}">حذف</button></div></div>`).join('');
     },
     async counters() {
-      const j = await api('/api/ctl/counters-hub?q=' + encodeURIComponent(cq));
+      const j = await api('/api/ctl/counters-hub?q=' + encodeURIComponent(cq) + '&limit=' + ctLimit);
       CTD = j; if (ctIdx >= j.types.length) ctIdx = 0;
-      const tot = j.users.length, mx = Math.max(1, ...j.types.map((t) => t.count));
+      const tot = j.allCount != null ? j.allCount : j.users.length, mx = Math.max(1, ...j.types.map((t) => t.count));
       const tiles = j.types.map((t) => `<div class="ctt" style="--c:${t.color}"><small><i></i>${esc(t.name)}</small><b>${nf(t.count)}</b><span class="mu">${nf(t.daily)} نقطة/يوم · ${nf(t.users)} مستخدم</span><div class="pgb"><i style="width:${Math.round(t.count * 100 / mx)}%;background:${t.color}"></i></div></div>`).join('');
       return hero('gauge', j.search ? 'نتائج البحث عن مستخدم' : 'مركز العدادات', j.search ? nf(tot) : nf(j.total), j.search ? 'حساب' : 'عداد فعّال', j.search ? [['يملكون عدادات', nf(j.users.filter((u) => u.n).length)], ['بلا عدادات', nf(j.users.filter((u) => !u.n).length)], ['العائد الأساسي', nf(j.base)]] : [['أصحاب عدادات', nf(j.withC)], ['العائد اليومي الكلي', nf(j.daily)], ['تنتهي خلال 30 يوماً', nf(j.soon)]]) +
         `<div class="cbar"><div class="fl">${ico('users')}<input id="cq" placeholder="ابحث بكود الإحالة أو الاسم أو البريد أو الرقم لشحن عداد لأي مستخدم" value="${esc(cq)}"></div><button class="b p" data-a="cqs">بحث</button>${cq ? '<button class="b" data-a="cqc">مسح</button>' : ''}<button class="b" data-a="cshotall">${ico('cam')} تصوير الملخص</button></div>` +
         (j.search ? '' : `<div class="sh"><span>توزيع العدادات حسب النوع</span></div><div class="cth">${tiles}</div>`) +
         `<div class="sh"><span>${j.search ? 'الحسابات المطابقة' : 'بطاقات المستخدمين'}</span><span class="tg i">${nf(tot)}</span></div>` +
-        (tot ? j.users.map(ucard).join('') : `<div class="c mu" style="text-align:center">${j.search ? 'لا توجد حسابات مطابقة' : 'لا يملك أي مستخدم عدادات فعّالة بعد (تظهر العدادات بعد مزامنة التطبيق)'}</div>`) +
+        `<div id="clist">${tot ? j.users.map(ucard).join('') : `<div class="c mu" style="text-align:center">${j.search ? 'لا توجد حسابات مطابقة' : 'لا يوجد مستخدمون بعد'}</div>`}</div>` +
+        (j.hasMore ? `<div class="cmore"><button class="b p" data-a="cmore">عرض المزيد (${nf(j.users.length)} من ${nf(tot)})</button><button class="b" data-a="cmoreall">عرض الكل</button></div>` : (tot > 20 ? `<div class="mu" style="text-align:center;margin:8px 0 14px">تم عرض كل المستخدمين (${nf(tot)})</div>` : '')) +
         (!j.search && j.log.length ? `<div class="sh"><span>آخر عمليات الشحن</span></div><div class="c">${j.log.map((x) => `<div class="lst"><span class="tg ${x.op === 'renew' ? 'i' : 'o'}">${x.op === 'renew' ? 'تجديد' : 'شحن'}</span><div class="g" dir="ltr" style="text-align:start">${esc(x.email)}</div><div class="mu" style="text-align:end">${esc(x.note || '')}<div>${dt(x.created_at)}</div></div></div>`).join('')}</div>` : '');
     },
     async merchants() {
@@ -482,18 +490,46 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
 
   const lastHtml = {}; let lastScroll = 0;
   M.addEventListener('scroll', () => { lastScroll = Date.now(); }, { passive: true });
-  async function draw(keep) {
+  const tpl = document.createElement('template');
+  async function draw(keep, force) {
     if (busy) return; busy = true;
     ov.querySelectorAll('.axn [data-t]').forEach((b) => b.classList.toggle('on', b.dataset.t === tab));
     ov.style.setProperty('--ta', TC[tab] || '#22d3ee');
     try {
       const html = await V[tab]();
-      // لا نعيد الرسم أثناء الكتابة أو التمرير، ولا إذا لم يتغيّر شيء (يمنع الاهتزاز والقفز)
       const y = M.scrollTop, typing = M.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
-      if (keep && (html === lastHtml[tab] || Date.now() - lastScroll < 1500)) { busy = false; return; }
-      if (!(keep && typing)) { lastHtml[tab] = html; M.innerHTML = html; M.scrollTop = keep ? y : 0; if (tab === 'support' && thread) { const t = M.querySelector('#axt'); t && (t.parentElement.scrollTop = 1e9); } }
+      if (keep && html === lastHtml[tab]) { busy = false; return; }
+      if (keep && !force && Date.now() - lastScroll < 1200) { busy = false; return; }
+      if (keep && typing && tab !== 'counters') { busy = false; return; }
+      lastHtml[tab] = html;
+      if (tab === 'counters' && keep && M.dataset.tab === 'counters') { patchCounters(html); M.scrollTop = y; }
+      else { M.innerHTML = html; M.dataset.tab = tab; M.scrollTop = keep ? y : 0; }
+      if (tab === 'support' && thread) { const t = M.querySelector('#axt'); t && (t.parentElement.scrollTop = 1e9); }
     } catch (e) { err(e); }
     busy = false;
+  }
+  // تحديث تبويب العدادات: الرأس والبحث يُحدَّثان في أماكنهما، والبطاقات تُقارن بالمفتاح (البريد) فيُستبدل المتغيّر فقط
+  function patchCounters(html) {
+    tpl.innerHTML = html; const nk = Array.from(tpl.content.children), q = M.querySelector('#cq'), hadFocus = q && document.activeElement === q;
+    const curKids = Array.from(M.children), curList = M.querySelector('#clist'), newList = tpl.content.querySelector('#clist');
+    if (!curList || !newList) { M.innerHTML = html; return; }
+    // القوائم: مقارنة بطاقة بطاقة
+    const cm = new Map(); Array.from(curList.children).forEach((n) => { if (n.dataset.ce) cm.set(n.dataset.ce, n); });
+    const want = Array.from(newList.children), fin = new Set(); let prev = null;
+    want.forEach((nn) => {
+      const k = nn.dataset.ce; let ex = k ? cm.get(k) : null;
+      if (ex) { if (ex.outerHTML !== nn.outerHTML) { ex.replaceWith(nn); ex = nn; } cm.delete(k); }
+      else ex = nn;
+      const wantPos = prev ? prev.nextElementSibling : curList.firstElementChild;
+      if (ex !== wantPos) curList.insertBefore(ex, wantPos);
+      prev = ex; fin.add(ex);
+    });
+    Array.from(curList.children).forEach((n) => { if (!fin.has(n)) n.remove(); });
+    // بقية العناصر خارج القائمة (الرأس، الإحصاءات، زر عرض المزيد، السجل): بالترتيب
+    const nOut = nk.filter((n) => n.id !== 'clist'), cOut = curKids.filter((n) => n.id !== 'clist');
+    if (nOut.length !== cOut.length) { const ys = M.scrollTop; M.innerHTML = html; M.scrollTop = ys; return; }
+    nOut.forEach((n, i) => { const c = cOut[i]; if (c.querySelector && c.querySelector('#cq')) return; if (c.outerHTML !== n.outerHTML) c.replaceWith(n); });
+    const cq2 = M.querySelector('#cq'); if (cq2 && hadFocus) cq2.focus();
   }
 
   async function act(el) {
@@ -572,8 +608,10 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
       } catch (x) { flash(x.message, 1); }
       return;
     }
-    if (a === 'cqs') { cq = (M.querySelector('#cq') || {}).value.trim(); return draw(); }
-    if (a === 'cqc') { cq = ''; return draw(); }
+    if (a === 'cqs') { cq = (M.querySelector('#cq') || {}).value.trim(); ctLimit = 20; return draw(); }
+    if (a === 'cqc') { cq = ''; ctLimit = 20; return draw(); }
+    if (a === 'cmore') { ctLimit += 20; el.disabled = true; return draw(true, true); }
+    if (a === 'cmoreall') { ctLimit = 500; el.disabled = true; return draw(true, true); }
     if (a === 'cshot') { const u = CTD.users.find((x) => x.email === e); if (!u) return; flash('جارٍ إنشاء اللقطة…'); try { await showShot(await renderUser(u), 'counters-' + String(u.email).split('@')[0]); } catch (x) { flash('تعذر إنشاء اللقطة', 1); } return; }
     if (a === 'cshotall') { if (!CTD.users.length) return flash('لا توجد بيانات للتصوير', 1); flash('جارٍ إنشاء اللقطة…'); try { await showShot(await renderSummary(), 'counters-summary'); } catch (x) { flash('تعذر إنشاء اللقطة', 1); } return; }
     if (a === 'shotdl') { if (!lastShot) return; const l = document.createElement('a'); l.href = URL.createObjectURL(lastShot.blob); l.download = lastShot.name + '.png'; document.body.appendChild(l); l.click(); l.remove(); return flash('تم حفظ الصورة ✓'); }
@@ -586,7 +624,7 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
       const t = CTD.types[ctIdx], nm = el.dataset.n;
       if (!confirm(ctMode === 'add' ? `شحن ${ctN} × عداد ${t.name} للمستخدم ${nm}؟` : `تجديد كل عدادات ${nm} إلى 12 شهراً؟`)) return;
       el.disabled = true;
-      try { const r = await api('/api/ctl/counters-hub/grant', { email: e, mode: ctMode, i: ctIdx, n: ctN, note: (ov.querySelector('#ctnote') || {}).value || '' }); closeModal(); flash('تم التنفيذ ✓ ' + r.note + ' · يملك الآن ' + nf(r.count) + ' عداد'); draw(true); }
+      try { const r = await api('/api/ctl/counters-hub/grant', { email: e, mode: ctMode, i: ctIdx, n: ctN, note: (ov.querySelector('#ctnote') || {}).value || '' }); closeModal(); flash('تم التنفيذ ✓ ' + r.note + ' · يملك الآن ' + nf(r.count) + ' عداد'); draw(true, true); }
       catch (x) { el.disabled = false; flash(x.message, 1); }
       return;
     }
