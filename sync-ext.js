@@ -7,13 +7,21 @@ module.exports = function (app, express) {
   const FILE = process.env.SYNC_FILE || path.join(__dirname, 'sync-data.json');
   let DB = { seq: 0, ords: {}, wreq: {}, rq: {} };
   try { const j = JSON.parse(fs.readFileSync(FILE, 'utf8')); if (j && j.ords && j.wreq) { DB = j; if (!DB.rq) DB.rq = {}; } } catch (e) {}
+  // ملفات التوثيق (هوية + عقد) تُخزَّن منفصلة عن سجل الطلب لأنها كبيرة
+  const KFILE = FILE + '.kyc.json';
+  let KF = {}; try { KF = JSON.parse(fs.readFileSync(KFILE, 'utf8')) || {}; } catch (e) {}
+  let ktimer = null;
+  const ksave = () => { clearTimeout(ktimer); ktimer = setTimeout(() => { try { fs.writeFileSync(KFILE + '.tmp', JSON.stringify(KF)); fs.renameSync(KFILE + '.tmp', KFILE); } catch (e) { console.error('kyc save:', e.message); } }, 800); };
+  // بث فوري (SSE) لأي تغيير في الطلبات: لوحة التحكم وجهاز صاحب الطلب يسحبان التحديث لحظياً
+  const ping = (rec) => { try { if (app.locals.broadcastStore) app.locals.broadcastStore({ k: 'inbox', t: rec && rec.t, e: rec && (rec.e || rec.u) }); } catch (e) {} };
   let timer = null;
   const save = () => { clearTimeout(timer); timer = setTimeout(() => { try { fs.writeFileSync(FILE + '.tmp', JSON.stringify(DB)); fs.renameSync(FILE + '.tmp', FILE); } catch (e) { console.error('sync save:', e.message); } }, 800); };
   const parse = express.json({ limit: '8mb' });
   const KINDS = ['ords', 'wreq', 'rq'];
-  /* rq = طلبات الوكالة فقط؛ مالك السجل في الحقل e (البريد) بدل u */
+  /* rq = طلبات الوكالة + انضمام التجار + توثيق الهوية؛ مالك السجل في الحقل e (البريد) بدل u */
   const owner = (k, r) => email(k === 'rq' ? r.e : r.u);
-  const rqOk = (k, r) => k !== 'rq' || r.t === 'طلب وكالة';
+  const RQT = ['طلب وكالة', 'انضمام تاجر', 'توثيق هوية'];
+  const rqOk = (k, r) => k !== 'rq' || RQT.includes(r.t);
   const email = x => String(x || '').trim().toLowerCase();
   const okId = x => /^[A-Za-z0-9_-]{2,24}$/.test(String(x));
   const touch = (k, id, rec) => { rec._mt = ++DB.seq; DB[k][id] = rec; return rec._mt; };
@@ -38,7 +46,7 @@ module.exports = function (app, express) {
         return;
       }
       if (owner(k, r) !== e || !rqOk(k, r) || JSON.stringify(r).length > 700000) return;
-      const rec = Object.assign({}, r); delete rec._mt; touch(k, id, rec);
+      const rec = Object.assign({}, r); delete rec._mt; touch(k, id, rec); ping(rec);
     }));
     trim(); save(); res.json({ ok: 1, seq: DB.seq });
   });
@@ -79,9 +87,30 @@ module.exports = function (app, express) {
       if (ex.del && !r.del) return; // طلب محذوف: لا يُعاد إحياؤه من نسخة قديمة
       const rec = Object.assign({}, ex, r);
       if (k === 'ords') rec.paid = Math.max(+ex.paid || 0, +r.paid || 0) || rec.paid;
-      mt[id] = touch(k, id, rec);
+      mt[id] = touch(k, id, rec); ping(rec);
     });
     save(); res.json({ ok: 1, mt, seq: DB.seq });
+  });
+  /* المستخدم يرفع ملفات التوثيق بعد رفع الطلب نفسه */
+  app.post('/api/sync/kycf', express.json({ limit: '9mb' }), (req, res) => {
+    const b = req.body || {}, e = email(b.e), id = String(b.id || '');
+    if (!e || !okId(id)) return res.status(400).json({ error: 'e' });
+    const rq = DB.rq[id];
+    if (!rq || email(rq.e) !== e || rq.t !== 'توثيق هوية') return res.status(404).json({ error: 'no-request' });
+    const f = b.f;
+    if (!f || typeof f !== 'object' || JSON.stringify(f).length > 8e6) return res.status(400).json({ error: 'file' });
+    KF[id] = { c: f.c || null, i: f.i || null, at: Date.now() };
+    const ks = Object.keys(KF); if (ks.length > 400) ks.sort((x, y) => (KF[x].at || 0) - (KF[y].at || 0)).slice(0, ks.length - 400).forEach(x => delete KF[x]);
+    ksave(); ping(rq); res.json({ ok: 1 });
+  });
+  app.get('/api/ctl/kycf', (req, res) => {
+    if (!admin(req, res)) return;
+    const f = KF[String(req.query.id || '')];
+    res.set('Cache-Control', 'no-store'); res.json(f ? { ok: 1, f } : { ok: 0 });
+  });
+  app.get('/api/sync/kycf-has', (req, res) => {
+    const e = email(req.query.e); const ids = Object.keys(KF).filter(i => DB.rq[i] && email(DB.rq[i].e) === e);
+    res.set('Cache-Control', 'no-store'); res.json({ ids });
   });
   /* لوحة التحكم: حذف طلبات المتجر نهائياً (يبقى أثر «محذوف» لمنع عودتها من أجهزة المستخدمين) */
   app.post('/api/ctl/inbox/delete', parse, (req, res) => {
