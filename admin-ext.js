@@ -280,9 +280,11 @@ exports.routes = (app, { pool, wrap, ctl }) => {
   app.get('/api/ctl/counters-hub', ...ctl, wrap(async (req, res) => {
     const s = txt(req.query.q, 100), like = '%' + s.replace(/[%_]/g, '') + '%', cf = await ctrCfg(), now = Date.now();
     const cols = `email,name,phone,uid,rcode,pts,cl,cl_at,last_seen,demo,blk,kyc,(SELECT (EXTRACT(EPOCH FROM v.updated_at)*1000)::bigint FROM avatars v WHERE v.email=LOWER(a.email)) av`;
+    // كل المستخدمين (وليس فقط أصحاب العدادات) — الترقيم يتم على القائمة المرتبة
+    const lim = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 500);
     const rows = s
-      ? (await q(`SELECT ${cols} FROM sync_accounts a WHERE email ILIKE $1 OR name ILIKE $1 OR phone ILIKE $1 OR uid ILIKE $1 OR rcode ILIKE $1 ORDER BY last_seen DESC NULLS LAST LIMIT 40`, [like])).rows
-      : (await q(`SELECT ${cols} FROM sync_accounts a WHERE demo=FALSE AND jsonb_typeof(cl)='array' AND jsonb_array_length(cl)>0 ORDER BY cl_at DESC NULLS LAST LIMIT 600`)).rows;
+      ? (await q(`SELECT ${cols} FROM sync_accounts a WHERE email ILIKE $1 OR name ILIKE $1 OR phone ILIKE $1 OR uid ILIKE $1 OR rcode ILIKE $1 ORDER BY last_seen DESC NULLS LAST LIMIT 500`, [like])).rows
+      : (await q(`SELECT ${cols} FROM sync_accounts a ORDER BY last_seen DESC NULLS LAST`)).rows;
     const byType = CTN.map((n, i) => ({ i, name: n, color: CTC[i], daily: cf.daily[i], count: 0, users: 0 }));
     let total = 0, daily = 0, soon = 0, withC = 0;
     const users = rows.map((r) => {
@@ -292,13 +294,14 @@ exports.routes = (app, { pool, wrap, ctl }) => {
       const groups = Object.values(grp).sort((a, b) => b.i - a.i).map((g) => ({ ...g, name: CTN[g.i], color: CTC[g.i], daily: cf.daily[g.i] * g.n }));
       const yld = cf.base + groups.reduce((t, g) => t + g.daily, 0);
       const minExp = act.length ? Math.min(...act.map((x) => Number(x.e))) : 0, maxExp = act.length ? Math.max(...act.map((x) => Number(x.e))) : 0;
-      if (!s) { total += act.length; daily += yld; if (act.length) withC++; if (minExp && minExp - now < 30 * 864e5) soon++; act.forEach((x) => { byType[Number(x.i)].count++; }); groups.forEach((g) => byType[g.i].users++); }
+      if (!s && !r.demo) { total += act.length; daily += yld; if (act.length) withC++; if (minExp && minExp - now < 30 * 864e5) soon++; act.forEach((x) => { byType[Number(x.i)].count++; }); groups.forEach((g) => byType[g.i].users++); }
       return { email: r.email, name: r.name, phone: r.phone, uid: r.uid, rcode: r.rcode || '', pts: Number(r.pts) || 0, av: r.av ? Number(r.av) : 0, demo: !!r.demo, blk: !!r.blk, kyc: !!r.kyc,
         n: act.length, groups, daily: yld, minExp, maxExp, days: minExp ? Math.ceil((minExp - now) / 864e5) : 0, life: Math.round(CT_LIFE / 864e5), syncedAt: r.cl_at ? new Date(r.cl_at).getTime() : 0 };
-    }).sort((a, b) => b.daily - a.daily);
+    }).sort((a, b) => (a.demo - b.demo) || (b.n > 0) - (a.n > 0) || b.daily - a.daily || b.pts - a.pts || String(a.email).localeCompare(String(b.email)));
+    const allCount = users.length, page = users.slice(0, lim);
     let log = [];
     try { log = (await q(`SELECT email,op,idx,n,note,created_at FROM ctr_log ORDER BY id DESC LIMIT 8`)).rows; } catch (e) {}
-    res.json({ ok: true, now, base: cf.base, search: !!s, total, daily, soon, withC, types: byType, users, log });
+    res.json({ ok: true, now, base: cf.base, search: !!s, total, daily, soon, withC, types: byType, users: page, allCount, hasMore: allCount > page.length, log });
   }));
 
   app.post('/api/ctl/counters-hub/grant', ...ctl, wrap(async (req, res) => {
