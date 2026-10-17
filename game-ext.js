@@ -71,6 +71,12 @@ module.exports = function mountGame(app, opts) {
   process.on('SIGTERM', () => { try { fs.writeFileSync(FILE, JSON.stringify(db)); } catch (e) {} });
 
   /* ---------- أدوات ---------- */
+  // بث فوري (SSE) للوحة التحكم عند أي حركة مالية في الألعاب
+  let bt = null;
+  const bc = () => {
+    if (bt) return;
+    bt = setTimeout(() => { bt = null; try { if (app.locals.broadcastStore) app.locals.broadcastStore({ k: 'game' }); } catch (e) {} }, 150);
+  };
   const now = () => Date.now();
   const day = (t) => new Date((t || now()) + 3 * 3600e3).toISOString().slice(0, 10); // بتوقيت العراق
   const rnd = n => crypto.randomInt(0, n);
@@ -81,7 +87,7 @@ module.exports = function mountGame(app, opts) {
   const sha = s => crypto.createHash('sha256').update(String(s)).digest('hex');
   const bucket = () => { const d = day(); return db.daily[d] || (db.daily[d] = zero()); };
   const P = (e, n) => {
-    const p = db.players[e] || (db.players[e] = { n: nm(n), dkh: '', games: 0, won: 0, staked: 0, prizes: 0, spins: 0, wGems: 0, wPts: 0, wGemsWon: 0, last: 0 });
+    const p = db.players[e] || (db.players[e] = { n: nm(n), dkh: '', games: 0, won: 0, staked: 0, prizes: 0, spins: 0, wGems: 0, wPts: 0, wGemsWon: 0, cm: 0, last: 0 });
     if (n) p.n = nm(n);
     return p;
   };
@@ -125,6 +131,7 @@ module.exports = function mountGame(app, opts) {
     r.players.forEach((p, i) => {
       const pl = P(p.e, p.n);
       pl.games++; pl.staked += r.entry;
+      pl.cm = (pl.cm || 0) + r.cm / n; // حصة هذا اللاعب من عمولة التطبيق (ربح صاحب التطبيق منه)
       if (i === w) {
         pl.won++; pl.prizes += r.prize;
         addCredit(p.e, { k: 'win', p: r.prize, g: 0, at: r.rev + 400, r: 'الفوز في لعبة العب معنا', x: 'جائزة الفائز ' + r.prize + ' نقطة (' + n + ' لاعبين × ' + r.entry + ')' });
@@ -137,7 +144,7 @@ module.exports = function mountGame(app, opts) {
     if (nx) [d.g, t.g].forEach(g => { g.n++; g.stake += sStake; g.prize += sPrize; g.comm += sComm; });
     db.matches.push({ id: r.id, t: r.dt, entry: r.entry, pct: r.commPct, total, prize: r.prize, cm: r.cm, win: r.players[w].n, we: r.players[w].e, ps: r.players.map(p => p.n) });
     if (db.matches.length > 3000) db.matches.splice(0, db.matches.length - 3000);
-    save();
+    save(); bc();
   }
 
   function cancel(r, why) {
@@ -147,7 +154,7 @@ module.exports = function mountGame(app, opts) {
     const k = db.tot.g; k.ref += r.players.length;
     bucket().g.ref += r.players.length;
     r.st = 'c'; r.dt = now();
-    save();
+    save(); bc();
   }
 
   setInterval(() => {
@@ -282,7 +289,7 @@ module.exports = function mountGame(app, opts) {
     } else {
       [d, T].forEach(w => { w.lose++; });
     }
-    save();
+    save(); bc();
     res.json({ ok: 1, id, idx, prize: pr, wait: WHEEL_MS });
   });
 
@@ -316,6 +323,37 @@ module.exports = function mountGame(app, opts) {
   A.use(express.json({ limit: '20kb' }));
   A.use((req, res, next) => { if (!isAdmin(req)) return res.status(401).json({ error: 'مفتاح الإدارة غير صحيح' }); res.set('Cache-Control', 'no-store'); next(); });
 
+  /* كشف حساب كل لاعب: ربح/خسارة المستخدم وربح صاحب التطبيق منه في اللعبتين + الناتج النهائي */
+  function ledger() {
+    const R = +db.cfg.gemRate || 100;
+    const exs = (opts.excluded && opts.excluded()) || new Set();
+    const T = { users: 0, gStaked: 0, gPrizes: 0, gComm: 0, wGemsPaid: 0, wPtsWon: 0, wGemsWon: 0, userNet: 0, ownerG: 0, ownerW: 0, ownerProfit: 0, excluded: 0 };
+    const rows = [];
+    Object.keys(db.players).forEach(e => {
+      const p = db.players[e];
+      if (!p.games && !p.spins) return;
+      const gCm = p.cm != null ? p.cm : p.staked * db.cfg.comm / 100; // سجلات قديمة: تقدير بنسبة العمولة الحالية
+      const gNet = p.prizes - p.staked;
+      const wNet = p.wPts + p.wGemsWon * R - p.wGems * R;
+      const ex = exs.has(key(e));
+      const row = {
+        e, n: p.n, ex,
+        games: p.games, won: p.won, staked: p.staked, prizes: p.prizes, gNet, gComm: Math.round(gCm),
+        spins: p.spins, wGems: p.wGems, wPts: p.wPts, wGemsWon: p.wGemsWon, wNet: Math.round(wNet),
+        userNet: Math.round(gNet + wNet), owner: Math.round(gCm - wNet), last: p.last || 0
+      };
+      rows.push(row);
+      if (ex) { T.excluded++; return; }
+      T.users++; T.gStaked += p.staked; T.gPrizes += p.prizes; T.gComm += gCm;
+      T.wGemsPaid += p.wGems; T.wPtsWon += p.wPts; T.wGemsWon += p.wGemsWon;
+      T.userNet += gNet + wNet; T.ownerG += gCm; T.ownerW += -wNet;
+    });
+    T.ownerProfit = Math.round(T.ownerG + T.ownerW);
+    ['gComm', 'userNet', 'ownerG', 'ownerW'].forEach(k => { T[k] = Math.round(T[k]); });
+    rows.sort((a, b) => b.owner - a.owner);
+    return { rows: rows.slice(0, 2000), tot: T, rate: R };
+  }
+
   A.get('/stats', (req, res) => {
     const days = Math.min(90, Math.max(1, parseInt(req.query.days) || 14));
     const series = [];
@@ -333,7 +371,7 @@ module.exports = function mountGame(app, opts) {
       matches: db.matches.slice(-40).reverse(),
       spins: db.spins.slice(-40).reverse().map(s => ({ id: s.id, t: s.t, n: s.n, cost: s.cost, pr: s.pr })),
       live: Object.values(db.rooms).filter(r => r.st === 'w').map(r => ({ id: r.id, n: r.players.length, seats: r.seats, left: Math.max(0, r.exp - now()) })),
-      players: Object.keys(db.players).length, pending, now: now()
+      players: Object.keys(db.players).length, pending, now: now(), ledger: ledger()
     });
   });
 
