@@ -83,7 +83,8 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     const b = (await q(`SELECT COUNT(*)::int n FROM support_msgs WHERE NOT from_admin AND NOT read_by_admin AND body NOT LIKE '🚩%' AND body NOT LIKE 'بلاغ%'`)).rows[0].n;
     let m = 0; try { m = (await q(`SELECT COUNT(*)::int n FROM merchants WHERE status='pending'`)).rows[0].n; } catch (e) {}
     let ab = 0; try { ab = (await q(`SELECT COUNT(*)::int n FROM agent_buys WHERE status='pending'`)).rows[0].n; } catch (e) {}
-    res.json({ reports: a, support: b, merchants: m, agbuys: ab });
+    let pr = 0; try { pr = (await q(`SELECT COUNT(*)::int n FROM pts_requests WHERE status='pending'`)).rows[0].n; } catch (e) {}
+    res.json({ reports: a, support: b, merchants: m, agbuys: ab, ptsreq: pr });
   }));
 
   // المستخدمون (مع الصورة الشخصية)
@@ -257,6 +258,7 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     try { recent = (await q(`SELECT email,op,pts,gems,usd,created_at FROM bal_log ORDER BY id DESC LIMIT 8`)).rows.map((x) => ({ ...x, pts: Number(x.pts), gems: Number(x.gems), usd: Number(x.usd) })); } catch (e) {}
     try { joined = (await q(`SELECT email,name,created_at,(SELECT (EXTRACT(EPOCH FROM v.updated_at)*1000)::bigint FROM avatars v WHERE v.email=LOWER(a.email)) av FROM sync_accounts a WHERE demo=FALSE ORDER BY created_at DESC LIMIT 5`)).rows.map((x) => ({ ...x, av: x.av ? Number(x.av) : 0 })); } catch (e) {}
     const ab = await one(`SELECT COUNT(*) FILTER (WHERE status='pending')::int pending FROM agent_buys`);
-    res.json({ users: u, reports: rp, support: sp, merchants: mc, friends: fr, msgs: ms, withdrawals: wd, agbuys: ab, top, recent, joined });
+    const pq = await one(`SELECT COUNT(*) FILTER (WHERE status='pending')::int pending FROM pts_requests`);
+    res.json({ users: u, reports: rp, support: sp, merchants: mc, friends: fr, msgs: ms, withdrawals: wd, agbuys: ab, ptsreq: pq, top, recent, joined });
   }));
 };

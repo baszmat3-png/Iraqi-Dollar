@@ -50,8 +50,17 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     await q(`CREATE TABLE IF NOT EXISTS agent_tx(uid TEXT PRIMARY KEY, agent_email TEXT NOT NULL, agent_name TEXT, kind TEXT NOT NULL, pts BIGINT NOT NULL DEFAULT 0,
        target_email TEXT, target_name TEXT, note TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
     await q(`CREATE INDEX IF NOT EXISTS agent_tx_idx ON agent_tx(LOWER(agent_email), created_at DESC)`);
+    // طلبات شراء نقاط عادية من المستخدم (تصل للوحة التحكم، وعند الموافقة يُشحن رصيد صاحب الطلب)
+    await q(`CREATE TABLE IF NOT EXISTS pts_requests(
+      id BIGSERIAL PRIMARY KEY, email TEXT NOT NULL, name TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', pts BIGINT NOT NULL,
+      rate NUMERIC(12,4) NOT NULL DEFAULT 132, iqd BIGINT NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'pending',
+      note TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), decided_at TIMESTAMPTZ)`);
+    await q(`CREATE INDEX IF NOT EXISTS pts_requests_email_idx ON pts_requests(email, id DESC)`);
+    await q(`CREATE INDEX IF NOT EXISTS pts_requests_status_idx ON pts_requests(status)`);
   })().catch((e) => console.error('merchant-ext schema:', e.message));
 
+  // إظهار أزرار واتساب في شاشة طلب الوكالة — تتحكم بها لوحة التحكم (الافتراضي: مخفية)
+  const getAgWa = async () => { try { const r = (await q(`SELECT v FROM mx_settings WHERE k='ag_wa'`)).rows[0]; return !!(r && r.v === '1'); } catch (e) { return false; } };
   const DEFAULT_PAY_LIMIT = 1000000; // الحد اليومي الافتراضي لما يدفعه المستخدم الواحد للتجار (نقطة)
   const getPayLimit = async (c) => {
     const r = (await (c || pool).query(`SELECT v FROM mx_settings WHERE k='pay_limit'`)).rows[0];
@@ -128,7 +137,10 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     let abuys = [];
     if (agent) abuys = (await q(`SELECT id, pts, iqd, status, note, created_at t, decided_at d FROM agent_buys WHERE email=$1 ORDER BY id DESC LIMIT 8`, [u.email])).rows
       .map((r) => ({ id: Number(r.id), pts: Number(r.pts), iqd: Number(r.iqd), st: r.status, note: r.note || '', t: r.t, d: r.d }));
-    res.json({ ok: true, merchants: list.map(pub), me, av, agents, agent, agentCode: agp, mpLimit, mpUsed, abuys });
+    const agWa = await getAgWa();
+    const preqs = (await q(`SELECT id, pts, iqd, status, note, created_at t FROM pts_requests WHERE email=$1 ORDER BY id DESC LIMIT 6`, [u.email])).rows
+      .map((r) => ({ id: Number(r.id), pts: Number(r.pts), iqd: Number(r.iqd), st: r.status, note: r.note || '', t: r.t }));
+    res.json({ ok: true, merchants: list.map(pub), me, av, agents, agent, agentCode: agp, mpLimit, mpUsed, abuys, agWa, preqs });
   }));
 
   /* الوكيل يرسل طلب شراء نقاط بالسعر الرسمي إلى لوحة التحكم */
@@ -143,6 +155,24 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     const c = (await pubCfg()).cfg || {}, rate = Number(c.agOff) > 0 ? Number(c.agOff) : 120;
     const iqd = Math.round(pts * rate / 1000);
     const r = await q(`INSERT INTO agent_buys(email, agent_name, pts, rate, iqd) VALUES($1,$2,$3,$4,$5) RETURNING id`, [u.email, txt(ag[0], 80), pts, rate, iqd]);
+    res.json({ ok: true, id: Number(r.rows[0].id), iqd });
+  }));
+
+  /* ---- طلب شراء نقاط عادي: يصل إلى لوحة التحكم مع اسم صاحبه وبريده ورقم هاتفه، وعند الموافقة يُشحن رصيده ---- */
+  app.post('/api/m/pts/request', wLim, wrap(async (req, res) => {
+    const u = await who(req.body);
+    const acc = (await q(`SELECT name, phone, blk FROM sync_accounts WHERE LOWER(email)=$1`, [u.email])).rows[0] || {};
+    if (acc.blk) fail(403, 'هذا الحساب موقوف');
+    const pts = Math.floor(num(req.body.pts, 1e11));
+    if (pts < 1) fail(400, 'أدخل عدد النقاط');
+    let phone = txt(acc.phone, 30);
+    if (!phone) phone = txt(req.body.phone, 30).replace(/[^\d+]/g, '');
+    if (phone.replace(/\D/g, '').length < 7) fail(400, 'أضف رقم هاتفك في حسابك أولاً ليتمكن المسؤول من التواصل معك');
+    const pend = Number((await q(`SELECT COUNT(*) n FROM pts_requests WHERE email=$1 AND status='pending'`, [u.email])).rows[0].n);
+    if (pend >= 5) fail(429, 'لديك 5 طلبات قيد المراجعة، انتظر معالجتها أولاً');
+    const c = (await pubCfg()).cfg || {}, rate = Number(c.agRate) > 0 ? Number(c.agRate) : 132;
+    const iqd = Math.round(pts * rate / 1000);
+    const r = await q(`INSERT INTO pts_requests(email,name,phone,pts,rate,iqd) VALUES($1,$2,$3,$4,$5,$6) RETURNING id`, [u.email, txt(acc.name || u.name, 80), phone, pts, rate, iqd]);
     res.json({ ok: true, id: Number(r.rows[0].id), iqd });
   }));
 
@@ -457,6 +487,59 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e; } finally { c.release(); }
     try { if (cmd && app.locals.broadcastCmd) app.locals.broadcastCmd(Number(cid), cmd); } catch (e) {} // وصول لحظي بدون انتظار المراقب
     try { if (row) agentPing(row.email); } catch (e) {}
+    res.json({ ok: true, status: approve ? 'approved' : 'rejected' });
+  }));
+
+  /* ---- طلبات شراء النقاط من المستخدمين (لوحة التحكم) ---- */
+  app.get('/api/ctl/pts-requests', ...ctl, wrap(async (_req, res) => {
+    const rows = (await q(`SELECT b.id, b.email, b.name, b.phone, b.pts, b.rate, b.iqd, b.status, b.note, b.created_at, b.decided_at, a.name AS aname, a.phone AS aphone, a.pts AS bal
+      FROM pts_requests b LEFT JOIN sync_accounts a ON LOWER(a.email)=b.email
+      ORDER BY (b.status='pending') DESC, b.id DESC LIMIT 150`)).rows;
+    const iqd = Number(((await pubCfg()).cfg || {}).iqd) || 1620;
+    res.json({ ok: true, wa: await getAgWa(), items: rows.map((r) => ({ id: Number(r.id), email: r.email, name: r.name || r.aname || '', phone: r.phone || r.aphone || '', pts: Number(r.pts), rate: Number(r.rate), iqd: Number(r.iqd), usd: Math.round(Number(r.iqd) / iqd * 100) / 100, bal: Number(r.bal) || 0, status: r.status, note: r.note, at: r.created_at, decided: r.decided_at })) });
+  }));
+
+  // إظهار/إخفاء أزرار واتساب في شاشة «طلب شراء وكالة»
+  app.post('/api/ctl/pts-requests/settings', ...ctl, wrap(async (req, res) => {
+    const on = req.body.wa === true || req.body.wa === 1 || req.body.wa === '1' ? '1' : '0';
+    await q(`INSERT INTO mx_settings(k,v,updated_at) VALUES('ag_wa',$1,NOW()) ON CONFLICT (k) DO UPDATE SET v=EXCLUDED.v, updated_at=NOW()`, [on]);
+    res.json({ ok: true, wa: on === '1' });
+  }));
+
+  app.post('/api/ctl/pts-requests/act', ...ctl, wrap(async (req, res) => {
+    const id = parseInt(req.body.id, 10) || 0, approve = req.body.act === 'approve', note = txt(req.body.note, 200);
+    const c = await pool.connect();
+    let cmd = null, cid = null, row = null;
+    const soft = async (sql, p) => { await c.query('SAVEPOINT sp1'); try { await c.query(sql, p); await c.query('RELEASE SAVEPOINT sp1'); } catch (e) { await c.query('ROLLBACK TO SAVEPOINT sp1'); } };
+    try {
+      await c.query('BEGIN');
+      row = (await c.query(`SELECT * FROM pts_requests WHERE id=$1 FOR UPDATE`, [id])).rows[0];
+      if (!row) fail(404, 'الطلب غير موجود');
+      if (row.status !== 'pending') fail(409, 'تمت معالجة هذا الطلب مسبقاً');
+      const email = String(row.email).toLowerCase(), pts = Number(row.pts);
+      if (approve) {
+        // «موافق» = شحن رصيد صاحب الطلب بالنقاط التي طلبها، ثم بثّ الزيادة لجهازه لحظياً
+        const acc = (await c.query(`SELECT pts, gems, usd, blk FROM sync_accounts WHERE LOWER(email)=$1 FOR UPDATE`, [email])).rows[0];
+        if (!acc) fail(404, 'حساب صاحب الطلب غير موجود');
+        if (acc.blk) fail(403, 'حساب صاحب الطلب موقوف');
+        const b = { pts: Number(acc.pts) || 0, gems: Number(acc.gems) || 0, usd: Number(acc.usd) || 0 };
+        await c.query(`UPDATE sync_accounts SET pts=COALESCE(pts,0)+$2 WHERE LOWER(email)=$1`, [email, pts]);
+        await soft(`UPDATE users SET pts=pts+$2 WHERE LOWER(email)=$1`, [email, pts]);
+        cmd = { t: 'adj', sc: 'all', e: email, d: { pts }, by: 'srv', gf: { r: 'شحن من الإدارة بعد الموافقة على طلبك', x: pts.toLocaleString('en-US') + ' نقطة' } };
+        cid = (await c.query(`INSERT INTO sync_cmds(body) VALUES($1) RETURNING id`, [JSON.stringify(cmd)])).rows[0].id;
+        await soft(`INSERT INTO bal_log(email,op,pts,gems,usd,b_pts,b_gems,b_usd,a_pts,a_gems,a_usd,note) VALUES($1,'add',$2,0,0,$3,$4,$5,$6,$4,$5,$7)`,
+          [email, pts, b.pts, b.gems, b.usd, b.pts + pts, 'طلب شراء نقاط #' + id + (note ? ' · ' + note : '')]);
+        await c.query(`INSERT INTO fin_ev(uid,email,kind,cat,pts,iqd,note,src) VALUES($1,$2,'in','user_pts',$3,$4,$5,'auto') ON CONFLICT DO NOTHING`,
+          ['ptsreq:' + id, email, pts, Number(row.iqd), 'بيع نقاط للمستخدم ' + (row.name || email)]);
+        await c.query(`UPDATE pts_requests SET status='approved', note=$2, decided_at=NOW() WHERE id=$1`, [id, note]);
+        await c.query(`INSERT INTO notices(email,body) VALUES($1,$2)`, [row.email, '✅ تمت الموافقة على طلبك وشُحن رصيدك بـ ' + pts.toLocaleString('en-US') + ' نقطة.']);
+      } else {
+        await c.query(`UPDATE pts_requests SET status='rejected', note=$2, decided_at=NOW() WHERE id=$1`, [id, note]);
+        await c.query(`INSERT INTO notices(email,body) VALUES($1,$2)`, [row.email, 'تم رفض طلب شراء ' + pts.toLocaleString('en-US') + ' نقطة' + (note ? ': ' + note : '') + '.']);
+      }
+      await c.query('COMMIT');
+    } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e; } finally { c.release(); }
+    try { if (cmd && app.locals.broadcastCmd) app.locals.broadcastCmd(Number(cid), cmd); } catch (e) {} // وصول لحظي بدون انتظار المراقب
     res.json({ ok: true, status: approve ? 'approved' : 'rejected' });
   }));
 

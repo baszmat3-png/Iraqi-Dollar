@@ -1,7 +1,7 @@
 /* المرحلة 1ج — المالية: الأرباح + الالتزامات + سجل العمليات + أسعار الشراء والبيع */
 const CATS = {
   counters: 'شراء عدادات', agency: 'رسوم وكالة', trade: 'رسوم تجارة', orders: 'دفعات طلبات المتجر', store: 'بطاقات وألعاب',
-  yields: 'عوائد العدادات للمستخدمين', ref: 'عمولات إحالة', game_comm: 'عمولة الألعاب', wheel_in: 'دخل العجلة', wheel_prizes: 'جوائز العجلة', debt: 'تسديد استدانة', agent_pts: 'بيع نقاط للوكلاء', agency_free: 'رسوم وكالة (مجانية — غير محسوبة)',
+  yields: 'عوائد العدادات للمستخدمين', ref: 'عمولات إحالة', game_comm: 'عمولة الألعاب', wheel_in: 'دخل العجلة', wheel_prizes: 'جوائز العجلة', debt: 'تسديد استدانة', agent_pts: 'بيع نقاط للوكلاء', user_pts: 'بيع نقاط للمستخدمين', agency_free: 'رسوم وكالة (مجانية — غير محسوبة)',
 };
 const EXCL = require('./excl-ext');
 const num = (v, d = 0) => { v = Number(v); return Number.isFinite(v) ? v : d; };
@@ -85,6 +85,7 @@ exports.routes = (app, { pool, wrap, ctl, SYNC, GAME }) => {
       ['رسوم الوكالات', sum('in', 'agency')],
       ['رسوم التجارة', sum('in', 'trade')],
       ['بيع نقاط للوكلاء', sum('in', 'agent_pts')],
+      ['بيع نقاط للمستخدمين', sum('in', 'user_pts')],
       ['ربح الاستدانة', sum('in', 'debt') * S.debt_pct / 100],
       ['عمولة الألعاب', sum('in', 'game_comm')],
       ['صافي العجلة', wheelNet],
