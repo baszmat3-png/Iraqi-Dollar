@@ -107,7 +107,6 @@ EXT5.parsers(app, express); // صور حملات التبرع
 STOREX.parsers(app, express); // دفعات أكواد المتجر الكبيرة
 P2PX.parsers(app, express); // صور إثبات التحويل ورسائل P2P (حد أكبر)
 app.set('trust proxy', 1);
-require('./poke-ext')(app); // مزامنة فورية لكل الأقسام
 app.use(helmet({ contentSecurityPolicy: false }));
 // نافذة Google المنبثقة تحتاج هذا (القيمة الافتراضية same-origin في helmet تمنع إرجاع نتيجة الدخول للصفحة)
 app.use((_req, res, next) => { res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups'); next(); });
@@ -122,7 +121,6 @@ const wrap = (fn) => (req, res) => fn(req, res).catch((e) => {
   res.status(500).json({ error: 'خطأ داخلي في الخادم' });
 });
 const fail = (http, message) => { const e = new Error(message); e.http = http; throw e; };
-require('./account-delete-ext')(app, { pool, wrap, fail }); // حذف الحساب (متطلب Google Play)
 
 async function tx(fn) {
   const c = await pool.connect();
@@ -1458,6 +1456,55 @@ app.use('/api', (_req, res) => res.status(404).json({ error: 'المسار غي�
 app.use((err, _req, res, _next) => {
   if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'JSON غير صالح' });
   res.status(err.http || 500).json({ error: err.http ? err.message : 'خطأ داخلي في الخادم' });
+});
+/* ---------- تسريع الملفات الثابتة: ضغط brotli/gzip + ETag (بدون أي حزمة إضافية) ---------- */
+const zlib = require('zlib');
+const fsx = require('fs');
+const PUBDIR = path.join(__dirname, 'public');
+const ZMIME = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml' };
+const ZCACHE = new Map();
+function zEntry(file) {
+  let e = ZCACHE.get(file);
+  if (e) return e;
+  e = (async () => {
+    const raw = await fsx.promises.readFile(file);
+    const tag = crypto.createHash('md5').update(raw).digest('hex').slice(0, 20);
+    const [br, gz] = await Promise.all([
+      new Promise((ok, no) => zlib.brotliCompress(raw, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 6, [zlib.constants.BROTLI_PARAM_SIZE_HINT]: raw.length } }, (er, b) => (er ? no(er) : ok(b)))),
+      new Promise((ok, no) => zlib.gzip(raw, { level: 9 }, (er, b) => (er ? no(er) : ok(b)))),
+    ]);
+    return { tag, br, gz, raw };
+  })();
+  ZCACHE.set(file, e);
+  e.catch(() => ZCACHE.delete(file));
+  return e;
+}
+app.use(async (req, res, next) => {
+  try {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    let p; try { p = decodeURIComponent(req.path); } catch (_e) { return next(); }
+    if (p === '/sw.js') return res.status(404).end(); // الملف غير موجود: لا نرسل index.html بدلاً منه
+    if (p === '/') p = '/index.html'; else if (p === '/admin') p = '/admin.html';
+    const ct = ZMIME[path.extname(p)];
+    if (!ct) return next();
+    const file = path.normalize(path.join(PUBDIR, p));
+    if (!file.startsWith(PUBDIR + path.sep)) return next();
+    const ae = String(req.headers['accept-encoding'] || '');
+    const enc = /\bbr\b/.test(ae) ? 'br' : /\bgzip\b/.test(ae) ? 'gzip' : null;
+    if (!enc) return next();
+    let e; try { e = await zEntry(file); } catch (_e) { return next(); }
+    if (e.raw.length < 1024) return next();
+    const etag = '"' + e.tag + '-' + enc + '"';
+    res.setHeader('ETag', etag);
+    res.setHeader('Vary', 'Accept-Encoding');
+    res.setHeader('Cache-Control', 'no-cache');
+    if (req.headers['if-none-match'] === etag) return res.status(304).end();
+    const body = enc === 'br' ? e.br : e.gz;
+    res.setHeader('Content-Type', ct);
+    res.setHeader('Content-Encoding', enc);
+    res.setHeader('Content-Length', body.length);
+    return req.method === 'HEAD' ? res.end() : res.end(body);
+  } catch (_e) { return next(); }
 });
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, p) => { if (/\.(html|json)$/.test(p)) res.setHeader('Cache-Control', 'no-cache, must-revalidate'); },
