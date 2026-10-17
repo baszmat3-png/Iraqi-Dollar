@@ -102,6 +102,40 @@
 #axo input:focus,#axo textarea:focus,#axo select:focus{border-color:var(--ta);box-shadow:0 0 0 3px color-mix(in srgb,var(--ta) 25%,transparent)}
 #axo .seg button.on{background:var(--ta)}
 @media(max-width:360px){#axo .hx .v{font-size:1.7rem}#axo .hx .hs b{font-size:.9rem}}
+
+/* ===== مركز العدادات ===== */
+#axo .cth{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+#axo .ctt{position:relative;overflow:hidden;background:linear-gradient(180deg,#1b2938,#172330);border:1.5px solid #264a5d;border-radius:20px;padding:12px 14px 12px}
+#axo .ctt:before{content:"";position:absolute;inset-inline-start:0;top:0;bottom:0;width:5px;background:var(--c)}
+#axo .ctt small{display:flex;align-items:center;gap:7px;color:#cfdbe6;font-weight:700;font-size:.9rem}#axo .ctt small i{width:11px;height:11px;border-radius:50%;background:var(--c);box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 28%,transparent)}
+#axo .ctt b{display:block;font-size:1.5rem;line-height:1.3;margin-top:4px}#axo .ctt .mu{font-size:.76rem;display:block}
+#axo .cbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}#axo .cbar .fl{flex:1;min-width:200px;margin:0}
+#axo .cc{--cc:#22d3ee;position:relative;overflow:hidden;background:linear-gradient(180deg,#1c2b3a 0%,#152230 100%);border:1.5px solid color-mix(in srgb,var(--cc) 38%,#1f3a4c);border-radius:26px;margin-bottom:14px;box-shadow:0 10px 30px #00000040}
+#axo .cc:before{content:"";position:absolute;inset:0 0 auto 0;height:96px;background:linear-gradient(135deg,color-mix(in srgb,var(--cc) 34%,#0d1b27),transparent 85%);pointer-events:none}
+#axo .cc>div{position:relative}
+#axo .cc .cch{display:flex;gap:12px;align-items:center;padding:16px 16px 6px}
+#axo .cc .cch .av{box-shadow:0 0 0 3px color-mix(in srgb,var(--cc) 70%,#0b141c),0 6px 16px #0008}
+#axo .cc .cch .g b{font-size:1.1rem;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#axo .cc .cpt{text-align:end;flex:none}#axo .cc .cpt small{display:block;color:#9fb2c2;font-size:.74rem}#axo .cc .cpt b{display:flex;align-items:center;gap:5px;justify-content:flex-end;font-size:1.05rem;color:#ffd34d}#axo .cc .cpt svg{width:16px;height:16px}
+#axo .cc .ccy{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;padding:8px 16px 4px}
+#axo .cc .ccy small{display:block;color:#a9bccb;font-size:.8rem}
+#axo .cc .ccy b{display:block;font-size:2.3rem;line-height:1.1;font-weight:800;letter-spacing:.5px;color:#fff;text-shadow:0 0 22px color-mix(in srgb,var(--cc) 55%,transparent)}#axo .cc .ccy b em{font-style:normal;font-size:.85rem;font-weight:600;color:#a9bccb;margin-inline-start:6px;text-shadow:none}
+#axo .cc .ccn{flex:none;min-width:64px;text-align:center;border:1.5px solid color-mix(in srgb,var(--cc) 60%,#0b141c);background:color-mix(in srgb,var(--cc) 14%,#0b141c);border-radius:18px;padding:6px 12px}#axo .cc .ccn b{display:block;font-size:1.5rem;line-height:1.2;color:var(--cc);text-shadow:none}#axo .cc .ccn small{font-size:.7rem}
+#axo .cc .cch2{display:flex;flex-wrap:wrap;gap:7px;padding:10px 16px 2px}
+#axo .cc .cchip{display:flex;align-items:center;gap:7px;background:#0b141c;border:1px solid color-mix(in srgb,var(--c) 55%,#0b141c);border-radius:99px;padding:4px 12px 4px 10px;font-size:.84rem;font-weight:700}
+#axo .cc .cchip i{width:10px;height:10px;border-radius:50%;background:var(--c);box-shadow:0 0 8px var(--c)}#axo .cc .cchip span{color:#9fb2c2;font-weight:600;font-size:.76rem}
+#axo .cc .cex{padding:10px 16px 2px}#axo .cc .cex .r{justify-content:space-between;font-size:.78rem;color:#9fb2c2}#axo .cc .cex .pg{margin-top:5px;height:9px}
+#axo .cc .cex .pg i{background:linear-gradient(90deg,var(--cc),color-mix(in srgb,var(--cc) 50%,#fff))}
+#axo .cc .cex .pg.low i{background:linear-gradient(90deg,#ef5350,#ff9a6b)}
+#axo .cc .cca{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px 16px}#axo .cc .cca .b{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;min-width:96px}#axo .cc .cca .b svg{width:17px;height:17px}
+#axo .cc.empty .ccy b{color:#8fa3b3;text-shadow:none}
+#axo .shot{display:flex;flex-direction:column;gap:10px;align-items:center}#axo .shot img{max-width:100%;border-radius:16px;border:1.5px solid #27566b;box-shadow:0 10px 30px #000a}
+#axo .tsel{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:8px;margin:8px 0}
+#axo .tsel button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;font:inherit;text-align:start;cursor:pointer;color:#e8eef5;background:#0b141c;border:1.5px solid #27566b;border-radius:16px;padding:9px 12px}
+#axo .tsel button b{display:flex;align-items:center;gap:7px;font-size:.92rem}#axo .tsel button b i{width:11px;height:11px;border-radius:50%;background:var(--c)}#axo .tsel button span{font-size:.74rem;color:#9fb2c2}
+#axo .tsel button.on{border-color:var(--c);background:color-mix(in srgb,var(--c) 16%,#0b141c);box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 25%,transparent)}
+#axo .qty{display:flex;align-items:center;gap:8px;margin:8px 0}#axo .qty input{text-align:center;width:90px;margin:0;font-weight:800;font-size:1.1rem}#axo .qty .b{width:46px;padding:8px 0;font-size:1.3rem;text-align:center}
+#axo .sum{background:color-mix(in srgb,var(--ta) 10%,#0b141c);border:1.5px dashed color-mix(in srgb,var(--ta) 50%,#0b141c);border-radius:16px;padding:10px 14px;margin:8px 0 10px;font-size:.9rem;line-height:1.7}
 `;
   document.head.appendChild(css);
 
@@ -114,9 +148,13 @@
     plus: '<path d="M12 5v14M5 12h14"/>', chat: '<path d="M21 12a8 8 0 01-11.700 7L4 20l1.200-4.200A8 8 0 1121 12z"/>', shield: '<path d="M12 3l8 3v6c0 5-3.500 8-8 9-4.500-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>', bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
   };
   I.info = '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>';
+  I.gauge = '<path d="M4 17a8 8 0 1116 0"/><path d="M12 17l4-5"/><path d="M12 6v1.5M6.3 8.3l1 1M17.7 8.3l-1 1M4.2 13h1.500M18.300 13h1.500"/>';
+  I.cam = '<path d="M4 8h3l1.500-2.500h7L17 8h3a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z"/><circle cx="12" cy="13.500" r="3.500"/>';
+  I.dl = '<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>';
+  I.refresh = '<path d="M20 11a8 8 0 00-14.500-4M4 4v4h4M4 13a8 8 0 0014.500 4M20 20v-4h-4"/>';
   I.heart = '<path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6c-2.5 4.5-9.5 9-9.5 9z"/>';
   const ico = (n) => `<svg viewBox="0 0 24 24">${I[n] || ''}</svg>`;
-  const TABS = [['overview', 'نظرة عامة', 'home', '#22d3ee'], ['users', 'المستخدمون', 'users', '#a78bfa'], ['reports', 'البلاغات', 'flag', '#fb7185'], ['merchants', 'التجار', 'store', '#34d399'], ['agbuys', 'طلبات الوكلاء', 'coin', '#f5b82e'], ['ptsreq', 'طلبات النقاط', 'coin', '#22d3ee'], ['finset', 'المالية', 'coin', '#2dd4bf'], ['fin', 'تقارير مالية', 'list', '#22d3ee'], ['ledger', 'سجل العمليات', 'list', '#38bdf8'], ['faq', 'الأسئلة الشائعة', 'help', '#c084fc'], ['campaigns', 'حملات التبرع', 'heart', '#f472b6'], ['agents', 'مراقبة الوكلاء', 'users', '#fb923c']];
+  const TABS = [['overview', 'نظرة عامة', 'home', '#22d3ee'], ['users', 'المستخدمون', 'users', '#a78bfa'], ['counters', 'العدادات', 'gauge', '#ffb020'], ['reports', 'البلاغات', 'flag', '#fb7185'], ['merchants', 'التجار', 'store', '#34d399'], ['agbuys', 'طلبات الوكلاء', 'coin', '#f5b82e'], ['ptsreq', 'طلبات النقاط', 'coin', '#22d3ee'], ['finset', 'المالية', 'coin', '#2dd4bf'], ['fin', 'تقارير مالية', 'list', '#22d3ee'], ['ledger', 'سجل العمليات', 'list', '#38bdf8'], ['faq', 'الأسئلة الشائعة', 'help', '#c084fc'], ['campaigns', 'حملات التبرع', 'heart', '#f472b6'], ['agents', 'مراقبة الوكلاء', 'users', '#fb923c']];
   const TC = Object.fromEntries(TABS.map((t) => [t[0], t[3]]));
   const btn = document.createElement('button');
   btn.id = 'axb'; btn.innerHTML = ico('shield') + 'إدارة متقدمة<i hidden></i>';
@@ -168,6 +206,128 @@
   const note = (t) => `<div class="note">${ico('info')}<span>${t}</span></div>`;
   const PAL = ['#22d3ee', '#f5b82e', '#f0628c', '#34d399', '#2dd4bf', '#a78bfa', '#60a5fa', '#fb923c'];
 
+  /* ---------- مركز العدادات: بيانات مؤقتة + التصوير + الشحن ---------- */
+  let cq = '', CTD = { types: [], users: [], base: 100 }, ctMode = 'add', ctIdx = 0, ctN = 1, lastShot = null;
+  const dOnly = (t) => new Date(t).toLocaleDateString('ar-IQ', { year: 'numeric', month: 'short', day: 'numeric' });
+  const topColor = (u) => (u.groups && u.groups[0] ? u.groups[0].color : '#22d3ee');
+  function avatarImg(u) {
+    return new Promise((ok) => {
+      if (!u.av) return ok(null);
+      const im = new Image(); const t = setTimeout(() => ok(null), 2500);
+      im.onload = () => { clearTimeout(t); ok(im); }; im.onerror = () => { clearTimeout(t); ok(null); };
+      im.src = `/api/m/avatar?e=${encodeURIComponent(String(u.email).toLowerCase())}&v=${u.av}`;
+    });
+  }
+  const rr = (c, x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
+  function mkCanvas(w, h) { const k = 2, cv = document.createElement('canvas'); cv.width = w * k; cv.height = h * k; const c = cv.getContext('2d'); c.scale(k, k); return [cv, c]; }
+  const FONT = 'Cairo, Tahoma, Arial, sans-serif';
+  function T(c, str, x, y, size, col, o) {
+    o = o || {}; c.font = `${o.w || 600} ${size}px ${FONT}`; c.fillStyle = col; c.direction = o.dir || 'rtl'; c.textAlign = o.al || 'right'; c.textBaseline = 'middle';
+    let s2 = String(str); if (o.max) { while (c.measureText(s2).width > o.max && s2.length > 1) s2 = s2.slice(0, -2) + '…'; }
+    c.fillText(s2, x, y);
+  }
+  function frame(c, w, h, accent, title, sub) {
+    const g = c.createLinearGradient(0, 0, w, h); g.addColorStop(0, '#0f1b27'); g.addColorStop(1, '#0a131c');
+    c.fillStyle = g; rr(c, 0, 0, w, h, 34); c.fill();
+    const t = c.createLinearGradient(0, 0, w, 0); t.addColorStop(0, accent); t.addColorStop(1, '#22d3ee'); c.fillStyle = t; c.fillRect(0, 0, w, 8);
+    const gl = c.createRadialGradient(w, 0, 10, w, 0, 340); gl.addColorStop(0, accent + '55'); gl.addColorStop(1, 'transparent'); c.fillStyle = gl; c.fillRect(0, 0, w, 340);
+    T(c, title, w - 36, 44, 20, '#fff', { w: 800 }); T(c, sub, w - 36, 70, 13, '#8fa3b3');
+    T(c, dOnly(Date.now()) + ' · ' + new Date().toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' }), 36, 44, 13, '#8fa3b3', { al: 'left' });
+  }
+  async function renderUser(u) {
+    await (document.fonts && document.fonts.ready).catch(() => {});
+    const im = await avatarImg(u), W = 760, rows = Math.max(1, u.groups.length), H = 372 + rows * 60 + 56, [cv, c] = mkCanvas(W, H), acc = topColor(u);
+    frame(c, W, H, acc, 'بطاقة العدادات', 'تقرير عدادات المستخدم');
+    // الصورة والاسم
+    const cx = W - 76, cy = 140;
+    c.save(); c.beginPath(); c.arc(cx, cy, 42, 0, 7); c.closePath(); c.lineWidth = 5; c.strokeStyle = acc; c.stroke(); c.clip();
+    if (im) c.drawImage(im, cx - 42, cy - 42, 84, 84); else { c.fillStyle = `hsl(${hue(u.email)} 60% 40%)`; c.fillRect(cx - 42, cy - 42, 84, 84); T(c, String(u.name || u.email || '?').trim().charAt(0).toUpperCase(), cx, cy + 2, 40, '#fff', { w: 800, al: 'center' }); }
+    c.restore();
+    T(c, u.name || u.email, cx - 58, cy - 14, 26, '#fff', { w: 800, max: W - 230 });
+    T(c, u.email, cx - 58, cy + 18, 14, '#9fb2c2', { dir: 'ltr', max: W - 230 });
+    if (u.rcode) T(c, 'كود الإحالة: ' + u.rcode, cx - 58, cy + 42, 13, '#ffd34d', { w: 700, max: W - 230 });
+    // ثلاث بطاقات إحصائية
+    const bw = (W - 72 - 24) / 3, by = 208, bh = 104;
+    [['العائد اليومي', nf(u.daily), 'نقطة / يوم', acc], ['رصيد النقاط', nf(u.pts), 'نقطة', '#ffd34d'], ['عدد العدادات', nf(u.n), 'عداد فعّال', '#34d399']].forEach((b, k) => {
+      const x = W - 36 - bw - k * (bw + 12);
+      c.fillStyle = '#111f2b'; rr(c, x, by, bw, bh, 22); c.fill(); c.lineWidth = 1.5; c.strokeStyle = b[3] + '88'; c.stroke();
+      c.fillStyle = b[3]; rr(c, x + bw - 6, by + 22, 6, bh - 44, 3); c.fill();
+      T(c, b[0], x + bw - 22, by + 26, 14, '#a9bccb'); T(c, b[1], x + bw - 22, by + 62, 30, '#fff', { w: 800 }); T(c, b[2], x + bw - 22, by + 88, 12, '#8fa3b3');
+    });
+    // صفوف العدادات
+    T(c, 'العدادات الفعّالة', W - 36, 344, 17, '#fff', { w: 800 });
+    if (!u.groups.length) T(c, 'لا توجد عدادات فعّالة', W - 36, 392, 15, '#8fa3b3');
+    u.groups.forEach((g, k) => {
+      const y = 364 + k * 60;
+      c.fillStyle = '#111f2b'; rr(c, 36, y, W - 72, 50, 16); c.fill(); c.lineWidth = 1; c.strokeStyle = g.color + '66'; c.stroke();
+      c.fillStyle = g.color; c.beginPath(); c.arc(W - 62, y + 25, 8, 0, 7); c.fill();
+      T(c, 'عداد ' + g.name, W - 82, y + 25, 17, '#fff', { w: 800 });
+      T(c, '× ' + g.n, W - 230, y + 25, 17, g.color, { w: 800, al: 'center' });
+      T(c, nf(g.daily) + ' نقطة / يوم', W / 2 - 20, y + 25, 15, '#e8eef5', { al: 'center' });
+      T(c, 'ينتهي ' + dOnly(g.exp), 56, y + 25, 13, '#9fb2c2', { al: 'left' });
+    });
+    // التذييل: شريط الصلاحية
+    const fy = 364 + rows * 60 + 6;
+    if (u.n) {
+      const pct = Math.max(0, Math.min(100, Math.round(u.days * 100 / u.life))); c.fillStyle = '#0b141c'; rr(c, 36, fy + 8, W - 72, 12, 6); c.fill();
+      c.fillStyle = pct < 12 ? '#ef5350' : acc; rr(c, 36 + (W - 72) * (1 - pct / 100), fy + 8, Math.max(12, (W - 72) * pct / 100), 12, 6); c.fill();
+      T(c, 'أقرب انتهاء بعد ' + u.days + ' يوم', W - 36, fy + 36, 13, '#a9bccb');
+    }
+    T(c, 'الإدارة المتقدمة', 36, fy + 36, 12, '#6f8396', { al: 'left' });
+    return cv;
+  }
+  async function renderSummary() {
+    await (document.fonts && document.fonts.ready).catch(() => {});
+    const us = CTD.users.slice(0, 10), W = 760, H = 392 + us.length * 52 + 44 + CTD.types.length * 0, [cv, c] = mkCanvas(W, H);
+    frame(c, W, H, '#ffb020', 'ملخص العدادات', CTD.search ? 'نتائج البحث' : 'كل المستخدمين الذين يملكون عدادات');
+    const bw = (W - 72 - 24) / 3, by = 96, bh = 92;
+    [['عدادات فعّالة', nf(CTD.total), '#ffb020'], ['العائد اليومي الكلي', nf(CTD.daily), '#22d3ee'], ['مستخدمون بعدادات', nf(CTD.withC), '#34d399']].forEach((b, k) => {
+      const x = W - 36 - bw - k * (bw + 12); c.fillStyle = '#111f2b'; rr(c, x, by, bw, bh, 22); c.fill(); c.lineWidth = 1.5; c.strokeStyle = b[2] + '88'; c.stroke();
+      T(c, b[0], x + bw - 18, by + 28, 14, '#a9bccb'); T(c, b[1], x + bw - 18, by + 64, 28, '#fff', { w: 800 });
+    });
+    T(c, 'حسب النوع', W - 36, 222, 16, '#fff', { w: 800 });
+    const tw = (W - 72 - 8 * 8) / 9; CTD.types.forEach((t, k) => {
+      const x = W - 36 - tw - k * (tw + 8); c.fillStyle = '#111f2b'; rr(c, x, 238, tw, 70, 14); c.fill(); c.fillStyle = t.color; c.fillRect(x + 10, 238, tw - 20, 4);
+      T(c, t.name, x + tw / 2, 264, 11, '#cfdbe6', { al: 'center', max: tw - 8 }); T(c, nf(t.count), x + tw / 2, 288, 19, '#fff', { w: 800, al: 'center' });
+    });
+    T(c, 'أعلى المستخدمين عائداً', W - 36, 340, 16, '#fff', { w: 800 });
+    us.forEach((u, k) => {
+      const y = 358 + k * 52; c.fillStyle = k % 2 ? '#0e1a25' : '#111f2b'; rr(c, 36, y, W - 72, 44, 14); c.fill();
+      T(c, (k + 1) + '.', W - 54, y + 22, 15, '#8fa3b3', { al: 'center' }); T(c, u.name || u.email, W - 76, y + 22, 16, '#fff', { w: 700, max: 260 });
+      T(c, u.groups.map((g) => g.name + '×' + g.n).join(' · '), W / 2 - 40, y + 22, 12, '#9fb2c2', { al: 'center', max: 200 });
+      T(c, nf(u.daily) + ' / يوم', 56, y + 22, 15, '#ffd34d', { w: 800, al: 'left' });
+    });
+    return cv;
+  }
+  async function showShot(cv, name) {
+    const blob = await new Promise((r) => cv.toBlob(r, 'image/png')); lastShot = { blob, name };
+    const url = URL.createObjectURL(blob), canShare = !!(navigator.canShare && navigator.canShare({ files: [new File([blob], name + '.png', { type: 'image/png' })] })), canCopy = !!(navigator.clipboard && window.ClipboardItem);
+    modal(`<h2>لقطة جاهزة</h2><div class="shot"><img alt="" src="${url}"><div class="r" style="width:100%"><button class="b p g" data-a="shotdl">${ico('dl')} حفظ الصورة</button>${canShare ? `<button class="b g" data-a="shotsh">مشاركة</button>` : ''}${canCopy ? `<button class="b g" data-a="shotcp">نسخ</button>` : ''}<button class="b" data-mc="1">إغلاق</button></div></div>`);
+  }
+  const ctDelta = () => { const t = CTD.types[ctIdx] || { daily: 0 }; return t.daily * ctN; };
+  function counterModal(email, name) {
+    const u = CTD.users.find((x) => x.email === email) || { n: 0, groups: [], daily: CTD.base, pts: 0 }, t = CTD.types[ctIdx] || CTD.types[0] || { name: '', daily: 0, color: '#22d3ee' };
+    modal(`<h2>شحن العدادات: ${esc(name)}</h2><div class="mu" dir="ltr" style="text-align:start;margin-bottom:6px">${esc(email)} · يملك الآن ${nf(u.n)} عداد · عائده ${nf(u.daily)} نقطة/يوم</div>
+<div class="seg"><button data-cm="add" class="${ctMode === 'add' ? 'on' : ''}">إضافة عدادات +</button><button data-cm="renew" class="${ctMode === 'renew' ? 'on' : ''}">تجديد 12 شهراً ↻</button></div>
+${ctMode === 'add' ? `<div class="mu">اختر نوع العداد</div><div class="tsel">${CTD.types.map((x) => `<button data-a="ctpick" data-i="${x.i}" style="--c:${x.color}" class="${x.i === ctIdx ? 'on' : ''}"><b><i></i>${esc(x.name)}</b><span>${nf(x.daily)} نقطة/يوم</span></button>`).join('')}</div>
+<div class="mu">الكمية</div><div class="qty"><button class="b" data-a="ctq" data-d="-1">−</button><input id="ctn" type="number" min="1" max="20" value="${ctN}"><button class="b" data-a="ctq" data-d="1">+</button></div>
+<div class="sum">سيُضاف <b>${ctN} × عداد ${esc(t.name)}</b> بصلاحية 12 شهراً · يزيد العائد اليومي بمقدار <b style="color:#ffd34d">${nf(ctDelta())}</b> نقطة.</div>`
+    : `<div class="sum">${u.n ? `سيُمدَّد كل عدادات الحساب الفعّالة (<b>${nf(u.n)}</b>) إلى 12 شهراً كاملة من اليوم.` : 'لا توجد عدادات فعّالة لتجديدها، اختر «إضافة عدادات» أولاً.'}</div>`}
+<input id="ctnote" placeholder="ملاحظة (اختياري)"><div class="mu" style="margin:6px 0 10px">يُنفَّذ فوراً ويصل إلى جهاز المستخدم خلال ثوانٍ مع إشعار.</div>
+<div class="r"><button class="b p g" data-a="ctgo" data-e="${esc(email)}" data-n="${esc(name)}"${ctMode === 'renew' && !u.n ? ' disabled style="opacity:.5"' : ''}>${ctMode === 'add' ? 'شحن الآن' : 'تجديد الآن'}</button><button class="b" data-mc="1">إلغاء</button></div>`);
+    ov.querySelector('#axmod .seg').onclick = (ev) => { const b = ev.target.closest('[data-cm]'); if (b) { ctMode = b.dataset.cm; counterModal(email, name); } };
+    const qi = ov.querySelector('#ctn'); if (qi) qi.oninput = () => { ctN = Math.max(1, Math.min(20, Math.floor(+qi.value) || 1)); const sm = ov.querySelector('#axmod .sum'); if (sm) sm.innerHTML = `سيُضاف <b>${ctN} × عداد ${esc(t.name)}</b> بصلاحية 12 شهراً · يزيد العائد اليومي بمقدار <b style="color:#ffd34d">${nf(ctDelta())}</b> نقطة.`; };
+  }
+  const ucard = (u) => {
+    const acc = topColor(u), pct = u.n ? Math.max(0, Math.min(100, Math.round(u.days * 100 / u.life))) : 0, nm = esc(u.name || u.email);
+    return `<div class="cc${u.n ? '' : ' empty'}" style="--cc:${acc}" data-ce="${esc(u.email)}">
+<div class="cch">${av(u, 56)}<div class="g"><b>${nm}${u.kyc ? '<span class="tg o">موثق</span>' : ''}${u.blk ? '<span class="tg d">محظور</span>' : ''}${u.demo ? '<span class="tg i">تجريبي</span>' : ''}</b><div class="mu" dir="ltr" style="text-align:start;overflow:hidden;text-overflow:ellipsis">${esc(u.email)}</div>${u.rcode ? `<div class="mu">كود الإحالة: <b dir="ltr" style="color:#ffd34d">${esc(u.rcode)}</b></div>` : ''}</div><div class="cpt"><small>رصيد النقاط</small><b>${ico('coin')}${nf(u.pts)}</b></div></div>
+<div class="ccy"><div><small>العائد اليومي</small><b>${nf(u.daily)}<em>نقطة / يوم</em></b></div><div class="ccn"><b>${nf(u.n)}</b><small>عداد فعّال</small></div></div>
+${u.groups.length ? `<div class="cch2">${u.groups.map((g) => `<div class="cchip" style="--c:${g.color}"><i></i>${esc(g.name)} <span>× ${g.n}</span></div>`).join('')}</div>
+<div class="cex"><div class="r"><span>أقرب انتهاء: ${dOnly(u.minExp)}</span><b>${u.days} يوم</b></div><div class="pg${pct < 12 ? ' low' : ''}"><i style="width:${Math.max(3, pct)}%"></i></div></div>` : '<div class="cch2"><span class="mu">لا يملك عدادات فعّالة حالياً</span></div>'}
+<div class="cca"><button class="b" data-a="cshot" data-e="${esc(u.email)}">${ico('cam')} تصوير</button><button class="b p" data-a="cchg" data-e="${esc(u.email)}" data-n="${nm}">${ico('bolt')} شحن العداد</button></div></div>`;
+  };
+
   const V = {
     async overview() {
       const j = await api('/api/ctl/overview'), u = j.users || {}, rp = j.reports || {}, sp = j.support || {}, mc = j.merchants || {}, fr = j.friends || {}, ms = j.msgs || {}, wd = j.withdrawals || {};
@@ -191,6 +351,18 @@ ${k('coin', 'إجمالي النقاط', nf(u.pts))}${k('gem', 'إجمالي ا�
 <div class="bal"><span>${ico('coin')}${nf(u.pts)} نقطة</span><span>${ico('gem')}${nf(u.gems)} جوهرة</span><span>${ico('dollar')}$${nf(u.usd)}</span></div>
 <div class="r"><button class="b p s" data-a="uch" data-e="${esc(u.email)}" data-n="${esc(u.name || u.email)}">شحن</button><button class="b s" data-a="udd" data-e="${esc(u.email)}" data-n="${esc(u.name || u.email)}">خصم</button><button class="b s" data-a="uzero" data-e="${esc(u.email)}" data-n="${esc(u.name || u.email)}">تصفير</button>
 <button class="b s" data-a="${u.blk ? 'unban' : 'ban'}" data-e="${esc(u.email)}">${u.blk ? 'فك الحظر' : 'حظر'}</button><button class="b d s" data-a="del" data-e="${esc(u.email)}">حذف</button></div></div>`).join('');
+    },
+    async counters() {
+      const j = await api('/api/ctl/counters-hub?q=' + encodeURIComponent(cq));
+      CTD = j; if (ctIdx >= j.types.length) ctIdx = 0;
+      const tot = j.users.length, mx = Math.max(1, ...j.types.map((t) => t.count));
+      const tiles = j.types.map((t) => `<div class="ctt" style="--c:${t.color}"><small><i></i>${esc(t.name)}</small><b>${nf(t.count)}</b><span class="mu">${nf(t.daily)} نقطة/يوم · ${nf(t.users)} مستخدم</span><div class="pgb"><i style="width:${Math.round(t.count * 100 / mx)}%;background:${t.color}"></i></div></div>`).join('');
+      return hero('gauge', j.search ? 'نتائج البحث عن مستخدم' : 'مركز العدادات', j.search ? nf(tot) : nf(j.total), j.search ? 'حساب' : 'عداد فعّال', j.search ? [['يملكون عدادات', nf(j.users.filter((u) => u.n).length)], ['بلا عدادات', nf(j.users.filter((u) => !u.n).length)], ['العائد الأساسي', nf(j.base)]] : [['أصحاب عدادات', nf(j.withC)], ['العائد اليومي الكلي', nf(j.daily)], ['تنتهي خلال 30 يوماً', nf(j.soon)]]) +
+        `<div class="cbar"><div class="fl">${ico('users')}<input id="cq" placeholder="ابحث بكود الإحالة أو الاسم أو البريد أو الرقم لشحن عداد لأي مستخدم" value="${esc(cq)}"></div><button class="b p" data-a="cqs">بحث</button>${cq ? '<button class="b" data-a="cqc">مسح</button>' : ''}<button class="b" data-a="cshotall">${ico('cam')} تصوير الملخص</button></div>` +
+        (j.search ? '' : `<div class="sh"><span>توزيع العدادات حسب النوع</span></div><div class="cth">${tiles}</div>`) +
+        `<div class="sh"><span>${j.search ? 'الحسابات المطابقة' : 'بطاقات المستخدمين'}</span><span class="tg i">${nf(tot)}</span></div>` +
+        (tot ? j.users.map(ucard).join('') : `<div class="c mu" style="text-align:center">${j.search ? 'لا توجد حسابات مطابقة' : 'لا يملك أي مستخدم عدادات فعّالة بعد (تظهر العدادات بعد مزامنة التطبيق)'}</div>`) +
+        (!j.search && j.log.length ? `<div class="sh"><span>آخر عمليات الشحن</span></div><div class="c">${j.log.map((x) => `<div class="lst"><span class="tg ${x.op === 'renew' ? 'i' : 'o'}">${x.op === 'renew' ? 'تجديد' : 'شحن'}</span><div class="g" dir="ltr" style="text-align:start">${esc(x.email)}</div><div class="mu" style="text-align:end">${esc(x.note || '')}<div>${dt(x.created_at)}</div></div></div>`).join('')}</div>` : '');
     },
     async merchants() {
       const j = await api('/api/ctl/merchants'), B = { pending: ['بانتظار الموافقة', 'w'], active: ['معتمد', 'o'], suspended: ['موقوف', 'd'], rejected: ['مرفوض', 'd'] };
@@ -397,6 +569,24 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
       } catch (x) { flash(x.message, 1); }
       return;
     }
+    if (a === 'cqs') { cq = (M.querySelector('#cq') || {}).value.trim(); return draw(); }
+    if (a === 'cqc') { cq = ''; return draw(); }
+    if (a === 'cshot') { const u = CTD.users.find((x) => x.email === e); if (!u) return; flash('جارٍ إنشاء اللقطة…'); try { await showShot(await renderUser(u), 'counters-' + String(u.email).split('@')[0]); } catch (x) { flash('تعذر إنشاء اللقطة', 1); } return; }
+    if (a === 'cshotall') { if (!CTD.users.length) return flash('لا توجد بيانات للتصوير', 1); flash('جارٍ إنشاء اللقطة…'); try { await showShot(await renderSummary(), 'counters-summary'); } catch (x) { flash('تعذر إنشاء اللقطة', 1); } return; }
+    if (a === 'shotdl') { if (!lastShot) return; const l = document.createElement('a'); l.href = URL.createObjectURL(lastShot.blob); l.download = lastShot.name + '.png'; document.body.appendChild(l); l.click(); l.remove(); return flash('تم حفظ الصورة ✓'); }
+    if (a === 'shotsh') { try { await navigator.share({ files: [new File([lastShot.blob], lastShot.name + '.png', { type: 'image/png' })] }); } catch (x) {} return; }
+    if (a === 'shotcp') { try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': lastShot.blob })]); flash('تم نسخ الصورة ✓'); } catch (x) { flash('تعذر النسخ، استخدم حفظ الصورة', 1); } return; }
+    if (a === 'cchg') { ctMode = 'add'; ctN = 1; return counterModal(e, el.dataset.n); }
+    if (a === 'ctpick') { ctIdx = +el.dataset.i; const qi = ov.querySelector('#ctn'); if (qi) ctN = Math.max(1, Math.min(20, Math.floor(+qi.value) || 1)); const nt = ov.querySelector('#ctnote'); const note = nt ? nt.value : ''; const go = ov.querySelector('[data-a="ctgo"]'); counterModal(go.dataset.e, go.dataset.n); ov.querySelector('#ctnote').value = note; return; }
+    if (a === 'ctq') { const qi = ov.querySelector('#ctn'); ctN = Math.max(1, Math.min(20, (Math.floor(+qi.value) || 1) + (+el.dataset.d))); const note = ov.querySelector('#ctnote').value, go = ov.querySelector('[data-a="ctgo"]'); counterModal(go.dataset.e, go.dataset.n); ov.querySelector('#ctnote').value = note; return; }
+    if (a === 'ctgo') {
+      const t = CTD.types[ctIdx], nm = el.dataset.n;
+      if (!confirm(ctMode === 'add' ? `شحن ${ctN} × عداد ${t.name} للمستخدم ${nm}؟` : `تجديد كل عدادات ${nm} إلى 12 شهراً؟`)) return;
+      el.disabled = true;
+      try { const r = await api('/api/ctl/counters-hub/grant', { email: e, mode: ctMode, i: ctIdx, n: ctN, note: (ov.querySelector('#ctnote') || {}).value || '' }); closeModal(); flash('تم التنفيذ ✓ ' + r.note + ' · يملك الآن ' + nf(r.count) + ' عداد'); draw(true); }
+      catch (x) { el.disabled = false; flash(x.message, 1); }
+      return;
+    }
     if (a === 'fsave' || a === 'fdel') {
       const c = el.closest('[data-f]'), fid = +c.dataset.f;
       if (a === 'fdel') return confirm('حذف السؤال؟') && post('/api/ctl/faq/del', { id: fid });
@@ -413,6 +603,7 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
     if (t.dataset.t) { tab = t.dataset.t; thread = null; closeModal(); return draw(); }
     act(t);
   });
+  ov.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && ev.target.id === 'cq') { ev.preventDefault(); act({ dataset: { a: 'cqs' } }); } });
   ov.addEventListener('change', async (ev) => {
     if (ev.target.classList.contains('cpf') && ev.target.files[0]) {
       const c = ev.target.closest('[data-cp]');
@@ -424,10 +615,17 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
   });
   btn.onclick = () => { if (!key()) return alert('احفظ مفتاح الإدارة أولاً من قسم النظام والأمان'); ov.classList.add('on'); draw(); };
 
+
+  // مزامنة فورية لمركز العدادات: تحديث كل ثانيتين + لحظياً عند وصول أي أمر من السيرفر (SSE)
+  let liveT = 0; const live = () => { if (ov.classList.contains('on') && !document.hidden && tab === 'counters' && !modalOpen()) draw(true); };
+  const modalOpen = () => ov.querySelector('#axmod').classList.contains('on');
+  setInterval(live, 2000);
+  try { if (window.EventSource) { const es = new EventSource('/api/sync/stream'); es.addEventListener('cmd', () => { clearTimeout(liveT); liveT = setTimeout(live, 150); }); } } catch (e) {}
+
   // تحديث دوري كل 5 ثوانٍ
   setInterval(async () => {
     if (!key()) return;
-    if (ov.classList.contains('on') && !document.hidden && tab !== 'campaigns') draw(true);
+    if (ov.classList.contains('on') && !document.hidden && tab !== 'campaigns' && tab !== 'counters') draw(true);
     try {
       const c = await api('/api/ctl/counts'), n = c.reports + (c.merchants || 0) + (c.agbuys || 0) + (c.ptsreq || 0), b = btn.querySelector('i'); b.hidden = !n; b.textContent = n;
       [['reports', c.reports], ['merchants', c.merchants], ['agbuys', c.agbuys], ['ptsreq', c.ptsreq]].forEach(([t, v]) => { const x = ov.querySelector(`[data-bd="${t}"]`); if (x) { x.hidden = !v; x.textContent = v; } });
