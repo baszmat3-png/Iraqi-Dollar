@@ -1,0 +1,214 @@
+/* =====================================================================
+   PRO THEME v1 — طبقة تصميم احترافية (تصميم فقط، بدون أي تغيير في الوظائف)
+   تعتمد على متغيرات الثيم الحالية (--h, --card, --bg ...) فتتبدّل ألوانها مع اختيار المستخدم للون.
+   لا تحتوي أي حركة دخول على عناصر تُعاد رسمها، حتى تبقى الواجهة ثابتة بلا تلامض.
+   ===================================================================== */
+:root{
+  --pr-ease:cubic-bezier(.2,.8,.2,1);
+  --pr-glow:hsl(calc(var(--h) - 1) 78% 55% / .32);
+  --pr-glow2:hsl(calc(var(--h) - 1) 78% 55% / .16);
+  --pr-hi:inset 0 1px 0 #ffffff1f;
+  --pr-sh1:0 1px 2px #0006,0 8px 22px #0000004d;
+  --pr-sh2:0 2px 6px #0007,0 22px 50px #00000070;
+  --pr-ln:hsl(calc(var(--h) + 7) 45% 32% / .78);
+}
+html{-webkit-text-size-adjust:100%}
+body{
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;
+  font-feature-settings:"kern" 1,"tnum" 1;
+}
+::selection{background:hsl(calc(var(--h) - 1) 76% 53% / .35)}
+*{scrollbar-width:thin;scrollbar-color:hsl(calc(var(--h) + 7) 40% 32%) transparent}
+::-webkit-scrollbar{width:7px;height:7px}
+::-webkit-scrollbar-thumb{background:hsl(calc(var(--h) + 7) 40% 30%);border-radius:99px}
+::-webkit-scrollbar-track{background:transparent}
+button,a,[data-a]{touch-action:manipulation}
+
+/* ---------- الخلفية: توهّجات ناعمة بدل النقاط ---------- */
+body #app{
+  background:
+    radial-gradient(520px 340px at 88% -60px,hsl(calc(var(--h) + 4) 80% 48% / .17),transparent 70%),
+    radial-gradient(460px 380px at -12% 34%,hsl(calc(var(--h) + 55) 70% 52% / .08),transparent 70%),
+    var(--bg);
+}
+body #app.g{
+  background:
+    radial-gradient(520px 340px at 88% -60px,hsl(calc(var(--h) + 4) 80% 48% / .20),transparent 70%),
+    radial-gradient(460px 380px at -12% 40%,hsl(calc(var(--h) + 55) 70% 52% / .09),transparent 70%),
+    linear-gradient(hsl(calc(var(--h) + 6) 56% 18%),var(--bg2,#0F1722) 85%);
+}
+@media(min-width:700px){
+  body #app{border:1px solid hsl(calc(var(--h) + 10) 44% 20%);box-shadow:0 0 0 1px #ffffff08,0 40px 120px #000a,0 0 120px var(--pr-glow2)}
+}
+
+/* ---------- الترويسة ---------- */
+body .hd{border-bottom:1px solid #ffffff12;background:linear-gradient(180deg,#ffffff0a,transparent)}
+body .hd h1{font-weight:800;letter-spacing:-.01em}
+body .sec{font-weight:800}
+body .sec b{border-inline-start-width:4px;border-radius:2px}
+
+/* ---------- أزرار الأيقونات والدوائر ---------- */
+body .ib{
+  border:1px solid hsl(calc(var(--h) + 7) 50% 32% / .9);
+  background:linear-gradient(180deg,hsl(calc(var(--h) + 6) 58% 25%),hsl(calc(var(--h) + 6) 58% 18%));
+  box-shadow:var(--pr-hi),0 4px 12px #0004;
+  transition:transform .15s var(--pr-ease),filter .15s,box-shadow .2s;
+}
+body .ib:active{transform:scale(.92);filter:brightness(1.15)}
+body .ci{
+  background:linear-gradient(160deg,hsl(calc(var(--h) + 6) 55% 22%),hsl(calc(var(--h) + 6) 55% 14%));
+  box-shadow:inset 0 0 0 1px hsl(calc(var(--h) + 4) 60% 45% / .35),0 4px 14px var(--pr-glow2);
+}
+
+/* ---------- البطاقات والبلاطات ---------- */
+body .card{
+  background:var(--card);
+  background:linear-gradient(165deg,color-mix(in srgb,var(--card) 86%,#fff 14%),var(--card) 58%);
+  border:1px solid var(--pr-ln);
+  border-radius:24px;
+  box-shadow:var(--pr-hi),var(--pr-sh1);
+}
+body .tl{
+  background:linear-gradient(180deg,#ffffff2b,#ffffff00 46%),linear-gradient(135deg,hsl(calc(var(--h) + 1) 70% 49%),hsl(calc(var(--h) + 1) 78% 33%));
+  border:1px solid hsl(calc(var(--h) + 0) 66% 62% / .85);
+  border-radius:26px;
+  box-shadow:inset 0 1px 0 #ffffff55,0 12px 30px var(--pr-glow),0 2px 6px #0006;
+  transition:transform .18s var(--pr-ease),box-shadow .2s;
+}
+body .tl:active{transform:scale(.975)}
+
+/* ---------- الأزرار ---------- */
+body .btn{
+  background:linear-gradient(180deg,#ffffff30,#ffffff00 52%),linear-gradient(90deg,hsl(calc(var(--h) - 5) 100% 42%),hsl(calc(var(--h) - 1) 78% 54%));
+  border:1px solid hsl(calc(var(--h) - 1) 80% 62% / .7);
+  border-radius:16px;min-height:48px;
+  text-shadow:0 1px 2px #0005;
+  box-shadow:inset 0 1px 0 #ffffff45,0 10px 26px var(--pr-glow),0 2px 4px #0005;
+  transition:transform .15s var(--pr-ease),filter .15s,box-shadow .2s;
+}
+body .btn:active{transform:translateY(1px) scale(.985);filter:brightness(1.08)}
+body .btn:disabled{filter:grayscale(.5) brightness(.8);box-shadow:none;cursor:not-allowed}
+body .btn.o{text-shadow:none;box-shadow:var(--pr-hi),0 4px 12px #0004}
+
+/* ---------- الحقول ---------- */
+body :where(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color])){
+  background:var(--inp);
+  border-color:hsl(calc(var(--h) + 7) 48% 28%);
+  box-shadow:inset 0 2px 6px #0006;
+  transition:border-color .2s,box-shadow .2s;
+}
+body :where(#app input:focus,dialog input:focus){
+  outline:0;border-color:var(--cy);
+  box-shadow:inset 0 2px 6px #0006,0 0 0 4px var(--pr-glow2);
+}
+body .u2-sb input,body .u2-sb input:focus,body .u2-in input,body .u2-in input:focus{box-shadow:none!important}
+
+/* ---------- الشرائح والتبويبات ---------- */
+body .chip{box-shadow:var(--pr-hi);transition:transform .15s var(--pr-ease),background .2s}
+body .chip:active{transform:scale(.95)}
+body .chip.on{background:linear-gradient(135deg,hsl(calc(var(--h) - 1) 80% 58%),hsl(calc(var(--h) - 5) 90% 44%));box-shadow:0 6px 18px var(--pr-glow),inset 0 1px 0 #ffffff55}
+body .seg{background:linear-gradient(180deg,hsl(calc(var(--h) + 18) 44% 9%),hsl(calc(var(--h) + 18) 44% 12%));box-shadow:inset 0 2px 8px #0008;border-color:hsl(calc(var(--h) + 7) 45% 24%)}
+body .seg button.on{background:linear-gradient(180deg,hsl(calc(var(--h) + 10) 52% 30%),hsl(calc(var(--h) + 10) 49% 22%));box-shadow:var(--pr-hi),0 4px 12px #0005}
+
+/* ---------- القوائم والشارات ---------- */
+body .li{transition:background .15s}
+body .li:active{background:#ffffff08}
+body .bdg{font-weight:700;box-shadow:inset 0 0 0 1px color-mix(in srgb,currentColor 26%,transparent)}
+body .note{border-radius:18px;box-shadow:var(--pr-hi),0 6px 16px #0004}
+body .cnt,body .u2-un{
+  background:linear-gradient(135deg,#ffc04d,#f5841f);color:#2a1700;
+  box-shadow:0 0 0 2px var(--bg),0 4px 12px #f5a52466;
+}
+
+/* ---------- شريط التنقل العائم ---------- */
+body nav{
+  bottom:max(8px,env(safe-area-inset-bottom,0px));
+  width:min(504px,calc(100% - 16px));
+  padding:6px;
+  background:var(--nav);
+  background:linear-gradient(180deg,color-mix(in srgb,var(--nav) 80%,#fff 8%),color-mix(in srgb,var(--nav) 92%,#000 8%));
+  -webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);
+  border:1px solid #ffffff16;border-radius:30px;
+  box-shadow:0 20px 50px #000b,0 2px 6px #0006,var(--pr-hi);
+}
+body nav button{transition:color .2s,transform .15s var(--pr-ease)}
+body nav button:active{transform:scale(.92)}
+body nav button.on span{
+  background:linear-gradient(160deg,hsl(calc(var(--h) + 6) 58% 26%),hsl(calc(var(--h) + 6) 55% 18%));
+  box-shadow:inset 0 0 0 1px hsl(calc(var(--h) + 4) 60% 48% / .45),0 6px 16px var(--pr-glow2);
+}
+body nav .fab{
+  background:linear-gradient(180deg,#ffffff38,#ffffff00 50%),linear-gradient(hsl(calc(var(--h) - 2) 78% 55%),hsl(calc(var(--h) - 1) 80% 36%));
+  border:2px solid var(--bg);
+  box-shadow:0 0 0 1px hsl(calc(var(--h) - 1) 80% 60% / .6),0 10px 28px var(--pr-glow),inset 0 1px 0 #ffffff55;
+}
+
+/* ---------- النوافذ ---------- */
+body dialog{
+  background:var(--dlg);
+  background:linear-gradient(170deg,color-mix(in srgb,var(--dlg) 84%,#fff 16%),var(--dlg) 42%);
+  border:1px solid var(--pr-ln);border-radius:30px;
+  box-shadow:0 34px 90px #000c,var(--pr-hi);
+}
+body dialog[open]{animation:prDlg .26s var(--pr-ease)}
+@keyframes prDlg{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+body dialog::backdrop{background:rgba(3,8,14,.62);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+body .ic{background:linear-gradient(180deg,#ffffff0a,#ffffff03),var(--ic);box-shadow:var(--pr-hi)}
+
+/* ---------- الإشعار السفلي ---------- */
+body .sn{
+  border:1px solid #ffffff45;border-radius:20px;
+  background:linear-gradient(180deg,#ffffff30,#ffffff00 60%),hsl(calc(var(--h) - 5) 100% 42%);
+  box-shadow:0 16px 40px #000a,0 0 0 4px var(--pr-glow2);
+}
+
+/* ---------- قسم المستخدمين والدردشة ---------- */
+body .u2-c{
+  border:1px solid hsl(calc(var(--h) + 7) 52% 36% / .85);
+  background:linear-gradient(180deg,#ffffff10,#ffffff00 40%),linear-gradient(160deg,hsl(calc(var(--h) + 8) 58% 27%),hsl(calc(var(--h) + 8) 55% 18%));
+  box-shadow:var(--pr-hi),0 10px 26px #0006;
+}
+body .u2-cv{
+  border:1px solid var(--pr-ln);
+  background:linear-gradient(180deg,#ffffff0d,#ffffff00 45%),linear-gradient(160deg,hsl(calc(var(--h) + 8) 58% 24%),hsl(calc(var(--h) + 8) 55% 17%));
+  box-shadow:var(--pr-hi),0 6px 18px #0005;
+}
+body .u2-av{box-shadow:inset 0 0 0 2px #ffffff38,0 0 0 2px hsl(calc(var(--h) + 8) 55% 18%),0 0 0 3.5px hsl(var(--hu,200) 70% 55% / .55),0 6px 16px #0006}
+body .u2-dot.on{box-shadow:0 0 0 3px #3ddc6830,0 0 10px #3ddc68}
+body .u2-me{
+  background:linear-gradient(180deg,#ffffff2b,#ffffff00 50%),linear-gradient(135deg,hsl(calc(var(--h) + 1) 70% 44%),hsl(calc(var(--h) + 1) 78% 27%));
+  border:1px solid hsl(var(--h) 66% 58% / .8);
+  box-shadow:inset 0 1px 0 #ffffff55,0 14px 34px var(--pr-glow),0 2px 6px #0006;
+}
+body .u2-ghost{background:#ffffff2b;box-shadow:inset 0 1px 0 #ffffff30}
+body .u2-sb{background:linear-gradient(180deg,#0f1b29,#142234);border-color:hsl(calc(var(--h) + 7) 48% 28%);box-shadow:inset 0 2px 8px #0008}
+body .u2-btn{
+  background:linear-gradient(180deg,#ffffff30,#ffffff00 52%),linear-gradient(90deg,hsl(calc(var(--h) - 5) 100% 42%),hsl(calc(var(--h) - 1) 78% 54%));
+  border-radius:14px;box-shadow:inset 0 1px 0 #ffffff45,0 8px 20px var(--pr-glow2);
+}
+body .u2-btn.w{background:linear-gradient(180deg,#ffffff0d,#ffffff00),#3a3820;box-shadow:inset 0 1px 0 #ffffff14}
+body .u2-btn.g{background:linear-gradient(180deg,#ffffff38,#ffffff00 52%),linear-gradient(90deg,#1f9d55,#3ddc68);box-shadow:inset 0 1px 0 #ffffff55,0 8px 20px #3ddc6840}
+body .u2-btn.x,body .u2-ib{box-shadow:inset 0 1px 0 #ffffff12}
+body .u2-tag{box-shadow:inset 0 0 0 1px color-mix(in srgb,currentColor 28%,transparent)}
+body .u2-empty{background:linear-gradient(180deg,#ffffff08,#ffffff02);border-color:hsl(calc(var(--h) + 7) 40% 30%)}
+body .u2-h b{border-inline-start-width:4px}
+body .u2-in{background:#162231ee;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-color:hsl(calc(var(--h) + 7) 48% 30%);box-shadow:0 12px 32px #0008,var(--pr-hi)}
+body .u2-snd{background:linear-gradient(180deg,#ffffff30,#ffffff00 52%),linear-gradient(135deg,hsl(calc(var(--h) - 5) 100% 42%),hsl(calc(var(--h) - 1) 78% 54%));box-shadow:inset 0 1px 0 #ffffff45,0 6px 16px var(--pr-glow)}
+body .u2-b{box-shadow:0 3px 10px #0004}
+body .u2-b.o{background:linear-gradient(180deg,#ffffff22,#ffffff00 55%),linear-gradient(135deg,hsl(calc(var(--h) + 1) 70% 46%),hsl(calc(var(--h) + 1) 78% 34%))}
+body .u2-b.i{background:linear-gradient(180deg,#ffffff0d,#ffffff00),var(--bt);border:1px solid #ffffff10}
+body .sc-bar{border-radius:16px;box-shadow:var(--pr-hi)}
+body .sc-sec i,body .u2-h i{box-shadow:inset 0 0 0 1px hsl(var(--h) 60% 50% / .3)}
+
+/* ---------- لوحة التحكم: جداول وبطاقات ---------- */
+body .pp .c{box-shadow:inset 0 1px 0 #ffffff12,0 10px 28px #0006;border-color:#244257}
+body .pp .btn{box-shadow:inset 0 1px 0 #ffffff40,0 4px 12px #0004;transition:transform .15s var(--pr-ease),filter .15s}
+body .pp .btn:active{transform:scale(.96);filter:brightness(1.1)}
+body .pp .btn.o,body .pp .btn.r,body .pp .btn.gn{box-shadow:inset 0 1px 0 #ffffff12}
+body .pp input,body .pp select,body .pp textarea{box-shadow:inset 0 2px 5px #0006;transition:border-color .2s,box-shadow .2s}
+body .pp input:focus,body .pp select:focus,body .pp textarea:focus{outline:0;border-color:var(--cy);box-shadow:inset 0 2px 5px #0006,0 0 0 3px var(--pr-glow2)}
+body .pp th{background:linear-gradient(180deg,#13253a,#0f1c29);letter-spacing:.02em}
+body .pp .bx{box-shadow:inset 0 0 0 1px color-mix(in srgb,currentColor 24%,transparent)}
+body .pp .kp b{font-weight:800;letter-spacing:-.01em}
+
+@media(prefers-reduced-motion:reduce){body dialog[open]{animation:none}*{transition-duration:.01ms!important}}
