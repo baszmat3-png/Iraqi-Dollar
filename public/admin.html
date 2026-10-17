@@ -1068,7 +1068,7 @@ function psp(a,i,v){
  if(a=='spzoom'){const m=SPX.msgs.find(x=>String(x.id)==String(v));if(m&&m.img){const o=document.createElement('div');o.style.cssText='position:fixed;inset:0;z-index:100002;background:#000d;display:flex;align-items:center;justify-content:center;padding:12px';o.innerHTML=`<img src="${m.img}" style="max-width:100%;max-height:100%;border-radius:12px">`;o.onclick=()=>o.remove();document.body.appendChild(o)}return 1}
  return 0}
 
-function pvx(a,i,v){
+function pvx(a,i,v){  if(agNew(a,i,v))return 1;
  if(a=='rxown'){const x=$('#rx2'),y=$('#rx3');if(x)x.value='1';if(y&&!y.value)y.value='صاحب التطبيق';return 1}
  if(a=='rxadd'){if(!need('rf'))return 1;const e=($('#rx1').value||'').trim().toLowerCase(),c=($('#rx2').value||'').trim().replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)),n=($('#rx3').value||'').trim().slice(0,80);
   if(!rxAcc(e)){toast('لا يوجد حساب بهذا البريد');return 1}
@@ -1101,6 +1101,62 @@ function pvx(a,i,v){
 {const _pa=PT.agents;PT.agents=()=>{const m=AGC();
 const rows=AG.map((o,i)=>`<tr><td><b>${esc(o[0])}</b><div class="mu" style="font-size:.75rem">${esc(o[1]||'')}</div></td><td dir="ltr"><b>${esc(m[o[0]]||'—')}</b></td><td>${m[o[0]]?`<button class="btn r s" data-a="p_agxdel" data-v="${esc(o[0])}">إلغاء</button>`:''}</td></tr>`);
 return `<div class="c" style="margin-bottom:12px"><h3>رمز الوكيل (4 أرقام)</h3><div class="mu" style="font-size:.8rem;margin-bottom:8px">عيّن لكل وكيل رمزاً خاصاً من 4 أرقام. يظهر للمستخدمين في معلومات الوكيل، ويُستخدم في الشحن والمراقبة. عند تغيير اسم الوكيل أعد تعيين رمزه.</div><select id="agx1">${AG.map(o=>`<option value="${esc(o[0])}">${esc(o[0])}</option>`).join('')}</select><input id="agx2" dir="ltr" inputmode="numeric" maxlength="4" placeholder="الرمز (4 أرقام)"><button class="btn" data-a="p_agxadd" style="margin-top:8px">حفظ الرمز</button></div>`+tbl(['الوكيل','الرمز',''],rows,'لا يوجد وكلاء')+_pa()}}
+/* ===== الوكلاء v2: تصميم احترافي + بحث مباشر من الخادم (بريد/كود إحالة/اسم/هاتف) + ربط حساب + تعديل كامل ===== */
+const agLive=u=>{const e=String(u.email||u.e||'').trim().toLowerCase();return{e,n:u.name||u.n||e,p:u.phone||u.p||'',rc:u.rcode||u.rc||'',pts:+(u.pts!=null?u.pts:(u.b?u.b[0]:0))||0,blk:!!u.blk}};
+const agFindIdx=e=>{e=String(e||'').trim().toLowerCase();return e?AG.findIndex(o=>String(o[8]||'').toLowerCase()==e):-1};
+const agInit=n=>String(n||'؟').trim().charAt(0)||'؟';
+const agUser=o=>{const e=String(o[8]||'').trim().toLowerCase();if(!e)return null;const s=sU(e);if(s)return agLive(s);const a=acs().find(x=>String(x.e).toLowerCase()==e);return a?agLive({email:a.e,name:a.n,phone:a.p,pts:ubal(a)[0],blk:a.blk,rcode:ucode(a)}):{e,n:e,p:'',rc:'',pts:0,blk:false,nf:1}};
+const agCss=`<style>.ag-av{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#1fb5a5,#2f7fdc);display:grid;place-items:center;font-weight:800;font-size:1.2rem;color:#fff;flex:none}.ag-card{border-radius:18px;padding:14px;margin-bottom:10px}.ag-off{opacity:.62}.ag-meta{margin-top:10px;font-size:.88rem;line-height:1.9}.ag-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}.ag-grid div{background:#0b141c;border:1px solid #234158;border-radius:12px;padding:8px 10px;min-width:0}.ag-grid small{display:block;color:#8a9bb0;font-size:.72rem}.ag-grid b{font-size:.95rem;overflow-wrap:anywhere}.ag-sr{display:flex;gap:8px;align-items:center;margin:8px 0 4px}.ag-sr input{flex:1;margin:0}</style>`;
+function agResCard(u){const i=agFindIdx(u.e),ag=i>=0;return`<div class="c" style="padding:12px;margin-top:8px;border-radius:16px"><div class="rw" style="gap:12px;align-items:center"><div class="ag-av">${esc(agInit(u.n))}</div><div class="sp" style="min-width:0"><b>${esc(u.n)}</b>${u.blk?' <span class="bx b">محظور</span>':''}${ag?' <span class="bx a">وكيل</span>':''}<div class="mu" dir="ltr" style="text-align:start;font-size:.8rem;overflow-wrap:anywhere">${esc(u.e)}</div><div class="mu" style="font-size:.78rem">كود الإحالة: <b dir="ltr">${esc(u.rc||'—')}</b> · الرصيد: <b>${f(u.pts)}</b>${u.p?' · <span dir="ltr">'+esc(u.p)+'</span>':''}</div></div></div><button class="btn ${ag?'o ':''}s" style="margin-top:10px;width:100%" data-a="${ag?'p_agedit':'p_agnew'}" data-i="${ag?i:''}" data-v="${esc(u.e)}">${ag?'تعديل الوكالة':'تعيين كوكيل (بدون عداد أو رسوم)'}</button></div>`}
+async function agSearch(q){const box=$('#ag-res');if(!box)return;q=String(q||'').trim();const st=$('#ag-st');if(!q){box.innerHTML='';if(st)st.innerHTML='';return}
+ const ql=q.toLowerCase(),qc=q.replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).toUpperCase();
+ const loc=acs().filter(a=>!a.demo&&(String(a.e).toLowerCase().includes(ql)||String(a.n||'').toLowerCase().includes(ql)||String(a.p||'').includes(q)||ucode(a)==qc)).slice(0,8).map(a=>agLive({email:a.e,name:a.n,phone:a.p,pts:ubal(a)[0],blk:a.blk,rcode:ucode(a)}));
+ const paint=(L,live)=>{const b=$('#ag-res'),cur=$('#agq');if(!b||!cur||cur.value.trim()!==q)return;b.innerHTML=L.length?L.map(agResCard).join(''):'<div class="mu" style="text-align:center;padding:12px">لا يوجد مستخدم بهذا البريد أو الكود أو الاسم</div>';const s=$('#ag-st');if(s)s.innerHTML=live?'<span class="bx a">● مباشر من الخادم</span>':'<span class="bx w">نتائج محلية</span>'};
+ paint(loc,0);
+ if(!LS('adminkey',''))return;
+ if(st)st.innerHTML='<span class="bx c">جارٍ البحث في الخادم…</span>';
+ try{let j=q.length>=2?await exApi('/find?q='+encodeURIComponent(q),'GET',0,1):null;let sv=((j&&j.users)||[]).map(agLive);
+  if(!sv.length){const j2=await exApi('/find-code?code='+encodeURIComponent(q),'GET',0,1);if(j2&&j2.users){sv=j2.users.map(agLive);j=j2}}
+  const seen=new Set(sv.map(u=>u.e));paint(sv.concat(loc.filter(u=>!seen.has(u.e))),!!j)}catch(e){paint(loc,0)}}
+document.addEventListener('input',e=>{const t=e.target;if(t&&t.id=='agq'){window._agq=t.value;clearTimeout(agSearch.t);agSearch.t=setTimeout(()=>agSearch(t.value),300)}});
+document.addEventListener('focusin',e=>{if(e.target&&e.target.id=='agq')window._agf=1});
+document.addEventListener('focusout',e=>{if(e.target&&e.target.id=='agq')window._agf=0});
+function agCard(o,i,m){const u=agUser(o),dis=!!o[6],code=m[o[0]];
+ return`<div class="c ag-card${dis?' ag-off':''}"><div class="rw" style="gap:12px;align-items:center"><div class="ag-av">${esc(agInit(o[0]))}</div><div class="sp" style="min-width:0"><b style="font-size:1.05rem">${esc(o[0])}</b> ${dis?'<span class="bx b">معطّل</span>':'<span class="bx a">فعّال</span>'}<div class="mu" style="font-size:.8rem">${esc(o[1]||'—')} · <span dir="ltr">${esc(o[2]||'')}</span></div></div></div><div class="ag-meta">${u?`<div>👤 <b>${esc(u.n)}</b> <span class="mu" dir="ltr" style="overflow-wrap:anywhere">${esc(u.e)}</span>${u.nf?' <span class="bx w">الحساب غير موجود على الخادم</span>':''}${u.blk?' <span class="bx b">محظور</span>':''}</div>`:'<div><span class="bx w">غير مرتبطة بحساب</span> <span class="mu" style="font-size:.78rem">اربطها بمستخدم لتفعيل لوحة الوكيل</span></div>'}<div class="ag-grid"><div><small>رمز الوكيل</small><b dir="ltr">${esc(code||'—')}</b></div><div><small>السيولة</small><b>${f(+o[4]||0)}</b></div>${u&&!u.nf?`<div><small>رصيد الحساب</small><b>${f(u.pts)}</b></div>`:''}</div></div><div class="rw l" style="gap:8px;margin-top:10px"><button class="btn s" data-a="p_agedit" data-i="${i}">✏️ تعديل</button><button class="btn o s" data-a="p_agtog" data-i="${i}">${dis?'تفعيل':'تعطيل'}</button><button class="btn r s" data-a="p_agdel" data-i="${i}">حذف</button></div></div>`}
+PT.agents=()=>{const m=AGC(),L=AG.map((o,i)=>[o,i]),act=L.filter(([o])=>!o[6]).length,lnk=L.filter(([o])=>o[8]).length,liq=L.reduce((t,[o])=>t+(+o[4]||0),0);
+ setTimeout(()=>{const q=window._agq;if(q&&$('#agq')){agSearch(q);if(window._agf){const x=$('#agq');x.focus();try{x.setSelectionRange(99,99)}catch(e){}}}},0);
+ return PP(agCss+`<div class="gd k" style="margin-bottom:12px">${kp('الوكلاء',L.length,'store')}${kp('فعّالون',act,'chk')}${kp('مرتبطون بحسابات',lnk,'user')}${kp('إجمالي السيولة',f(liq),'coin')}</div><div class="c" style="margin-bottom:12px"><h3>🔎 ابحث عن مستخدم وعيّنه وكيلاً</h3><div class="mu" style="font-size:.8rem;line-height:1.7">ابحث بالبريد أو كود الإحالة أو الاسم أو الهاتف، والنتائج مباشرة من الخادم. التعيين من هنا <b>مستثنى من شرط عداد تيتانيوم ومن رسوم الوكالة</b>، وشروط الطلب العادي للمستخدمين تبقى كما هي.</div><div class="ag-sr"><input id="agq" dir="ltr" autocapitalize="none" autocomplete="off" placeholder="البريد أو كود الإحالة أو الاسم" value="${esc(window._agq||'')}"><span id="ag-st"></span></div><div id="ag-res"></div><button class="btn o" style="margin-top:10px;width:100%" data-a="p_agnew" data-v="">➕ إضافة وكالة يدوياً (بدون حساب)</button></div><div class="sh"><span>الوكلاء (${AG.length})</span></div>${L.map(([o,i])=>agCard(o,i,m)).join('')||'<div class="c mu" style="text-align:center">لا يوجد وكلاء</div>'}<div style="height:130px"></div>`)};
+function agDlg(i,em){const ed=i>=0&&AG[i],o=ed?AG[i]:[],m=AGC();let u=null;if(!ed&&em){u=sU(em)||acs().find(a=>String(a.e).toLowerCase()==em);if(u)u=agLive(u.email?u:{email:u.e,name:u.n,phone:u.p})}
+ const val=(x)=>esc(x==null?'':x),e0=ed?(o[8]||''):(em||''),n0=ed?o[0]:(u?u.n:''),p0=ed?o[2]:(u&&PH.test(String(u.p||'').replace(/[\s\-()]/g,''))?u.p:'');
+ ppd(`<h2 style="margin-top:0">${ed?'تعديل الوكالة':'إضافة وكيل جديد'}</h2>${ed?'':'<div class="mu" style="font-size:.82rem;margin-bottom:8px">مستثناة من شرط عداد تيتانيوم ومن رسوم الوكالة</div>'}<label>اسم الوكالة<input id="agd_n" value="${val(n0)}"></label><label>المدينة<input id="agd_c" value="${val(o[1])}"></label><label>الهاتف (مع رمز الدولة)<input id="agd_p" dir="ltr" placeholder="+9647..." value="${val(p0)}"></label><label>العنوان<input id="agd_a" value="${val(o[3])}"></label><label>رابط تليكرام (اختياري)<input id="agd_t" dir="ltr" placeholder="https://t.me/username" value="${val(o[7])}"></label><label>إيميل حساب الوكيل (لتفعيل لوحة الوكيل)<input id="agd_e" dir="ltr" autocapitalize="none" value="${val(e0)}"></label><label>رمز الوكيل (4 أرقام)<input id="agd_k" dir="ltr" inputmode="numeric" maxlength="4" placeholder="يُولَّد تلقائياً إن تُرك فارغاً" value="${val(ed?(m[o[0]]||''):'')}"></label>${ed?`<div class="mu" style="font-size:.8rem;margin:6px 0">السيولة الحالية: <b>${f(+o[4]||0)}</b> نقطة (تُدار من لوحة الوكيل وطلبات الشحن)</div>`:'<label>السيولة الابتدائية (نقطة)<input id="agd_l" type="number" inputmode="numeric" min="0" value="0"></label>'}<button class="btn" style="margin-top:10px" data-a="p_agsave" data-i="${ed?i:''}">حفظ</button><button class="btn o" style="margin-top:8px" onclick="d.close()">إلغاء</button>`)}
+function agSave(i){if(!need('agents'))return;const k=(i==null||String(i)==='')?-1:+i,g=id=>(($(id)||{}).value||'').trim();
+ const n=g('#agd_n'),c=g('#agd_c'),p=g('#agd_p').replace(/[\s\-()]/g,''),ad=g('#agd_a'),tg0=g('#agd_t'),em=g('#agd_e').toLowerCase(),code0=g('#agd_k').replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)),liq=Math.max(0,Math.floor(+g('#agd_l')||0));
+ if(!n||!c||!PH.test(p))return toast('أدخل الاسم والمدينة ورقماً صحيحاً مع رمز الدولة');
+ const tg=tgUrl(tg0);if(tg0&&!tg)return toast('رابط تليكرام غير صحيح');
+ if(em&&!EM.test(em))return toast('أدخل إيميلاً صحيحاً لحساب الوكيل');
+ if(em&&AG.some((o,j)=>j!=k&&String(o[8]||'').toLowerCase()==em))return toast('هذا المستخدم وكيل بالفعل');
+ if(AG.some((o,j)=>j!=k&&o[0]==n))return toast('اسم الوكالة مستخدم مسبقاً');
+ if(code0&&!/^\d{4}$/.test(code0))return toast('الرمز يجب أن يكون 4 أرقام');
+ const old=k>=0?AG[k]:null,oldN=old?old[0]:'',m=Object.assign({},AGC());
+ if(code0&&Object.entries(m).some(([nm,v])=>nm!=oldN&&nm!=n&&String(v)==code0))return toast('هذا الرمز مستخدم لوكيل آخر');
+ if(em&&!(acs().some(a=>String(a.e||'').toLowerCase()==em))&&!confirm('لم يُعثر على حساب بهذا الإيميل في القائمة. هل تريد المتابعة؟'))return;
+ const prevE=old?String(old[8]||'').toLowerCase():'';
+ if(old){AG[k]=[n,c,p,ad,old[4]||0,old[5]||0,old[6]||0,tg,em];if(oldN!=n){if(m[oldN]!=null){m[n]=m[oldN];delete m[oldN]}const ap=Object.assign({},AGP());if(ap[oldN]){ap[n]=ap[oldN];delete ap[oldN];LSset('agp',ap)}}}else AG.push([n,c,p,ad,liq,0,0,tg,em]);
+ LSset('agents',AG);
+ let code=code0;if(!code&&em&&!m[n]){const used=new Set(Object.values(m).map(String));do{code=String(1000+Math.floor(Math.random()*9000))}while(used.has(code))}
+ if(code)m[n]=code;LSset('agx',m);
+ if(em&&em!=prevE){try{typeof unAddE=='function'&&unAddE(em,'🎉 أنت وكيل الآن','تمت إضافتك وكيلاً من الإدارة. افتح لوحة الوكيل من الشاشة الرئيسية.')}catch(x){}}
+ try{window.autoPub&&autoPub()}catch(x){}
+ alog((old?'تعديل وكالة ':'إضافة وكالة ')+n+(em?' ← '+em:'')+(!old&&em?' (بدون شروط العداد والرسوم)':''));
+ agyClose();toast(old?'تم حفظ التعديلات':'تمت إضافة الوكالة'+(LS('adminkey','')?' ونشرها للجميع':' — انشر الإعدادات ليصل التحديث'));draw()}
+function agNew(a,i,v){
+ if(a=='agnew'){if(!need('agents'))return 1;const e=String(v||'').trim().toLowerCase();const x=agFindIdx(e);if(e&&x>=0)agDlg(x);else agDlg(-1,e);return 1}
+ if(a=='agedit'){if(!need('agents'))return 1;if(AG[+i])agDlg(+i);return 1}
+ if(a=='agsave'){agSave(i);return 1}
+ if(a=='agtog'){if(!need('agents'))return 1;const o=AG[+i];if(!o)return 1;o[6]=o[6]?0:1;LSset('agents',AG);try{window.autoPub&&autoPub()}catch(x){}alog((o[6]?'تعطيل ':'تفعيل ')+'وكالة '+o[0]);toast(o[6]?'تم تعطيل الوكالة':'تم تفعيل الوكالة');draw();return 1}
+ if(a=='agdel'){if(!need('agents'))return 1;const o=AG[+i];if(!o)return 1;if(!confirm('حذف الوكالة «'+o[0]+'»؟ ستفقد لوحة الوكيل لدى الحساب المرتبط بها.'))return 1;AG.splice(+i,1);LSset('agents',AG);const m=Object.assign({},AGC());delete m[o[0]];LSset('agx',m);try{window.autoPub&&autoPub()}catch(x){}alog('حذف وكالة '+o[0]);toast('تم حذف الوكالة');draw();return 1}
+ return 0}
+
 const pubBar=()=>`<div style="position:sticky;bottom:0;z-index:5;padding:12px 0 8px;margin-top:8px;background:linear-gradient(transparent,#0E1621 28%)"><button class="btn" data-a="cfgp">📤 نشر للجميع</button></div>`;
 /* ===== المستثنون من المالية والأرباح + الأعلى مالياً + إعادة التعيين ===== */
 function exlHas(e){try{return !!(window._exl&&window._exl.has(String(e||'').trim().toLowerCase()))}catch(x){return false}}
