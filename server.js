@@ -1209,7 +1209,7 @@ app.post('/api/ctl/config', ...ctl, wrap(async (req, res) => {
 
 function cleanCmd(b) {
   b = b || {};
-  if (!['adj', 'set', 'rz', 'rc', 'blk', 'cfg', 'nm', 'kyc', 'vf'].includes(b.t)) fail(400, 'نوع أمر غير صحيح');
+  if (!['adj', 'set', 'rz', 'rc', 'blk', 'cfg', 'nm', 'kyc', 'vf', 'gc'].includes(b.t)) fail(400, 'نوع أمر غير صحيح');
   const out = { t: b.t, sc: ['all', 'real', 'demo'].includes(b.sc) ? b.sc : 'all' };
   const e = b.e ? String(b.e).trim().toLowerCase().slice(0, 120) : '';
   if (e) out.e = e;

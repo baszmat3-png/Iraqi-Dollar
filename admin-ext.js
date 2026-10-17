@@ -261,4 +261,73 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     const pq = await one(`SELECT COUNT(*) FILTER (WHERE status='pending')::int pending FROM pts_requests`);
     res.json({ users: u, reports: rp, support: sp, merchants: mc, friends: fr, msgs: ms, withdrawals: wd, agbuys: ab, ptsreq: pq, top, recent, joined });
   }));
+
+  /* ===== مركز العدادات: عرض عدادات المستخدمين + شحن/تجديد (يصل لجهاز المستخدم فوراً) ===== */
+  const CTN = ['بسيط', 'الاعتيادي', 'برونزي', 'الفضي', 'الذهبي', 'الماسي', 'الناري', 'عشرة آلاف', 'تيتانيوم'];
+  const CTD = [50, 100, 100, 500, 500, 1000, 5000, 10000, 100000];
+  const CTC = ['#8fb8c9', '#6fd3a0', '#cd7f32', '#c0c8d0', '#ffd34d', '#2bcfe2', '#ff6b35', '#b57bff', '#9fb3c8'];
+  const CT_LIFE = 360 * 864e5;
+  q(`CREATE TABLE IF NOT EXISTS ctr_log(id BIGSERIAL PRIMARY KEY, email TEXT NOT NULL, op TEXT NOT NULL, idx INT, n INT NOT NULL DEFAULT 0, note TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`).catch((e) => console.error('ctr_log', e.message));
+  async function ctrCfg() {
+    // العائد اليومي يؤخذ من الإعدادات المنشورة إن عُدّل من لوحة التحكم، وإلا القيم الافتراضية
+    let base = 100; const daily = CTD.slice();
+    try {
+      const r = (await q(`SELECT val FROM sync_kv WHERE key='config'`)).rows[0], c = r && r.val && r.val.cfg;
+      if (c) { if (Number(c.base) > 0) base = Number(c.base); CTD.forEach((_, i) => { const o = c.ct && c.ct[i]; if (o && Number(o[1]) > 0) daily[i] = Number(o[1]); }); }
+    } catch (e) {}
+    return { base, daily };
+  }
+  app.get('/api/ctl/counters-hub', ...ctl, wrap(async (req, res) => {
+    const s = txt(req.query.q, 100), like = '%' + s.replace(/[%_]/g, '') + '%', cf = await ctrCfg(), now = Date.now();
+    const cols = `email,name,phone,uid,rcode,pts,cl,cl_at,last_seen,demo,blk,kyc,(SELECT (EXTRACT(EPOCH FROM v.updated_at)*1000)::bigint FROM avatars v WHERE v.email=LOWER(a.email)) av`;
+    const rows = s
+      ? (await q(`SELECT ${cols} FROM sync_accounts a WHERE email ILIKE $1 OR name ILIKE $1 OR phone ILIKE $1 OR uid ILIKE $1 OR rcode ILIKE $1 ORDER BY last_seen DESC NULLS LAST LIMIT 40`, [like])).rows
+      : (await q(`SELECT ${cols} FROM sync_accounts a WHERE demo=FALSE AND jsonb_typeof(cl)='array' AND jsonb_array_length(cl)>0 ORDER BY cl_at DESC NULLS LAST LIMIT 600`)).rows;
+    const byType = CTN.map((n, i) => ({ i, name: n, color: CTC[i], daily: cf.daily[i], count: 0, users: 0 }));
+    let total = 0, daily = 0, soon = 0, withC = 0;
+    const users = rows.map((r) => {
+      const act = (Array.isArray(r.cl) ? r.cl : []).filter((x) => x && Number(x.e) > now && byType[Number(x.i)]);
+      const grp = {};
+      act.forEach((x) => { const g = grp[x.i] || (grp[x.i] = { i: Number(x.i), n: 0, exp: Number(x.e) }); g.n++; g.exp = Math.min(g.exp, Number(x.e)); });
+      const groups = Object.values(grp).sort((a, b) => b.i - a.i).map((g) => ({ ...g, name: CTN[g.i], color: CTC[g.i], daily: cf.daily[g.i] * g.n }));
+      const yld = cf.base + groups.reduce((t, g) => t + g.daily, 0);
+      const minExp = act.length ? Math.min(...act.map((x) => Number(x.e))) : 0, maxExp = act.length ? Math.max(...act.map((x) => Number(x.e))) : 0;
+      if (!s) { total += act.length; daily += yld; if (act.length) withC++; if (minExp && minExp - now < 30 * 864e5) soon++; act.forEach((x) => { byType[Number(x.i)].count++; }); groups.forEach((g) => byType[g.i].users++); }
+      return { email: r.email, name: r.name, phone: r.phone, uid: r.uid, rcode: r.rcode || '', pts: Number(r.pts) || 0, av: r.av ? Number(r.av) : 0, demo: !!r.demo, blk: !!r.blk, kyc: !!r.kyc,
+        n: act.length, groups, daily: yld, minExp, maxExp, days: minExp ? Math.ceil((minExp - now) / 864e5) : 0, life: Math.round(CT_LIFE / 864e5), syncedAt: r.cl_at ? new Date(r.cl_at).getTime() : 0 };
+    }).sort((a, b) => b.daily - a.daily);
+    let log = [];
+    try { log = (await q(`SELECT email,op,idx,n,note,created_at FROM ctr_log ORDER BY id DESC LIMIT 8`)).rows; } catch (e) {}
+    res.json({ ok: true, now, base: cf.base, search: !!s, total, daily, soon, withC, types: byType, users, log });
+  }));
+
+  app.post('/api/ctl/counters-hub/grant', ...ctl, wrap(async (req, res) => {
+    const b = req.body || {}, em = String(b.email || '').trim().toLowerCase(), mode = b.mode === 'renew' ? 'renew' : 'add';
+    if (!em) fail(400, 'الحساب غير محدد');
+    const a = (await q(`SELECT email,cl FROM sync_accounts WHERE LOWER(email)=$1`, [em])).rows[0];
+    if (!a) fail(404, 'الحساب غير موجود');
+    const now = Date.now(), ex = now + CT_LIFE;
+    let cl = (Array.isArray(a.cl) ? a.cl : []).filter((x) => x && Number(x.e) > now).map((x) => ({ i: Number(x.i), e: Number(x.e) }));
+    let cmd, note, idx = null, n = 0;
+    if (mode === 'renew') {
+      if (!cl.length) fail(400, 'لا توجد عدادات فعّالة لتجديدها (أضف عداداً أولاً)');
+      cl = cl.map((x) => ({ i: x.i, e: Math.max(x.e, ex) })); n = cl.length;
+      cmd = { t: 'gc', m: 'renew', e: em, ex, sc: 'all' }; note = 'تجديد ' + n + ' عداد لمدة 12 شهراً';
+    } else {
+      idx = Math.floor(Number(b.i)); n = Math.floor(Number(b.n)) || 1;
+      if (!(idx >= 0 && idx < CTN.length)) fail(400, 'نوع العداد غير صحيح');
+      if (n < 1 || n > 20) fail(400, 'العدد من 1 إلى 20');
+      if (cl.length + n > 60) fail(400, 'تجاوز الحد الأقصى لعدد العدادات للحساب (60)');
+      for (let k = 0; k < n; k++) cl.push({ i: idx, e: ex });
+      cmd = { t: 'gc', m: 'add', e: em, i: idx, n, ex, sc: 'all' }; note = 'شحن ' + n + ' × عداد ' + CTN[idx];
+    }
+    const nclAll = cl.length;
+    try { await q(`UPDATE sync_accounts SET cl=$2::jsonb, ncl=$3, cl_at=NOW() WHERE LOWER(email)=$1`, [em, JSON.stringify(cl), nclAll]); }
+    catch (e) { await q(`UPDATE sync_accounts SET cl=$2::jsonb, cl_at=NOW() WHERE LOWER(email)=$1`, [em, JSON.stringify(cl)]); }
+    cmd.by = 'srv';
+    const id = (await q(`INSERT INTO sync_cmds(body) VALUES($1) RETURNING id`, [JSON.stringify(cmd)])).rows[0].id;
+    await q(`INSERT INTO ctr_log(email,op,idx,n,note) VALUES($1,$2,$3,$4,$5)`, [em, mode, idx, n, txt(b.note, 200) || note]).catch(() => {});
+    let delivered = 0; try { if (app.locals.broadcastCmd) delivered = app.locals.broadcastCmd(id, cmd); } catch (e) {}
+    res.json({ ok: true, note, count: nclAll, delivered });
+  }));
 };
