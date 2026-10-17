@@ -38,7 +38,7 @@
   `;
   document.head.appendChild(css);
 
-  const SO = (window.SOC = { people: [], friends: [], incoming: [], sent: [], convos: [], unread: 0, me: '', peer: null, msgs: [], last: 0,
+  const SO = (window.SOC = { people: [], friends: [], incoming: [], sent: [], convos: [], hist: [], bsid: 0, unread: 0, me: '', peer: null, msgs: [], last: 0,
     uv: 'list', up: '', q: '', dr: '', rr: '', loaded: false, sig: '', who: '' });
   const idn = () => (S.acc && S.acc.e && S.acc.h ? { e: S.acc.e, h: S.acc.h } : null);
   const say = (m) => { try { toast(m); } catch (e) { alert(m); } };
@@ -134,19 +134,9 @@
     clearTimeout(bnT); bnT = setTimeout(() => b.classList.remove('on'), 5500);
     try { navigator.vibrate && navigator.vibrate(60); } catch (e) {}
   }
+  // إشعارات الصداقة والرسائل تظهر داخل جرس قسم «المستخدمون» فقط — بلا شريط منبثق ولا رسالة على الشاشة ولا إدخال في إشعارات التطبيق العامة
   function handleNotes(notes) {
-    if (!notes || !notes.length) return false;
-    let fresh = false;
-    notes.forEach((n) => {
-      // الرسائل لا تدخل لوحة الإشعارات ولا تظهر منبثقة؛ يظهر فقط العداد على أيقونة المستخدمين وصندوق الرسائل
-      if (n.kind === 'dm') { fresh = true; return; }
-      try { typeof unAddE === 'function' && S.acc && unAddE(S.acc.e, n.title, n.body); } catch (e) {}
-      if (n.kind === 'friend_ok') { banner('تمت الموافقة ✅', n.body, () => { SO.uv = 'list'; go('users'); }); say('تمت الموافقة ✅'); }
-      else if (n.kind === 'friend_req') banner(n.title, n.body, () => { SO.uv = 'list'; go('users'); });
-      else say(n.title);
-      fresh = true;
-    });
-    return fresh;
+    return !!(notes && notes.length);
   }
 
   /* عداد الرسائل غير المقروءة فوق أيقونة «المستخدمون» في الشريط السفلي */
@@ -164,14 +154,14 @@
   async function load(mode, force) {
     const me = idn(); if (!me || (busy && !force)) return; busy = true;
     try {
-      if (SO.who !== me.e) { Object.assign(SO, { people: [], friends: [], incoming: [], sent: [], convos: [], unread: 0, peer: null, msgs: [], last: 0, uv: 'list', up: '', q: '', dr: '', loaded: false, sig: '', who: me.e }); }
+      if (SO.who !== me.e) { Object.assign(SO, { people: [], friends: [], incoming: [], sent: [], convos: [], hist: [], bsid: 0, unread: 0, peer: null, msgs: [], last: 0, uv: 'list', up: '', q: '', dr: '', loaded: false, sig: '', who: me.e }); }
       const dm = S.r === 'users' && SO.uv === 'dm' && SO.up;
       const j = await post('/api/soc/state', { ...me, mode, peer: dm ? SO.up : undefined, after: dm ? SO.last : undefined });
       const fresh = handleNotes(j.notes);
       const prevUnread = SO.unread; SO.unread = j.unread || 0;
       try { window.paintMsgBadge && window.paintMsgBadge(); } catch (e) {}
       if (mode === 'light') { if (prevUnread !== SO.unread && S.r === 'users') render(true); return; }
-      SO.people = j.people || []; SO.friends = j.friends || []; SO.incoming = j.incoming || []; SO.sent = j.sent || []; SO.convos = j.convos || []; SO.loaded = true;
+      SO.hist = j.hist || SO.hist; SO.people = j.people || []; SO.friends = j.friends || []; SO.incoming = j.incoming || []; SO.sent = j.sent || []; SO.convos = j.convos || []; SO.loaded = true;
       let newMsgs = false;
       if (dm && j.msgs) {
         if (j.peer) SO.peer = j.peer;
@@ -186,7 +176,7 @@
   }
 
   /* ---------- العرض ---------- */
-  const sigOf = () => JSON.stringify([SO.people.map((p) => [p.uid, p.rel, p.on, p.av, p.name]), SO.incoming.map((p) => p.uid), SO.sent.map((p) => p.uid), SO.friends.map((p) => p.uid), SO.convos.map((c) => [c.uid, c.lt, c.unread]), SO.unread, SO.uv]);
+  const sigOf = () => JSON.stringify([SO.people.map((p) => [p.uid, p.rel, p.on, p.av, p.name]), SO.incoming.map((p) => p.uid), SO.sent.map((p) => p.uid), SO.friends.map((p) => p.uid), SO.convos.map((c) => [c.uid, c.lt, c.unread]), SO.unread, SO.uv, SO.hist.map((h) => h.id)]);
   function render(force) {
     if (S.r !== 'users') return;
     const s = sigOf(); if (!force && s === SO.sig) return; SO.sig = s;
@@ -213,10 +203,26 @@
     return `<div class="sc-sec"><span>${q ? 'نتائج البحث' : 'مستخدمون مقترحون'}</span><i>${base.length}</i></div><div class="u2" style="padding-bottom:0">${base.map(card).join('')}</div>`;
   };
   function paintRes() { const r = document.querySelector('#scr'); if (r) r.innerHTML = list(); }
+  /* ---------- جرس إشعارات قسم المستخدمين: طلبات الصداقة + قبولها + الرسائل الجديدة ---------- */
+  const seenKey = () => 'socb:' + (S.acc ? S.acc.e : '');
+  const seenId = () => { try { return +localStorage.getItem(seenKey()) || 0; } catch (e) { return 0; } };
+  const markSeen = () => { try { const m = SO.hist.reduce((a, h) => Math.max(a, h.id), seenId()); localStorage.setItem(seenKey(), String(m)); } catch (e) {} };
+  const bellN = () => SO.incoming.length + SO.hist.filter((h) => h.id > seenId()).length + SO.convos.filter((c) => c.unread).length;
+  const bellBtn = () => { const n = bellN(); return `<button class="u2-chat" style="padding:0 11px" data-a="scbell" aria-label="الإشعارات">${ic('bell')}${n ? `<b class="cnt">${n > 9 ? '9+' : n}</b>` : ''}</button>`; };
+  const bellV = () => {
+    const inc = SO.incoming, un = SO.convos.filter((c) => c.unread), hs = SO.hist, sid = SO.bsid; markSeen();
+    const hrow = (h) => `<div class="u2-cv" style="cursor:default"><span class="u2-av" style="--hu:150">✅</span><div class="sp"><b>${esc(h.title)}</b><span class="pv">${esc(h.body)}</span></div><div class="mt"><span>${dayL(h.t)} ${tm(h.t)}</span>${h.id > sid ? '<span class="u2-un">جديد</span>' : ''}</div></div>`;
+    const mrow = (o) => `<button class="u2-cv" data-a="scdm" data-v="${esc(o.uid)}">${avatar(o)}<div class="sp"><b>${esc(o.name)}</b><span class="pv">${o.mine ? 'أنت: ' : ''}${esc(gp(o.last))}</span></div><div class="mt"><span>${tm(o.lt)}</span><span class="u2-un">${o.unread > 9 ? '9+' : o.unread}</span></div></button>`;
+    return `<div class="hd"><button class="ib" data-a="scback" aria-label="رجوع">${ic('back')}</button><div class="ci">${ic('bell')}</div><h1>الإشعارات</h1></div><div class="u2">` +
+      (inc.length ? `<div class="sc-sec"><span>طلبات الصداقة</span><i>${inc.length}</i></div>${inc.map(card).join('')}` : '') +
+      (un.length ? head('رسائل جديدة', un.length) + un.map(mrow).join('') : '') +
+      (hs.length ? head('الصداقة', hs.length) + hs.map(hrow).join('') : '') +
+      (!inc.length && !un.length && !hs.length ? empty('bell', 'لا توجد إشعارات', 'طلبات الصداقة وقبولها والرسائل الجديدة تظهر هنا') : '') + '</div>';
+  };
   const chatBtn = () => `<button class="u2-chat" data-a="scinbox" aria-label="الدردشة">${ic('chat')}<span>الدردشة</span>${SO.unread ? `<b class="cnt">${SO.unread > 9 ? '9+' : SO.unread}</b>` : ''}</button>`;
   const listV = () => {
     const code = (() => { try { return ucode(S.acc); } catch (e) { return ''; } })(), inc = SO.incoming;
-    return hd('المستخدمون', 'users', { back: 'home', acts: chatBtn() }) +
+    return hd('المستخدمون', 'users', { back: 'home', acts: bellBtn() + chatBtn() }) +
       `<div class="u2"><div class="u2-me"><div class="sp"><small>رمز الإحالة الخاص بك</small><b dir="ltr">${esc(code)}</b></div><button class="u2-ghost" data-a="ucopy" data-v="${esc(code)}" aria-label="نسخ الرمز">${X(IC.copy, 20)}</button><button class="u2-ghost" data-a="ushare" data-v="${esc(code)}" aria-label="مشاركة الرمز">${X(IC.share, 20)}</button></div>` +
       (inc.length ? `<div class="sc-sec"><span>طلبات الصداقة</span><i>${inc.length}</i></div>${inc.map(card).join('')}` : '') +
       `<div class="u2-sb">${ic('search')}<input id="scq" dir="auto" autocomplete="off" spellcheck="false" maxlength="30" value="${esc(SO.q)}" placeholder="ابحث بالاسم..."><button type="button" id="scc" data-a="scclr" aria-label="مسح" ${SO.q ? '' : 'hidden'}>${ic('x')}</button></div><div id="scr">${list()}</div></div>`;
@@ -252,6 +258,7 @@
     SO.sig = sigOf();
     if (SO.uv === 'dm') return dmV();
     if (SO.uv === 'inbox') return inboxV();
+    if (SO.uv === 'bell') return bellV();
     return listV();
   };
 
@@ -260,6 +267,7 @@
   async function act(a, v) {
     const me = idn(); if (!me) return say('سجّل الدخول أولاً');
     switch (a) {
+      case 'scbell': SO.bsid = seenId(); SO.uv = 'bell'; draw(); scrollTo(0, 0); load('full', true); return;
       case 'scinbox': SO.uv = 'inbox'; draw(); scrollTo(0, 0); load('full', true); return;
       case 'scback': SO.uv = SO.uv === 'dm' ? 'inbox' : 'list'; SO.up = ''; SO.msgs = []; SO.last = 0; draw(); scrollTo(0, 0); return;
       case 'scclr': { SO.q = ''; paintRes(); const x = document.querySelector('#scq'); if (x) { x.value = ''; x.focus(); } const c = document.querySelector('#scc'); if (c) c.hidden = true; return; }
@@ -282,17 +290,17 @@
       case 'scadd': {
         if (demoBlock()) return; const p = find(v); const was = p ? p.rel : 'none';
         setRel(v, was === 'recv' ? 'friend' : 'sent'); SO.sig = ''; draw();
-        try { const j = await post('/api/soc/friend/request', { ...me, to: v }); setRel(v, j.rel); say(j.rel === 'friend' ? 'أصبحتما صديقين ✅' : 'تم إرسال طلب الصداقة' + (p ? ' إلى ' + p.name : '')); }
+        try { const j = await post('/api/soc/friend/request', { ...me, to: v }); setRel(v, j.rel); }
         catch (e) { setRel(v, was); say(e.message); }
         SO.sig = ''; draw(); load('full', true); return;
       }
-      case 'sccan': { setRel(v, 'none'); SO.sig = ''; draw(); try { await post('/api/soc/friend/cancel', { ...me, to: v }); say('تم إلغاء طلب الصداقة'); } catch (e) { say(e.message); } load('full', true); return; }
+      case 'sccan': { setRel(v, 'none'); SO.sig = ''; draw(); try { await post('/api/soc/friend/cancel', { ...me, to: v }); } catch (e) { say(e.message); } load('full', true); return; }
       case 'scacc': {
         const p = find(v); setRel(v, 'friend'); SO.incoming = SO.incoming.filter((x) => x.uid !== v); SO.sig = ''; draw();
-        try { await post('/api/soc/friend/respond', { ...me, from: v, accept: true }); say('أصبحت صديقاً' + (p ? ' لـ ' + p.name : '') + ' ✅'); } catch (e) { say(e.message); }
+        try { await post('/api/soc/friend/respond', { ...me, from: v, accept: true }); } catch (e) { say(e.message); }
         load('full', true); return;
       }
-      case 'scdec': { setRel(v, 'none'); SO.incoming = SO.incoming.filter((x) => x.uid !== v); SO.sig = ''; draw(); try { await post('/api/soc/friend/respond', { ...me, from: v, accept: false }); say('تم رفض الطلب'); } catch (e) { say(e.message); } load('full', true); return; }
+      case 'scdec': { setRel(v, 'none'); SO.incoming = SO.incoming.filter((x) => x.uid !== v); SO.sig = ''; draw(); try { await post('/api/soc/friend/respond', { ...me, from: v, accept: false }); } catch (e) { say(e.message); } load('full', true); return; }
       case 'scgift': giftDlg(); return;
       case 'scgpick': SO.g.sel = +v; gfPaint(); return;
       case 'scgq': SO.g.qty = Math.max(1, Math.min(SO.g.max, SO.g.qty + (+v || 0))); gfPaint(); return;
