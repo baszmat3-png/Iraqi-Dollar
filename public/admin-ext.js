@@ -480,15 +480,18 @@ ${m.status === 'pending' ? `<div class="r" style="margin-top:8px"><input class="
     },
   };
 
+  const lastHtml = {}; let lastScroll = 0;
+  M.addEventListener('scroll', () => { lastScroll = Date.now(); }, { passive: true });
   async function draw(keep) {
     if (busy) return; busy = true;
     ov.querySelectorAll('.axn [data-t]').forEach((b) => b.classList.toggle('on', b.dataset.t === tab));
     ov.style.setProperty('--ta', TC[tab] || '#22d3ee');
     try {
-      const y = M.scrollTop, html = await V[tab]();
-      // لا نعيد الرسم أثناء الكتابة حتى لا يضيع النص
-      const typing = M.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
-      if (!(keep && typing)) { M.innerHTML = html; M.scrollTop = keep ? y : 0; if (tab === 'support' && thread) { const t = M.querySelector('#axt'); t && (t.parentElement.scrollTop = 1e9); } }
+      const html = await V[tab]();
+      // لا نعيد الرسم أثناء الكتابة أو التمرير، ولا إذا لم يتغيّر شيء (يمنع الاهتزاز والقفز)
+      const y = M.scrollTop, typing = M.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+      if (keep && (html === lastHtml[tab] || Date.now() - lastScroll < 1500)) { busy = false; return; }
+      if (!(keep && typing)) { lastHtml[tab] = html; M.innerHTML = html; M.scrollTop = keep ? y : 0; if (tab === 'support' && thread) { const t = M.querySelector('#axt'); t && (t.parentElement.scrollTop = 1e9); } }
     } catch (e) { err(e); }
     busy = false;
   }

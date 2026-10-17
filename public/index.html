@@ -1492,15 +1492,16 @@ setInterval(()=>{try{agyPop()}catch(e){}},6000);
 /* ===== مزامنة طلب الوكالة مع الخادم ===== */
 let _agsBusy=0;
 async function agyUserSync(){if(_agsBusy||document.hidden||!S.acc)return;_agsBusy=1;
-try{const e=S.acc.e,el=e.toLowerCase(),mine=x=>x&&x.t=='طلب وكالة'&&String(x.e||'').toLowerCase()==el,j=await ibJ('/api/sync/mine?e='+encodeURIComponent(e)+'&since=0');
+try{const e=S.acc.e,el=e.toLowerCase(),mine=x=>x&&['طلب وكالة','انضمام تاجر','توثيق هوية'].includes(x.t)&&String(x.e||'').toLowerCase()==el,j=await ibJ('/api/sync/mine?e='+encodeURIComponent(e)+'&since=0');
 if(!j||!j.idx||!j.idx.rq)return;const L=RQ(),up=L.filter(x=>mine(x)&&j.idx.rq[x.id]===undefined);
 if(up.length)await ibJ('/api/sync/push','POST',{e,rq:up.slice(0,5).map(x=>Object.assign({},x))});
+window._kfUp=window._kfUp||{};for(const x of L){if(!(x.t=='توثيق هوية'&&x.f&&mine(x)&&!x.s&&j.idx.rq[x.id]!==undefined&&!window._kfUp[x.id]))continue;const F=KF(x.id);if(!F)continue;window._kfUp[x.id]=1;const r=await ibJ('/api/sync/kycf','POST',{e,id:x.id,f:F});if(!r)delete window._kfUp[x.id]}
 let ch=0;(j.recs&&j.recs.rq||[]).forEach(r=>{const o=L.find(x=>mine(x)&&x.id==r.id);if(!o)return;
 if(r.s!=null&&r.s!==o.s){const was=o.s;o.s=r.s;if(r.why!=null)o.why=r.why;if(r.rf)o.rf=1;ch=1;
-if(r.s==2&&was!=2)try{unAddE(e,'تم رفض طلب الوكالة','أُعيدت الرسوم إلى رصيدك'+(o.why?' · السبب: '+o.why:''))}catch(z){}}});
+if(r.s==2&&was!=2)try{o.t=='طلب وكالة'?unAddE(e,'تم رفض طلب الوكالة','أُعيدت الرسوم إلى رصيدك'+(o.why?' · السبب: '+o.why:'')):unAddE(e,'تم رفض طلبك: '+o.t,(o.why?'السبب: '+o.why:'يمكنك إعادة التقديم بعد التعديل'))}catch(z){}if(r.s==1&&was!=1&&o.t!='طلب وكالة')try{unAddE(e,'تمت الموافقة على طلبك',o.t)}catch(z){}}});
 if(ch){LSset('rq',L);if(!/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName||''))try{draw()}catch(z){}}}
 finally{_agsBusy=0}}
-setInterval(agyUserSync,5000);setTimeout(agyUserSync,3000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)agyUserSync()});
+window.addEventListener('store-evt',ev=>{const d=ev.detail||{};if(d.k=='inbox'&&(!d.e||!S.acc||String(d.e).toLowerCase()==String(S.acc.e).toLowerCase()))agyUserSync()});setInterval(agyUserSync,5000);setTimeout(agyUserSync,3000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)agyUserSync()});
 try{const t=+localStorage.getItem('th');if(t>=0&&t<TH.length)S.theme=t}catch(e){}applyTheme();draw();
 /* ===== مزامنة سحابية لكل حساب: الحالة تُحفظ على السيرفر وتُسحب كل 5 ثوانٍ (المرحلة 1أ) ===== */
 const CLD={tok:null,em:'',ver:0,sig:'',busy:0,on:0,fail:0,boot:0,lastTry:0};
