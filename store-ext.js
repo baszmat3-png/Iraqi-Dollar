@@ -60,16 +60,28 @@ module.exports = (app, express, deps) => {
   /* تسليم الطلبات المعلّقة لبطاقة من الأكواد الحرة (بالترتيب). يجب استدعاؤها داخل معاملة. */
   async function fulfill(cl, cardId) {
     let n = 0;
+    const emails = [];
     for (;;) {
-      const o = (await cl.query(`SELECT id FROM store_orders WHERE card_id=$1 AND status='pending' ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED`, [cardId])).rows[0];
+      const o = (await cl.query(`SELECT id, email FROM store_orders WHERE card_id=$1 AND status='pending' ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED`, [cardId])).rows[0];
       if (!o) break;
       const c = (await cl.query(`SELECT id, code FROM store_codes WHERE card_id=$1 AND NOT sold ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED`, [cardId])).rows[0];
       if (!c) break;
       await cl.query(`UPDATE store_codes SET sold=TRUE, order_id=$2 WHERE id=$1`, [c.id, o.id]);
       await cl.query(`UPDATE store_orders SET status='done', code=$2, done_at=NOW() WHERE id=$1`, [o.id, c.code]);
-      n++;
+      n++; emails.push(String(o.email).toLowerCase());
     }
-    return n;
+    return emails; // قائمة بريد أصحاب الطلبات المسلَّمة (بالترتيب)
+  }
+
+  /* بث فوري بعد أي تغيير: المخزون الجديد للجميع + إشعار موجّه لأصحاب الطلبات المسلَّمة */
+  async function pushStore(cardId, emails) {
+    try {
+      const bs = app.locals.broadcastStore;
+      if (!bs) return;
+      const n = Number((await q(`SELECT COUNT(*)::int n FROM store_codes WHERE card_id=$1 AND NOT sold`, [cardId])).rows[0].n);
+      bs({ k: 'stock', c: cardId, n });
+      [...new Set(emails || [])].forEach((e) => bs({ k: 'order', c: cardId }, e));
+    } catch (e) { /* البث اختياري، والفحص الدوري يعوّض */ }
   }
 
   /* ---------------- للتطبيق ---------------- */
@@ -99,10 +111,12 @@ module.exports = (app, express, deps) => {
       const o = (await cl.query(
         `INSERT INTO store_orders(email,name,card_id,card_name,card_type,price) VALUES($1,$2,$3,$4,$5,$6) RETURNING *`,
         [u.email, u.name, cardId, txt(card.n, 120), txt(card.t, 12), price])).rows[0];
-      await fulfill(cl, cardId); // الأقدم أولاً: قد يُسلَّم طلب معلّق سابق قبل هذا
+      const gotAll = await fulfill(cl, cardId); // الأقدم أولاً: قد يُسلَّم طلب معلّق سابق قبل هذا
+      const got = gotAll.filter((e) => e !== u.email);
       const fin = (await cl.query(`SELECT * FROM store_orders WHERE id=$1`, [o.id])).rows[0];
       await cl.query('COMMIT');
       res.json({ ok: true, order: pubOrder(fin) });
+      pushStore(cardId, got);
     } catch (e) { await cl.query('ROLLBACK').catch(() => {}); throw e; }
     finally { cl.release(); }
   }));
@@ -161,25 +175,29 @@ module.exports = (app, express, deps) => {
       const ex = new Set((await cl.query(`SELECT code FROM store_codes WHERE code = ANY($1::text[])`, [codes])).rows.map((r) => r.code));
       const fresh = codes.filter((c) => !ex.has(c));
       for (const c of fresh) await cl.query(`INSERT INTO store_codes(card_id,code) VALUES($1,$2) ON CONFLICT DO NOTHING`, [cardId, c]);
-      const delivered = await fulfill(cl, cardId);
+      const gotE = await fulfill(cl, cardId), delivered = gotE.length;
       const left = Number((await cl.query(`SELECT COUNT(*)::int n FROM store_codes WHERE card_id=$1 AND NOT sold`, [cardId])).rows[0].n);
       const waiting = Number((await cl.query(`SELECT COUNT(*)::int n FROM store_orders WHERE card_id=$1 AND status='pending'`, [cardId])).rows[0].n);
       await cl.query('COMMIT');
       res.json({ ok: true, added: fresh.length, dup: codes.length - fresh.length, delivered, free: left, waiting });
+      pushStore(cardId, gotE);
     } catch (e) { await cl.query('ROLLBACK').catch(() => {}); throw e; }
     finally { cl.release(); }
   }));
 
   app.post('/api/ctl/store/reject', ...ctl, wrap(async (req, res) => {
     const id = Number(req.body.id) || 0;
-    const r = await q(`UPDATE store_orders SET status='rejected', why=$2, done_at=NOW() WHERE id=$1 AND status='pending' RETURNING id`, [id, txt(req.body.why, 200)]);
+    const r = await q(`UPDATE store_orders SET status='rejected', why=$2, done_at=NOW() WHERE id=$1 AND status='pending' RETURNING id, email, card_id`, [id, txt(req.body.why, 200)]);
     if (!r.rows[0]) fail(404, 'الطلب غير موجود أو تمت معالجته');
     res.json({ ok: true });
+    pushStore(r.rows[0].card_id, [r.rows[0].email]);
   }));
 
   app.post('/api/ctl/store/clear', ...ctl, wrap(async (req, res) => {
-    const r = await q(`DELETE FROM store_codes WHERE card_id=$1 AND NOT sold`, [txt(req.body.cardId, 80)]);
+    const cid = txt(req.body.cardId, 80);
+    const r = await q(`DELETE FROM store_codes WHERE card_id=$1 AND NOT sold`, [cid]);
     res.json({ ok: true, removed: r.rowCount });
+    pushStore(cid, []);
   }));
 };
 

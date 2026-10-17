@@ -67,6 +67,18 @@ module.exports = (app, express, deps) => {
     clients.forEach((c) => { try { c.res.write('event: cfg\ndata: {}\n\n'); } catch (e) { clients.delete(c); } });
   };
 
+  // دفع فوري لأحداث المتجر: k='stock' (المخزون الجديد لبطاقة) / k='order' (تغيّر طلب مستخدم). email اختياري لاستهداف حساب واحد
+  app.locals.broadcastStore = (payload, email) => {
+    const msg = 'event: store\ndata: ' + JSON.stringify(payload || {}) + '\n\n';
+    const target = email ? String(email).toLowerCase() : '';
+    let n = 0;
+    clients.forEach((c) => {
+      if (target && c.email !== target) return;
+      try { c.res.write(msg); n++; } catch (e) { clients.delete(c); }
+    });
+    return n;
+  };
+
   let busy = false;
   setInterval(async () => {
     if (busy || !clients.size) return;
