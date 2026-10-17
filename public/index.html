@@ -908,7 +908,7 @@ return PP(`<div class="gd k" style="margin-bottom:12px">${kp('النقاط',f(x[
 /* ===== إشعارات المستخدم + الجرس + إشعارات الهاتف + استلام تلقائي ===== */
 const imgTag=(s,st)=>s&&/^data:image\/(jpeg|png|webp);base64,/.test(s)?`<img src="${s}" alt="" style="${st}">`:'';
 function imgPack(file,cb,max){const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,(max||800)/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*k));c.height=Math.max(1,Math.round(im.height*k));c.getContext('2d').drawImage(im,0,0,c.width,c.height);cb(c.toDataURL('image/jpeg',.72))};im.onerror=()=>toast('تعذر قراءة الصورة');im.src=r.result};r.readAsDataURL(file)}
-const unAddE=(e,t,b)=>{if(/💬/.test(t||''))return;const k='un:'+e,l=LS(k,[]);l.unshift({t,b,d:Date.now()});LSset(k,l.slice(0,40));if(!/💬|👋|تم قبول طلبك|انتهت دورة العداد/.test(t))ledAdd(e,'ev',0,null,t,b)};
+const unAddE=(e,t,b)=>{if(/💬/.test(t||''))return;const k='un:'+e,l=LS(k,[]);l.unshift({t,b,d:Date.now()});LSset(k,l.slice(0,100));if(!/💬|👋|تم قبول طلبك|انتهت دورة العداد/.test(t))ledAdd(e,'ev',0,null,t,b)};
 const unAdd=(t,b)=>{if(S.acc)unAddE(S.acc.e,t,b)};
 function sysNotify(t,b){toast(t);try{if('Notification'in window&&Notification.permission=='granted'){try{new Notification(t,{body:b,dir:'rtl',lang:'ar'})}catch(x){navigator.serviceWorker&&navigator.serviceWorker.getRegistration().then(r=>r&&r.showNotification(t,{body:b,dir:'rtl',lang:'ar'}))}}}catch(x){}}
 const nItems=()=>{const e=S.acc?S.acc.e:'';return[...ann().map(a=>({t:a.t,b:a.x,d:+a.d||0,k:'a'})),...LS('un:'+e,[]).filter(x=>!/💬/.test(x.t||'')).map(x=>({t:x.t,b:x.b,d:+x.d||0,k:'a'})),...NEWS().filter(okTo).filter(x=>typeof x.d=='number').map(x=>({t:(x.k=='o'?'🔥 عرض: ':'📰 ')+x.t,b:x.b,d:x.d,k:'n'}))]};
@@ -919,8 +919,23 @@ const bellB=()=>{const n=S.acc?bellN():0;return n?`<b class="cnt">${n>9?'9+':n}<
 function markSeen(k){S['p'+k]=seenG(k);LSset(seenK('seen'+k),Date.now())}
 function chkNew(){if(!S.acc)return;const k='nfy:'+S.acc.e;const n=LS(k,null);if(n==null){LSset(k,Date.now());return}const l=nItems().filter(x=>x.d>n).sort((p,q)=>p.d-q.d);if(!l.length)return;LSset(k,Math.max(...l.map(x=>x.d)));l.slice(-3).forEach(x=>sysNotify(x.t,x.b));if(S.r=='home')draw()}
 function autoClaim(){const q=Math.floor(S.accr),g=Math.floor(S.accg);S.left=86400;S.done=0;if(q||g){lrs('استلام عائد العداد','عائد دورة 24 ساعة: '+f(q)+' نقطة'+(g?' و'+f(g)+' جوهرة':'')+' · المضاعفة '+mul()+'×');S.pts+=q;S.gems+=g;txlog('استلام عائد العداد',q,'in');S.accr-=q;S.accg-=g;unAdd('انتهت دورة العداد ✅','تم استلام '+f(q)+' نقطة'+(g?' و'+f(g)+' جوهرة':'')+' في رصيدك — افتح العداد واضغط «بدء دورة جديدة» لتشغيله من جديد')}S.run=0;S.ended=1;if(S.r=='counter')draw()}
-function alertsView(){const e=S.acc?S.acc.e:'',pa=S.pA==null?seenG('A'):S.pA,pn=S.pN==null?seenG('N'):S.pN,l=nItems().filter(x=>x.k=='a').sort((p,q)=>q.d-p.d),nn=nItems().filter(x=>x.k=='n'&&x.d>pn).length,can2='Notification'in window&&Notification.permission=='default';
-return hd('الإشعارات','bell',{back:'home'})+(can2?`<button class="btn o" data-a="p_notifon" style="margin-bottom:10px">${ic('bell',16)} تفعيل إشعارات الهاتف</button>`:'')+`<button class="ic" data-r="news"><div class="ci">${ic('bell')}</div><b class="sp">آخر الأخبار والعروض</b>${nn?`<span class="bdg ok">${nn} جديد</span>`:''}${ic('chev')}</button>`+(l.map(x=>`<div class="card"><div class="row2"><b>${esc(x.t)}</b>${x.d>pa?'<span class="bdg ok">جديد</span>':''}</div><div class="mu">${esc(x.b)}</div><div class="mu" style="font-size:.76rem;margin-top:4px">${x.d?ago(x.d):''}</div></div>`).join('')||'<div class="card mu" style="text-align:center">لا توجد إشعارات</div>')}
+/* وجهة كل إشعار: القسم المختص به (يُستنتج من العنوان، فيعمل أيضاً مع الإشعارات القديمة) */
+function nRoute(t,b){t=String(t||'');b=String(b||'');const T=t+' '+b;
+if(/وصل كود|تم إلغاء طلبك وأُعيد|بطاقة/.test(t))return{r:'store',tab:'my',n:'مشترياتي'};
+if(/^(تحديث طلبك|تم رفض طلبك|تم استلام طلبك)\s+\S/.test(t))return{r:'orders',n:'طلباتي'};
+if(/السحب/.test(t))return{r:'withdraw',n:'سحب الرصيد'};
+if(/الاستدانة|قسط/.test(t))return{r:'store',tab:'debt',n:'الاستدانة'};
+if(/العداد|دورة/.test(t))return{r:'counter',n:'العداد'};
+if(/أنت وكيل/.test(t))return{r:'agdash',n:'لوحة الوكيل'};
+if(/الوكالة/.test(t))return{r:'profile',n:'الملف الشخصي'};
+if(/صداقة|صديقك|رسالة جديدة/.test(t))return{r:'users',n:'الأصدقاء'};
+if(/طلبك$/.test(t.trim()))return{r:'profile',n:'الملف الشخصي'};
+if(/حظر|توثيق|KYC/.test(T))return{r:'profile',n:'الملف الشخصي'};
+return null}
+function alertsView(){const e=S.acc?S.acc.e:'',pa=S.pA==null?seenG('A'):S.pA,pn=S.pN==null?seenG('N'):S.pN,all=nItems().filter(x=>x.k=='a').sort((p,q)=>q.d-p.d),LM=[20,60,100],lv=+LS('nlim',60),lim=LM.includes(lv)?lv:60,l=all.slice(0,lim),nn=nItems().filter(x=>x.k=='n'&&x.d>pn).length,can2='Notification'in window&&Notification.permission=='default';window._nl=l;
+return hd('الإشعارات','bell',{back:'home'})+(can2?`<button class="btn o" data-a="p_notifon" style="margin-bottom:10px">${ic('bell',16)} تفعيل إشعارات الهاتف</button>`:'')+`<button class="ic" data-r="news"><div class="ci">${ic('bell')}</div><b class="sp">آخر الأخبار والعروض</b>${nn?`<span class="bdg ok">${nn} جديد</span>`:''}${ic('chev')}</button>`
++`<div class="chips" style="margin-top:10px">${LM.map(n=>`<button class="chip ${lim==n?'on':''}" data-a="nlim" data-v="${n}">${n} إشعار</button>`).join('')}</div><div class="mu" style="font-size:.78rem;margin:2px 4px 8px">يُعرض ${l.length} من ${all.length} إشعار — اضغط على أي إشعار لفتح القسم الخاص به</div>`
++(l.map((x,k)=>{const m=nRoute(x.t,x.b);return`<div class="card" data-a="nopen" data-i="${k}" role="button" tabindex="0" style="cursor:pointer"><div class="row2"><b>${esc(x.t)}</b>${x.d>pa?'<span class="bdg ok">جديد</span>':''}</div><div class="mu">${esc(x.b)}</div><div class="row2" style="margin-top:6px"><span class="mu" style="font-size:.76rem">${x.d?ago(x.d):''}</span><span class="cy" style="font-size:.78rem;display:inline-flex;align-items:center;gap:4px">${m?'فتح: '+esc(m.n):'عرض التفاصيل'} ${ic('chev',14)}</span></div></div>`}).join('')||'<div class="card mu" style="text-align:center">لا توجد إشعارات</div>')}
 function ptn(a){if(a=='notifon'){if(!('Notification'in window))return toast('المتصفح لا يدعم إشعارات الهاتف'),1;Notification.requestPermission().then(p=>{toast(p=='granted'?'تم تفعيل إشعارات الهاتف':'لم يتم السماح بالإشعارات');draw()});return 1}return 0}
 document.addEventListener('change',e=>{const t=e.target;if(t&&t.id=='nim'&&t.files[0]){imgPack(t.files[0],d=>{PX.nimg=d;const p=$('#nip');if(p)p.innerHTML=imgTag(d,'width:100%;max-height:160px;object-fit:cover;border-radius:10px;margin:6px 0')+'<button class="btn r s" data-a="p_nimr">إزالة الصورة</button>'},800)}});
 document.addEventListener('click',()=>{try{if(S.acc&&'Notification'in window&&Notification.permission=='default'&&!LS('nasked',0)){LSset('nasked',1);Notification.requestPermission()}}catch(x){}},{once:false,capture:true});
@@ -1272,6 +1287,8 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-r],[data-a
  case'run':if(S.done)return;S.run=!S.run;if(S.run)S.ended=0;toast(S.run?'بدأ العداد — 24 ساعة':'تم إيقاف العداد مؤقتاً');break;
  case'gift':S.pts+=100;S.gems++;toast('لقد حصلت على 5$ و 1 جوهرة كمكافأة يومية. عد غدًا للمزيد!');S.usd+=5;break;
  case'ad':return dlg(`<h2>عروض الإعلانات</h2><p class="mu">اختر إعلاناً لشرائه وعرضه للمستخدمين</p><button class="btn" onclick="d.close();toast('تم شراء الإعلان بنجاح!')">شراء الإعلان</button>`);
+ case'nlim':LSset('nlim',[20,60,100].includes(+v)?+v:60);break;
+ case'nopen':{const x=(window._nl||[])[+i];if(!x)return;const m=nRoute(x.t,x.b);if(!m)return dlg(`<h2 style="margin-top:0">${esc(x.t)}</h2><p class="mu" style="line-height:1.9;white-space:pre-wrap">${esc(x.b)}</p><div class="mu" style="font-size:.78rem">${x.d?ago(x.d):''}</div><button class="btn" onclick="d.close()">حسناً</button>`);if(m.tab)S.tab=m.tab;return go(m.r)}
  case'tab':S.tab=v;break;case'cat':S.cat=v;break;case'ft':S.ft=v;break;
  case'add':S.cart.push(+i);toast('تمت الإضافة إلى السلة');break;
  case'pay2':{const t=S.cart.reduce((s,i)=>s+PR[i][2],0),st=PST(),cn={};for(const k of S.cart){const nm=PR[k][0];cn[nm]=(cn[nm]||0)+1}const oos=S.cart.some(k=>{const q=(st[PR[k][0]]||{}).s;return q!=null&&q<=0});if(ordPlace(t,cn,st)){S.r='orders';toast(oos?'تم الطلب ✅ المنتج حسب الطلب وسنجهّزه لك':'تم الطلب ✅ سنوافيك بحالة طلبك')}break}

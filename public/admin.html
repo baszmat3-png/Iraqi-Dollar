@@ -909,7 +909,7 @@ ${sec('المستخدمون والتوقيع')}<input id="pq" placeholder="بح�
 /* ===== إشعارات المستخدم + الجرس + إشعارات الهاتف + استلام تلقائي ===== */
 const imgTag=(s,st)=>s&&/^data:image\/(jpeg|png|webp);base64,/.test(s)?`<img src="${s}" alt="" style="${st}">`:'';
 function imgPack(file,cb,max){const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,(max||800)/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*k));c.height=Math.max(1,Math.round(im.height*k));c.getContext('2d').drawImage(im,0,0,c.width,c.height);cb(c.toDataURL('image/jpeg',.72))};im.onerror=()=>toast('تعذر قراءة الصورة');im.src=r.result};r.readAsDataURL(file)}
-const unAddE=(e,t,b)=>{const k='un:'+e,l=LS(k,[]);l.unshift({t,b,d:Date.now()});LSset(k,l.slice(0,40))};
+const unAddE=(e,t,b)=>{const k='un:'+e,l=LS(k,[]);l.unshift({t,b,d:Date.now()});LSset(k,l.slice(0,100))};
 const unAdd=(t,b)=>{if(S.acc)unAddE(S.acc.e,t,b)};
 function sysNotify(t,b){toast(t);try{if('Notification'in window&&Notification.permission=='granted'){try{new Notification(t,{body:b,dir:'rtl',lang:'ar'})}catch(x){navigator.serviceWorker&&navigator.serviceWorker.getRegistration().then(r=>r&&r.showNotification(t,{body:b,dir:'rtl',lang:'ar'}))}}}catch(x){}}
 const nItems=()=>{const e=S.acc?S.acc.e:'';return[...ann().map(a=>({t:a.t,b:a.x,d:+a.d||0,k:'a'})),...LS('un:'+e,[]).map(x=>({t:x.t,b:x.b,d:+x.d||0,k:'a'})),...NEWS().filter(okTo).filter(x=>typeof x.d=='number').map(x=>({t:(x.k=='o'?'🔥 عرض: ':'📰 ')+x.t,b:x.b,d:x.d,k:'n'}))]};
