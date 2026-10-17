@@ -236,3 +236,16 @@ ${o.status !== 'disputed' ? '<button class="b pu" style="margin-top:8px;width:10
   btn.onclick = open;
   setTimeout(refreshOv, 2500); setInterval(() => { if (!ov.classList.contains('on') && !document.hidden) refreshOv(); }, 30000);
 })();
+
+/* ===== إخفاء الأزرار العائمة قبل تسجيل دخول الإدارة (تظهر فقط بعد الدخول) ===== */
+(function () {
+  if (window.__stfGate) return; window.__stfGate = 1;
+  const st = document.createElement('style');
+  st.textContent = 'body:not(.stf-in) #axb,body:not(.stf-in) #axo,body:not(.stf-in) #pab,body:not(.stf-in) #pao,body:not(.stf-in) #paz{display:none!important}';
+  document.head.appendChild(st);
+  const chk = () => { document.body.classList.toggle('stf-in', !!document.querySelector('[data-a="stfout"]')); };
+  let q = 0;
+  const kick = () => { if (q) return; q = requestAnimationFrame(() => { q = 0; chk(); }); };
+  new MutationObserver(kick).observe(document.body, { childList: true, subtree: true });
+  setInterval(chk, 700); chk();
+})();
