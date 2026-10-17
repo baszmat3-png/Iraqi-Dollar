@@ -107,7 +107,6 @@ EXT5.parsers(app, express); // صور حملات التبرع
 STOREX.parsers(app, express); // دفعات أكواد المتجر الكبيرة
 P2PX.parsers(app, express); // صور إثبات التحويل ورسائل P2P (حد أكبر)
 app.set('trust proxy', 1);
-require('./poke-ext')(app); // مزامنة فورية لكل الأقسام
 app.use(helmet({ contentSecurityPolicy: false }));
 // نافذة Google المنبثقة تحتاج هذا (القيمة الافتراضية same-origin في helmet تمنع إرجاع نتيجة الدخول للصفحة)
 app.use((_req, res, next) => { res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups'); next(); });
@@ -1140,9 +1139,12 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
           `SELECT 1 FROM sync_cmds WHERE id>$1 AND body->>'t' IN ('adj','set','rz','rc') AND (body->>'e' IS NULL OR LOWER(body->>'e')=LOWER($2)) LIMIT 1`, [cv, email])).rows.length > 0;
       }
       const wb = own && !pending;
+      // تغيير الاسم من إعدادات المستخدم: يُقبل من جهاز صاحب الحساب فقط وما دام الحساب غير موثّق (بعد التوثيق يُقفل الاسم نهائياً)
+      const ncName = String(a.n || '').trim().replace(/\s+/g, ' ').slice(0, 80);
+      const ncOK = own && !!a.nc && !cur.rows[0].kyc && ncName.length >= 3;
       await pool.query(
         `UPDATE sync_accounts SET
-          name=CASE WHEN COALESCE(name,'')='' THEN $2 ELSE name END,
+          name=CASE WHEN COALESCE(name,'')='' THEN $2 WHEN $13::boolean THEN $2 ELSE name END,
           phone=COALESCE($3, phone),
           pass_hash=COALESCE($4, pass_hash),
           vml=CASE WHEN $5 THEN TRUE ELSE vml END,
@@ -1151,7 +1153,7 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
           demo=$10, kyc=(kyc OR $11::boolean),
           last_seen=NOW()
          WHERE LOWER(email)=LOWER($1)`,
-        [email, String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), passHash, vml, vph, pn, gn, un, isDemo, isKyc, wb]
+        [email, ncOK ? ncName : String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), passHash, vml, vph, pn, gn, un, isDemo, isKyc, wb, ncOK]
       );
       if (wb && a.ncl != null && (await colsReady)) {
         const nc = Math.max(0, Math.min(100000, Math.floor(Number(a.ncl)) || 0));
