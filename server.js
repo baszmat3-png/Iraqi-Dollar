@@ -121,6 +121,7 @@ const wrap = (fn) => (req, res) => fn(req, res).catch((e) => {
   res.status(500).json({ error: 'خطأ داخلي في الخادم' });
 });
 const fail = (http, message) => { const e = new Error(message); e.http = http; throw e; };
+require('./account-delete-ext')(app, { pool, wrap, fail }); // حذف الحساب (متطلب Google Play)
 
 async function tx(fn) {
   const c = await pool.connect();
