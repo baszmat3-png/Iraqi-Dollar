@@ -1,5 +1,5 @@
 /* =====================================================================
-   PRO THEME v2 — تصميم صلب مصمت (بدون زجاج أو شفافية أو ضبابية)
+   PRO THEME v3 (خفيف وسلس) — تصميم صلب مصمت (بدون زجاج أو شفافية أو ضبابية)
    تصميم فقط بلا أي تغيير في الوظائف. يتبع لون الثيم المختار (--h).
    لا حركات دخول على العناصر المعاد رسمها حتى تبقى القوائم ثابتة.
    ===================================================================== */
@@ -7,20 +7,19 @@
   --pr-line:hsl(calc(var(--h) + 7) 40% 25%);
   --pr-line2:hsl(calc(var(--h) + 7) 46% 33%);
   --pr-ring:hsl(calc(var(--h) - 1) 62% 24%);
-  --pr-s1:0 2px 0 #00000040,0 8px 18px #00000052;
-  --pr-s2:0 3px 0 #00000050,0 16px 34px #00000070;
+  --pr-s1:0 2px 0 #00000040;
+  --pr-s2:0 3px 0 #00000050;
   --pr-ease:cubic-bezier(.2,.8,.2,1);
 }
 html{-webkit-text-size-adjust:100%}
-body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;font-feature-settings:"kern" 1,"tnum" 1}
-*{scrollbar-width:thin;scrollbar-color:hsl(calc(var(--h) + 7) 36% 30%) transparent}
+body{-webkit-font-smoothing:antialiased}
 ::-webkit-scrollbar{width:7px;height:7px}
 ::-webkit-scrollbar-thumb{background:hsl(calc(var(--h) + 7) 36% 30%);border-radius:99px}
 button,a,[data-a]{touch-action:manipulation}
 
 /* ---------- الخلفية: لون صلب نظيف ---------- */
 body #app,body #app.g{background:var(--bg)}
-@media(min-width:700px){body #app{border:1px solid var(--pr-line);box-shadow:0 30px 90px #000c}}
+@media(min-width:700px){body #app{border:1px solid var(--pr-line);box-shadow:none}}
 
 /* ---------- الترويسة والعناوين ---------- */
 body .hd{border-bottom:2px solid var(--pr-line);background:var(--bg)}
@@ -33,7 +32,7 @@ body .ib{
   background:hsl(calc(var(--h) + 6) 50% 21%);
   border:1.5px solid var(--pr-line2);border-radius:14px;
   box-shadow:0 3px 0 #00000055;
-  transition:transform .12s var(--pr-ease),box-shadow .12s;
+  transition:transform .1s;
 }
 body .ib:active{transform:translateY(2px);box-shadow:0 1px 0 #00000055}
 body .ci{background:hsl(calc(var(--h) + 6) 50% 21%);border:1.5px solid var(--pr-line2);box-shadow:none}
@@ -47,20 +46,20 @@ body .card{
 body .tl{
   background:linear-gradient(135deg,hsl(calc(var(--h) + 1) 72% 42%),hsl(calc(var(--h) + 1) 78% 31%));
   border:1.5px solid hsl(calc(var(--h) + 1) 66% 50%);border-radius:24px;
-  box-shadow:0 4px 0 hsl(calc(var(--h) + 1) 78% 20%),0 14px 28px #00000066;
-  transition:transform .12s var(--pr-ease),box-shadow .12s;
+  box-shadow:0 4px 0 hsl(calc(var(--h) + 1) 78% 20%);
+  transition:transform .1s;
 }
-body .tl:active{transform:translateY(3px);box-shadow:0 1px 0 hsl(calc(var(--h) + 1) 78% 20%),0 6px 14px #00000066}
+body .tl:active{transform:translateY(3px);box-shadow:0 1px 0 hsl(calc(var(--h) + 1) 78% 20%)}
 body .tl .ci{background:hsl(calc(var(--h) + 1) 78% 24%);border-color:hsl(calc(var(--h) + 1) 66% 46%)}
 
 /* ---------- الأزرار ---------- */
 body .btn{
   background:linear-gradient(90deg,hsl(calc(var(--h) - 5) 100% 38%),hsl(calc(var(--h) - 1) 80% 46%));
   border:0;border-radius:15px;min-height:50px;font-weight:800;
-  box-shadow:0 4px 0 hsl(calc(var(--h) - 3) 90% 22%),0 10px 20px #0000005a;
-  transition:transform .12s var(--pr-ease),box-shadow .12s;
+  box-shadow:0 4px 0 hsl(calc(var(--h) - 3) 90% 22%);
+  transition:transform .1s;
 }
-body .btn:active{transform:translateY(3px);box-shadow:0 1px 0 hsl(calc(var(--h) - 3) 90% 22%),0 4px 10px #0000005a}
+body .btn:active{transform:translateY(3px);box-shadow:0 1px 0 hsl(calc(var(--h) - 3) 90% 22%)}
 body .btn:disabled{filter:grayscale(.6) brightness(.75);box-shadow:none;cursor:not-allowed}
 body .btn.o{box-shadow:0 3px 0 #00000055;border:1.5px solid var(--pr-line2)}
 body .btn.o:active{transform:translateY(2px);box-shadow:0 1px 0 #00000055}
@@ -68,7 +67,7 @@ body .btn.o:active{transform:translateY(2px);box-shadow:0 1px 0 #00000055}
 /* ---------- الحقول ---------- */
 body :where(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color])){
   background:var(--inp);border:1.5px solid var(--pr-line);border-radius:15px;
-  transition:border-color .15s,box-shadow .15s;
+  
 }
 body :where(#app input:focus,dialog input:focus){outline:0;border-color:var(--cy);box-shadow:0 0 0 3px var(--pr-ring)}
 body .u2-sb input,body .u2-sb input:focus,body .u2-in input,body .u2-in input:focus{box-shadow:none!important}
@@ -89,26 +88,26 @@ body .cnt,body .u2-un{background:#f5a524;color:#1b1000;font-weight:800;box-shado
 /* ---------- شريط التنقل ---------- */
 body nav{
   background:var(--nav);border-top:2px solid var(--pr-line);
-  border-radius:26px 26px 0 0;box-shadow:0 -10px 26px #00000066;
+  border-radius:26px 26px 0 0;box-shadow:none;
 }
-body nav button{font-weight:600;transition:transform .12s var(--pr-ease)}
+body nav button{font-weight:600;transition:transform .1s}
 body nav button:active{transform:scale(.92)}
 body nav button.on{font-weight:800}
 body nav button.on span{background:hsl(calc(var(--h) + 6) 52% 26%);border:1.5px solid var(--pr-line2)}
 body nav .fab{
   background:linear-gradient(hsl(calc(var(--h) - 2) 78% 48%),hsl(calc(var(--h) - 1) 80% 36%));
-  border:3px solid var(--nav);box-shadow:0 4px 0 hsl(calc(var(--h) - 3) 90% 20%),0 10px 22px #0000006a;
+  border:3px solid var(--nav);box-shadow:0 4px 0 hsl(calc(var(--h) - 3) 90% 20%);
 }
 
 /* ---------- النوافذ ---------- */
-body dialog{background:var(--dlg);border:1.5px solid var(--pr-line2);border-radius:26px;box-shadow:0 30px 80px #000}
-body dialog[open]{animation:prDlg .2s var(--pr-ease)}
+body dialog{background:var(--dlg);border:1.5px solid var(--pr-line2);border-radius:26px;box-shadow:none}
+body dialog[open]{animation:prDlg .15s ease-out}
 @keyframes prDlg{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 body dialog::backdrop{background:#000000c2}
 body .ic{background:var(--ic);border:1.5px solid var(--pr-line)}
 
 /* ---------- الإشعار السفلي ---------- */
-body .sn{border-radius:16px;border:2px solid hsl(calc(var(--h) - 5) 100% 30%);box-shadow:0 10px 26px #000a;font-weight:800}
+body .sn{border-radius:16px;border:2px solid hsl(calc(var(--h) - 5) 100% 30%);box-shadow:0 2px 0 #00000066;font-weight:800}
 
 /* ---------- قسم المستخدمين والدردشة ---------- */
 body .u2-c{background:var(--card);border:1.5px solid var(--pr-line2);border-radius:22px;box-shadow:var(--pr-s1)}
@@ -116,7 +115,7 @@ body .u2-cv{background:var(--card);border:1.5px solid var(--pr-line);box-shadow:
 body .u2-av{box-shadow:0 0 0 3px var(--card),0 0 0 4.5px hsl(var(--hu,200) 62% 46%)}
 body .u2-dot{border-color:var(--card)}
 body .u2-dot.on{box-shadow:none}
-body .u2-me{background:linear-gradient(135deg,hsl(calc(var(--h) + 1) 72% 40%),hsl(calc(var(--h) + 1) 78% 29%));border:1.5px solid hsl(var(--h) 66% 50%);box-shadow:0 4px 0 hsl(calc(var(--h) + 1) 78% 19%),0 14px 28px #00000066}
+body .u2-me{background:linear-gradient(135deg,hsl(calc(var(--h) + 1) 72% 40%),hsl(calc(var(--h) + 1) 78% 29%));border:1.5px solid hsl(var(--h) 66% 50%);box-shadow:0 4px 0 hsl(calc(var(--h) + 1) 78% 19%)}
 body .u2-ghost{background:hsl(calc(var(--h) + 1) 78% 24%);border:1.5px solid hsl(calc(var(--h) + 1) 66% 46%)}
 body .u2-sb{background:var(--inp);border:1.5px solid var(--pr-line)}
 body .u2-sb:focus-within{box-shadow:0 0 0 3px var(--pr-ring)}
@@ -127,7 +126,7 @@ body .u2-btn.g{background:linear-gradient(90deg,#1f9d55,#33c963);box-shadow:0 3p
 body .u2-btn.x,body .u2-ib{box-shadow:0 3px 0 #00000055}
 body .u2-tag{font-weight:800}
 body .u2-empty{background:var(--card);border:1.5px dashed var(--pr-line2)}
-body .u2-in{background:var(--nav);border:1.5px solid var(--pr-line2);box-shadow:0 6px 0 #00000040,0 14px 30px #00000070}
+body .u2-in{background:var(--nav);border:1.5px solid var(--pr-line2);box-shadow:0 6px 0 #00000040}
 body .u2-snd{background:linear-gradient(135deg,hsl(calc(var(--h) - 5) 100% 38%),hsl(calc(var(--h) - 1) 80% 46%));box-shadow:0 3px 0 hsl(calc(var(--h) - 3) 90% 22%)}
 body .u2-b{box-shadow:none}
 body .u2-b.o{background:linear-gradient(135deg,hsl(calc(var(--h) + 1) 72% 41%),hsl(calc(var(--h) + 1) 78% 33%))}
@@ -135,8 +134,8 @@ body .u2-b.i{background:var(--bt);border:1.5px solid var(--pr-line)}
 body .sc-bar{border-radius:15px}
 
 /* ---------- لوحة التحكم ---------- */
-body .pp .c{background:#14243a;border:1.5px solid #234158;box-shadow:0 3px 0 #00000045,0 10px 24px #00000055}
-body .pp .btn{box-shadow:0 3px 0 #00000055;transition:transform .12s var(--pr-ease)}
+body .pp .c{background:#14243a;border:1.5px solid #234158;box-shadow:0 3px 0 #00000045}
+body .pp .btn{box-shadow:0 3px 0 #00000055;transition:transform .1s}
 body .pp .btn:active{transform:translateY(2px);box-shadow:0 1px 0 #00000055}
 body .pp input,body .pp select,body .pp textarea{border-width:1.5px}
 body .pp input:focus,body .pp select:focus,body .pp textarea:focus{outline:0;border-color:var(--cy);box-shadow:0 0 0 3px var(--pr-ring)}
@@ -144,3 +143,23 @@ body .pp th{background:#0f1c29;letter-spacing:.02em;font-weight:600}
 body .pp .kp b{font-weight:800}
 
 @media(prefers-reduced-motion:reduce){body dialog[open]{animation:none}*{transition-duration:.01ms!important}}
+
+/* =====================================================================
+   v3 — طبقة الأداء: لا ضبابية، لا ظلال ناعمة، لا إعادة رسم مكلفة
+   ===================================================================== */
+*,*::before,*::after{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+.st-top{background:hsl(calc(var(--h) + 8) 42% 11%)!important}
+.st-tg{background:#000000b8!important}
+.pnl .ps-top{background:#070d16!important}
+.pnl .ps-side{background:#0d1623!important}
+.pnl .pp .c,.pnl .card{box-shadow:none!important}
+#app.pnl[data-th] .pp .c,#app.pnl[data-th] .card{box-shadow:none!important}
+dialog::backdrop{background:#000000c2!important}
+
+/* لا حركة دخول عند كل إعادة رسم (تسبب وميضًا وبطئًا) */
+.u2-b{animation:none!important}
+
+/* طبقة مستقلة لشريط التنقل الثابت حتى لا يُعاد رسمه أثناء التمرير */
+nav{will-change:transform}
+html{overscroll-behavior-y:none}
+body{-webkit-tap-highlight-color:transparent}
