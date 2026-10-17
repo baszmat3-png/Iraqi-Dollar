@@ -117,7 +117,34 @@ module.exports = (app, express, deps) => {
       .map((o) => ({ ...pubOrder(o), email: o.email, name: o.name }));
     const recent = (await q(`SELECT * FROM store_orders WHERE status<>'pending' ORDER BY id DESC LIMIT 60`)).rows
       .map((o) => ({ ...pubOrder(o), code: o.code, email: o.email, name: o.name }));
-    res.json({ ok: true, free, sold, pend, pending, recent });
+    // أكواد حرة لبطاقات غير موجودة في الإعدادات المنشورة: المستخدم يراها «حسب الطلب» ولا تُسلَّم له
+    const pubIds = new Set((await cards()).map((c) => c && String(c.id)));
+    const orphan = Object.keys(free).filter((k) => free[k] > 0 && !pubIds.has(k));
+    res.json({ ok: true, free, sold, pend, pending, recent, orphan });
+  }));
+
+  /* نشر قائمة البطاقات فقط (دون مسّ بقية الإعدادات) ليتطابق ما يراه المستخدم مع معرّفات المخزون */
+  app.post('/api/ctl/store/cards', ...ctl, wrap(async (req, res) => {
+    const list = Array.isArray(req.body.cards) ? req.body.cards : null;
+    if (!list) fail(400, 'قائمة البطاقات غير صالحة');
+    const clean = list.slice(0, 300).filter((c) => c && c.id != null && c.n).map((c) => ({
+      id: txt(c.id, 80), n: txt(c.n, 120), t: c.t === 'game' ? 'game' : 'bal',
+      p: Math.max(0, Math.floor(Number(c.p) || 0)), d: txt(c.d, 500),
+      img: typeof c.img === 'string' && c.img.length < 2500000 ? c.img : '',
+    }));
+    const cl = await pool.connect();
+    try {
+      await cl.query('BEGIN');
+      const row = (await cl.query(`SELECT val FROM sync_kv WHERE key='config' FOR UPDATE`)).rows[0];
+      const val = row && row.val && typeof row.val === 'object' && !Array.isArray(row.val) ? row.val : {};
+      val.cards = clean;
+      if (row) await cl.query(`UPDATE sync_kv SET val=$1, updated_at=NOW() WHERE key='config'`, [JSON.stringify(val)]);
+      else await cl.query(`INSERT INTO sync_kv(key,val,updated_at) VALUES('config',$1,NOW())`, [JSON.stringify(val)]);
+      await cl.query('COMMIT');
+    } catch (e) { await cl.query('ROLLBACK').catch(() => {}); throw e; }
+    finally { cl.release(); }
+    try { if (app.locals.broadcastCfg) app.locals.broadcastCfg(); } catch (e) {}
+    res.json({ ok: true, n: clean.length });
   }));
 
   app.post('/api/ctl/store/codes', ...ctl, wrap(async (req, res) => {
@@ -157,4 +184,4 @@ module.exports = (app, express, deps) => {
 };
 
 // حد أكبر لرفع دفعات الأكواد الكبيرة (يجب أن يسبق المحلل العام 50kb)
-module.exports.parsers = (app, express) => { app.use('/api/ctl/store', express.json({ limit: '3mb' })); };
+module.exports.parsers = (app, express) => { app.use('/api/ctl/store', express.json({ limit: '8mb' })); };

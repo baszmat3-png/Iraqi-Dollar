@@ -92,6 +92,10 @@ exports.routes = (app, { pool, wrap, ctl }) => {
 
     if (req.body.mode === 'light') return res.json(out);
 
+    // سجل «تم قبول طلبك» لجرس قسم المستخدمين (آخر 30 يوماً)، يتزامن بين أجهزة الحساب الواحد
+    out.hist = (await q(`SELECT id,kind,title,body,created_at FROM soc_notes WHERE email=$1 AND kind='friend_ok' AND created_at > NOW() - INTERVAL '30 days' ORDER BY id DESC LIMIT 30`, [u.email]))
+      .rows.map((r) => ({ id: Number(r.id), kind: r.kind, title: r.title, body: r.body, t: new Date(r.created_at).getTime() }));
+
     const conv = (await q(
       `SELECT DISTINCT ON (o) o, body, created_at, f FROM (
          SELECT CASE WHEN f=$1 THEN t ELSE f END AS o, body, created_at, f, id FROM soc_msgs WHERE f=$1 OR t=$1
