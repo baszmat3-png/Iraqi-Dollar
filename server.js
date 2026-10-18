@@ -1142,7 +1142,8 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
         pending = (await pool.query(
           `SELECT 1 FROM sync_cmds WHERE id>$1 AND body->>'t' IN ('adj','set','rz','rc') AND (body->>'e' IS NULL OR LOWER(body->>'e')=LOWER($2)) LIMIT 1`, [cv, email])).rows.length > 0;
       }
-      const wb = own && !pending;
+      const nm = own && !isDemo && Array.isArray(a.l) && a.l.length === 3; // عميل جديد: دمج الأرصدة بالفروقات
+      const wb = own && !pending && !nm && !a.ro;
       // تغيير الاسم من إعدادات المستخدم: يُقبل من جهاز صاحب الحساب فقط وما دام الحساب غير موثّق (بعد التوثيق يُقفل الاسم نهائياً)
       const ncName = String(a.n || '').trim().replace(/\s+/g, ' ').slice(0, 80);
       const ncOK = own && !!a.nc && !cur.rows[0].kyc && ncName.length >= 3;
@@ -1159,7 +1160,9 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
          WHERE LOWER(email)=LOWER($1)`,
         [email, ncOK ? ncName : String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), passHash, vml, vph, pn, gn, un, isDemo, isKyc, wb, ncOK]
       );
-      if (wb && a.ncl != null && (await colsReady)) {
+      let bp = null;
+      if (nm) { try { bp = await CLOUD.mergeBal(pool, email, String(req.body.cid || 'x').slice(0, 40), a.l, a.k); } catch (e3) { console.error('mergeBal', e3.message); } }
+      if ((wb || nm) && a.ncl != null && (await colsReady)) {
         const nc = Math.max(0, Math.min(100000, Math.floor(Number(a.ncl)) || 0));
         await pool.query(`UPDATE sync_accounts SET ncl=$2, nrun=$3 WHERE LOWER(email)=LOWER($1)`, [email, nc, a.nrun ? 1 : 0]).catch(() => {});
       }
@@ -1178,7 +1181,7 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
       }
       const row = (await pool.query('SELECT * FROM sync_accounts WHERE LOWER(email)=LOWER($1)', [email])).rows[0];
       returnedAccounts.push({
-        clrej,
+        clrej, bp,
         e: row.email,
         n: row.name,
         pts: Number(row.pts) || 0,

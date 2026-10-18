@@ -85,3 +85,37 @@ exports.routes = (app, { pool, wrap, fail }) => {
     } catch (err) { try { await c.query('ROLLBACK'); } catch (x) {} throw err; } finally { c.release(); }
   }));
 };
+
+/* دمج الأرصدة بالفروقات (لا استبدال مطلق): كل جهاز يرسل رصيده المحلي l وآخر رصيد استلمه k.
+ * الفرق = l − (آخر رصيد يعرف السيرفر أن الجهاز يملكه) يُضاف إلى رصيد السيرفر، فلا تضيع تعديلات الإدارة ولا أرباح جهاز آخر.
+ * جهاز بلا سجل سابق (ترحيل): الأكبر بين رصيده ورصيد السيرفر. */
+let devReady = null;
+exports.mergeBal = async (pool, email, cid, l, k) => {
+  if (!devReady) devReady = pool.query(`CREATE TABLE IF NOT EXISTS dev_bal(email TEXT NOT NULL, cid TEXT NOT NULL, sp NUMERIC, sg NUMERIC, su NUMERIC, rp NUMERIC, rg NUMERIC, ru NUMERIC, at TIMESTAMPTZ DEFAULT NOW(), PRIMARY KEY(email,cid))`).catch((e) => { devReady = null; throw e; });
+  await devReady;
+  const em = String(email).toLowerCase();
+  const num = (v) => { v = Number(v); return Number.isFinite(v) ? v : 0; };
+  const L = [Math.max(0, Math.floor(num(l[0]))), Math.max(0, Math.floor(num(l[1]))), Math.max(0, Math.round(num(l[2]) * 100) / 100)];
+  const K = Array.isArray(k) && k.length === 3 ? [num(k[0]), num(k[1]), num(k[2])] : null;
+  const eq = (a, b) => a && b && a[0] === b[0] && a[1] === b[1] && Math.abs(a[2] - b[2]) < 0.005;
+  const c = await pool.connect();
+  try {
+    await c.query('BEGIN');
+    const cur = (await c.query('SELECT pts,gems,usd FROM sync_accounts WHERE LOWER(email)=$1 FOR UPDATE', [em])).rows[0];
+    if (!cur) { await c.query('ROLLBACK'); return null; }
+    const C = [num(cur.pts), num(cur.gems), num(cur.usd)];
+    const dv = (await c.query('SELECT sp,sg,su,rp,rg,ru FROM dev_bal WHERE email=$1 AND cid=$2', [em, cid])).rows[0];
+    let R;
+    if (!dv) R = [Math.max(C[0], L[0]), Math.max(C[1], L[1]), Math.max(C[2], L[2])];
+    else {
+      const sent = [num(dv.sp), num(dv.sg), num(dv.su)], ret = [num(dv.rp), num(dv.rg), num(dv.ru)];
+      const base = eq(K, ret) ? ret : sent;   // لم يستلم الرد السابق => نقارن بما أرسله آخر مرة
+      R = [Math.max(0, Math.round(C[0] + L[0] - base[0])), Math.max(0, Math.round(C[1] + L[1] - base[1])), Math.max(0, Math.round((C[2] + L[2] - base[2]) * 100) / 100)];
+    }
+    await c.query(`INSERT INTO dev_bal(email,cid,sp,sg,su,rp,rg,ru,at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,NOW())
+                   ON CONFLICT (email,cid) DO UPDATE SET sp=$3,sg=$4,su=$5,rp=$6,rg=$7,ru=$8,at=NOW()`, [em, cid, L[0], L[1], L[2], R[0], R[1], R[2]]);
+    if (R[0] !== C[0] || R[1] !== C[1] || Math.abs(R[2] - C[2]) > 0.004) await c.query('UPDATE sync_accounts SET pts=$2,gems=$3,usd=$4 WHERE LOWER(email)=$1', [em, R[0], R[1], R[2]]);
+    await c.query('COMMIT');
+    return R;
+  } catch (e) { try { await c.query('ROLLBACK'); } catch (x) {} throw e; } finally { c.release(); }
+};

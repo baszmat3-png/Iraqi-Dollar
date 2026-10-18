@@ -176,3 +176,43 @@ npm start
    - `GMAIL`: بريدك في Gmail.
    - `APP_PASS`: كلمة مرور التطبيق (App Password) المكونة من 16 حرفاً من Google.
    - `WPSENDER_API_KEY`: مفتاح WP Sender الخاص بك.
+
+---
+
+## تعليمات التشغيل والتحديث (محدَّثة)
+
+### الملفات الإضافية المطلوبة بجانب `server.js`
+`poke-ext.js` (مزامنة فورية) · `cloud-state-ext.js` (حفظ حالة الحساب والأرصدة على السيرفر) · `account-delete-ext.js` (حذف الحساب) · `google-auth-ext.js` (دخول Google) ·
+`public/counters-sync.js` · `public/account-delete.js` · `public/privacy-policy.html` · `public/delete-account.html`
+
+### أسطر الربط (يجب بقاؤها عند استبدال الملفات)
+في `server.js`:
+```js
+const CLOUD = require('./cloud-state-ext'); CLOUD.parsers(app, express);   // بعد app.set('trust proxy', 1)
+require('./poke-ext')(app);                                               // بعد app.set('trust proxy', 1)
+CLOUD.routes(app, { pool, wrap, fail });                                  // بعد تعريف fail
+require('./account-delete-ext')(app, { pool, wrap, fail });
+```
+في `public/index.html` بعد `user-ext.js`:
+```html
+<script src="/account-delete.js?v=1"></script><script src="/counters-sync.js?v=1"></script>
+```
+إن استبدلتَ `server.js` أو `index.html` بنسخة جديدة فأعد هذه الأسطر (أو أرسل الملفات ليُعاد دمجها).
+
+### متغيرات Render
+`DATABASE_URL` · `JWT_SECRET` · `GOOGLE_CLIENT_ID` (عميل الويب فقط، وليس عميل Android) · بقية المتغيرات كما كانت.
+
+### كيف تُحفظ البيانات الآن
+- **الأرصدة (نقاط/جواهر/دولار):** المرجع قاعدة البيانات (`sync_accounts`). كل جهاز يرسل فرق ما كسبه أو أنفقه فيُجمع مع رصيد السيرفر (جدول `dev_bal`)، فلا يضيع شحن لوحة التحكم ولا أرباح جهاز آخر، ويظهر الرصيد نفسه في المتصفح والتطبيق.
+- **العدادات:** المرجع `sync_accounts.cl`. شحن/تصفير الإدارة وشراء المستخدم يظهران في كل الأجهزة خلال ثوانٍ.
+- **حالة الحساب (المؤقت، السجل…):** جدول `cloud_state` عبر `/api/v1/login` و`/api/v1/state`.
+- **الصورة الشخصية:** من السيرفر فقط (`/api/m/avatar`)، ولا تُعرض أي صورة مخزّنة محلياً على الجهاز.
+- **المضاعفة:** تعرض عدد العدادات الفعّالة.
+
+### التحقق بعد النشر
+1) افتح الحساب نفسه في المتصفح والتطبيق: النقاط والجواهر والدولار والعدادات متطابقة.
+2) من لوحة التحكم اشحن نقاطاً أو عداداً: يصل التطبيق خلال ثوانٍ.
+3) في Render > Logs: لا أخطاء `mergeBal` أو `cloud_state`.
+
+### Google Play
+AAB موقّع بمفتاح الرفع · رابط الخصوصية `/privacy-policy.html` · رابط الحذف `/delete-account.html` · الحذف داخل التطبيق من «حسابي ← حذف حسابي».
