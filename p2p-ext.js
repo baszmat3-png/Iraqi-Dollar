@@ -140,16 +140,20 @@ module.exports = (app, express, deps) => {
       if (u2 && u2.uid) a.uid = u2.uid;
     }
     a.email = String(a.email).toLowerCase();
-    // مزامنة عدادات المستخدم (تُحفظ محلياً في التطبيق) إلى السيرفر ليتحقق منها نظام P2P
+    // العدادات: المرجع قاعدة البيانات (sync_accounts.cl) وتُزامَن عبر /api/sync/report و/api/v1/state.
+    // لا نكتب فوقها بما يرسله الجهاز (كان يقصّها إلى 30 ويعيد القديم بعد شحن الإدارة)؛ نقبل قائمة الجهاز فقط إن كانت قائمة السيرفر فارغة (ترحيل قديم).
     if (Array.isArray(b.cl)) {
       const now = Date.now();
-      const cl = b.cl.slice(0, 30).map((x) => ({ i: Math.floor(Number(x && x.i)), e: Math.floor(Number(x && x.e)) }))
-        .filter((x) => x.i >= 0 && x.i <= 20 && x.e > now && x.e < now + 400 * 864e5);
-      if (cl.length && JSON.stringify(cl) !== JSON.stringify(Array.isArray(a.cl) ? a.cl : [])) {
-        await c.query(`UPDATE sync_accounts SET cl=$2::jsonb, cl_at=NOW() WHERE LOWER(email)=$1`, [a.email, JSON.stringify(cl)]);
-        a.cl = cl;
-      } else if (cl.length) {
-        await c.query(`UPDATE sync_accounts SET cl_at=NOW() WHERE LOWER(email)=$1`, [a.email]).catch(() => {});
+      const have = (Array.isArray(a.cl) ? a.cl : []).some((x) => x && Number(x.e) > now);
+      if (!have) {
+        const cl = b.cl.slice(0, 100).map((x) => ({ i: Math.floor(Number(x && x.i)), e: Math.floor(Number(x && x.e)) }))
+          .filter((x) => x.i >= 0 && x.i <= 20 && x.e > now && x.e < now + 400 * 864e5);
+        if (cl.length) {
+          await c.query(`UPDATE sync_accounts SET cl=$2::jsonb, ncl=$3, cl_at=NOW() WHERE LOWER(email)=$1`, [a.email, JSON.stringify(cl), cl.length]).catch(async () => {
+            await c.query(`UPDATE sync_accounts SET cl=$2::jsonb, cl_at=NOW() WHERE LOWER(email)=$1`, [a.email, JSON.stringify(cl)]);
+          });
+          a.cl = cl;
+        }
       }
     }
     return a;
