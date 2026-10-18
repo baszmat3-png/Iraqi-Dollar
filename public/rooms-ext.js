@@ -729,11 +729,18 @@
       <button data-rm="mmute" aria-label="كتم الموسيقى">${I(RS.mmute ? 'voloff' : 'vol')}</button>
       ${mod ? `<button data-rm="mtoggle" aria-label="تشغيل/إيقاف">${I(m.playing ? 'pause' : 'play')}</button><button data-rm="music" aria-label="تغيير">${I('music')}</button>` : ''}`;
   }
+  const MCATS = [['all', 'الكل'], ['energetic', '🔥 حماسية'], ['iraqi', '🇮🇶 عراقية'], ['other', '🎶 أخرى']];
+  function musicBody() {
+    const tracks = RS.tracks || [], cat = RS.mcat || 'all';
+    const list = tracks.map((t, i) => ({ t, i })).filter(x => cat === 'all' || (x.t.cat || 'other') === cat);
+    return `<div class="rm-mt" style="display:flex;gap:6px;overflow-x:auto;margin-bottom:8px">${MCATS.map(c => `<button class="rm-act${cat === c[0] ? ' on' : ''}" style="white-space:nowrap;flex:0 0 auto;${cat === c[0] ? 'outline:2px solid var(--p,#0bc5d6)' : ''}" data-rm="mcat" data-v="${c[0]}">${c[1]}</button>`).join('')}</div>
+      ${list.length ? list.map(x => `<button class="rm-act" data-rm="mplay" data-v="${x.i}">${I('play', 18)} ${E(x.t.title)}</button>`).join('') : '<div class="mu" style="font-size:.85rem">' + (tracks.length ? 'لا توجد مقاطع في هذا التصنيف.' : 'لا توجد مقاطع في مكتبة التطبيق بعد. يمكنك إضافة رابط مباشر.') + '</div>'}`;
+  }
   async function musicDlg() {
     let tracks = []; try { tracks = (await get('/api/rooms/music')).tracks || []; } catch (e) {}
-    RS.tracks = tracks;
+    RS.tracks = tracks; if (!RS.mcat) RS.mcat = 'all';
     dlg(`<h2 style="margin-top:0">🎵 موسيقى الروم</h2><div class="rm-f1">
-      ${tracks.length ? `<label>من مكتبة التطبيق</label>${tracks.map((t, i) => `<button class="rm-act" data-rm="mplay" data-v="${i}">${I('play', 18)} ${E(t.title)}</button>`).join('')}` : '<div class="mu" style="font-size:.85rem">لا توجد مقاطع في مكتبة التطبيق بعد. يمكنك إضافة رابط مباشر.</div>'}
+      <label>من مكتبة التطبيق</label><div id="rmMlib">${musicBody()}</div>
       <label>أو رابط مقطع صوتي مباشر (https://… .mp3)<input id="rmMu" placeholder="https://example.com/song.mp3" style="direction:ltr"></label>
       <label>اسم المقطع<input id="rmMt" maxlength="60" placeholder="اسم يظهر للجميع"></label>
       <button class="btn" data-rm="mcustom">تشغيل الرابط</button>
@@ -894,6 +901,7 @@
       case 'kick': if (!confirm('طرد هذا المستخدم من الروم؟')) return; try { $('#d').close(); } catch (e) {} return act('mod_kick', { uid: v, ban: false });
       case 'ban': if (!confirm('حظر هذا المستخدم من الروم نهائياً؟')) return; try { $('#d').close(); } catch (e) {} return act('mod_kick', { uid: v, ban: true });
       case 'music': return musicDlg();
+      case 'mcat': { RS.mcat = v; const el = $('#rmMlib'); if (el) el.innerHTML = musicBody(); return; }
       case 'mplay': { const t = (RS.tracks || [])[+v]; if (!t) return; try { $('#d').close(); } catch (e) {} return act('music', { op: 'play', url: t.url, title: t.title }); }
       case 'mcustom': { const url = (($('#rmMu') || {}).value || '').trim(), title = (($('#rmMt') || {}).value || '').trim(); if (!url) return say('ألصق رابط المقطع'); const r = await act('music', { op: 'play', url, title }); if (r) { try { $('#d').close(); } catch (e) {} } return; }
       case 'mstop': try { $('#d').close(); } catch (e) {} return act('music', { op: 'stop' });
