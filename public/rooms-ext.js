@@ -117,6 +117,38 @@
   .seat .bg{position:absolute;bottom:20px;inset-inline-end:2px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#111c;border:1.5px solid #ffffff55}
   .seat .bg .rmi{width:13px;height:13px}.seat .bg.o{background:#b45309;color:#fde68a}.seat .bg.m{background:#b91c1c}.seat .bg.a{background:#1d4ed8}
   .seat.gt .av{animation:rmgt .9s ease}@keyframes rmgt{40%{transform:scale(1.18)}}
+
+  .rm-md{display:grid;gap:12px;min-width:0;max-width:100%;overflow-x:hidden}.rm-md *{box-sizing:border-box;min-width:0}
+  .rm-md h2{margin:0;display:flex;align-items:center;gap:8px;font-size:1.2rem}
+  .rm-np{display:flex;align-items:center;gap:10px;padding:12px;border-radius:18px;background:linear-gradient(135deg,#0bc5d633,#8b5cf633);border:1px solid #ffffff1a}
+  .rm-np .ic{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:#0006;flex:none}
+  .rm-np .tx{flex:1;overflow:hidden}.rm-np .tx b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rm-np .tx small{color:var(--mu)}
+  .rm-np button{width:40px;height:40px;border-radius:50%;border:0;background:#ffffff1f;color:#fff;display:grid;place-items:center;cursor:pointer;flex:none}
+  .rm-np button.r{background:#ef444433;color:#fca5a5}
+  .rm-up{display:grid;gap:8px;padding:14px;border-radius:18px;border:2px dashed #0bc5d688;background:#0bc5d60f;text-align:center}
+  .rm-up .big{font-weight:700;font-size:1rem}.rm-up small{color:var(--mu)}
+  .rm-up input[type=text]{font:inherit;color:#fff;background:var(--inp);border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;width:100%}
+  .rm-up .go{font:inherit;font-weight:700;color:#fff;border:0;border-radius:14px;padding:13px;cursor:pointer;background:linear-gradient(135deg,var(--cy),var(--cy2))}
+  .rm-up .go:disabled{opacity:.6}
+  .rm-pb{height:8px;border-radius:99px;background:#ffffff1a;overflow:hidden;display:none}.rm-pb i{display:block;height:100%;width:0;background:linear-gradient(90deg,#0bc5d6,#8b5cf6);transition:width .15s}
+  .rm-sec{font-size:.8rem;color:var(--mu);margin:2px 2px -4px}
+  .rm-ch{display:flex;flex-wrap:wrap;gap:6px}.rm-ch button{font:inherit;font-size:.8rem;color:#fff;border:1px solid #ffffff22;background:#ffffff0f;border-radius:99px;padding:6px 12px;cursor:pointer}.rm-ch button.on{background:var(--cy2);border-color:transparent}
+  .rm-tl{display:grid;gap:6px}.rm-tr{display:flex;align-items:center;gap:8px;background:#ffffff0f;border-radius:14px;padding:6px}
+  .rm-tr .pl{flex:1;display:flex;align-items:center;gap:10px;border:0;background:transparent;color:#fff;font:inherit;text-align:right;cursor:pointer;padding:6px;overflow:hidden}
+  .rm-tr .pl span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rm-tr .dl{border:0;background:#ef444422;color:#fca5a5;border-radius:10px;width:34px;height:34px;display:grid;place-items:center;cursor:pointer;flex:none}
+  .rm-tr.cur{outline:1.5px solid var(--cy)}
+  .rm-md .mu{color:var(--mu)}
+
+  #rmx.hasbg:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,#0000004d,#0000008c 60%,#000000b3)}
+  #rmx.hasbg .rm-in{z-index:1}
+  .rm-gw{position:relative;display:flex;align-items:center;flex:none}
+  .rm-gw #rmMicW.up{position:absolute;left:50%;bottom:calc(100% + 10px);transform:translateX(-50%);z-index:5}
+  .rm-gw #rmMicW.up .mc{box-shadow:0 6px 18px #0006}
+  .rm-bge{display:grid;gap:8px;padding:12px;border-radius:16px;background:#ffffff0d}
+  .rm-bge .pv{height:120px;border-radius:12px;background:#0006 center/cover no-repeat;display:grid;place-items:center;color:var(--mu);font-size:.85rem;border:1px dashed #ffffff33}
+  .rm-bge .pv.has{border-style:solid}
+  .rm-bge .rw2{display:flex;gap:8px}.rm-bge .rw2 button{flex:1}
   .rm-mus{margin:6px 12px 0;display:flex;align-items:center;gap:9px;background:#0005;border-radius:16px;padding:8px 10px;backdrop-filter:blur(8px)}
   .rm-mus .eq{display:flex;gap:2px;align-items:flex-end;height:16px;flex:none}.rm-mus .eq i{width:3px;background:var(--ac);border-radius:2px;height:5px}
   .rm-mus.on .eq i{animation:rmeq .9s ease-in-out infinite}.rm-mus.on .eq i:nth-child(2){animation-delay:.2s}.rm-mus.on .eq i:nth-child(3){animation-delay:.4s}
@@ -246,10 +278,40 @@
       <label>اللون</label><div id="rmT1">${themeRow(RM.ed.theme)}</div>
       <label class="rm-sw"><span>مايك مفتوح (يصعد الجميع بلا موافقة)</span><input type="checkbox" id="rmO2" ${live.openMic ? 'checked' : ''}></label>
       <label>رمز دخول سري (اتركه فارغاً لروم عام)<input id="rmP2" maxlength="8" inputmode="numeric" placeholder="${live.locked ? 'الروم مقفل — اكتب رمزاً جديداً أو - للإزالة' : 'مثال: 1234'}"></label>
+      <label>صورة خلفية الروم (تظهر للجميع)</label>
+      <div class="rm-bge"><div class="pv${+live.bg ? ' has' : ''}" id="rmBgPv" style="${+live.bg ? `background-image:url(/api/rooms/bg/${r.id}?v=${+live.bg})` : ''}">${+live.bg ? '' : 'لا توجد صورة خلفية'}</div>
+        <input type="file" id="rmBgF" accept="image/jpeg,image/png,image/webp" style="display:none">
+        <div class="rw2"><button type="button" class="rm-act" style="justify-content:center" data-rm="bgpick">${I('plus', 18)} رفع صورة</button>${+live.bg ? `<button type="button" class="rm-act r" style="justify-content:center" data-rm="bgdel">إزالة</button>` : ''}</div>
+        <div class="mu" style="font-size:.74rem">تُضغط الصورة تلقائياً قبل الرفع. اختر صورة مناسبة وغير مخالفة.</div></div>
       <button class="btn" data-rm="esave">حفظ</button>
       <div class="rm-info"><div>المايكات الحالية: <b>${RM.ed.mics}</b> من ${c.maxMics || 8}</div></div>
       <button class="rm-act gd" data-rm="buymic" ${RM.ed.mics >= (c.maxMics || 8) ? 'disabled' : ''}>${I('mic', 18)} شراء مايك إضافي · ${fmt(c.micPrice || 0)} نقطة</button>
       <button class="rm-act r" data-rm="closeroom">${I('power', 18)} إغلاق الروم نهائياً</button></div>`);
+  }
+
+  function resizeImg(file, max) {
+    return new Promise((ok, no) => {
+      const u = URL.createObjectURL(file), im = new Image();
+      im.onload = () => { try { const k = Math.min(1, max / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(u); c.toBlob((b) => b ? ok(b) : no(new Error('تعذّر تجهيز الصورة')), 'image/jpeg', 0.82); } catch (e) { no(e); } };
+      im.onerror = () => { URL.revokeObjectURL(u); no(new Error('ملف الصورة غير صالح')); };
+      im.src = u;
+    });
+  }
+  async function uploadBg(file) {
+    const me = idn(), e = RM.ed; if (!file || !me || !e) return;
+    if (!/^image\//.test(file.type)) return say('اختر صورة');
+    const pv = $('#rmBgPv'); if (pv) pv.textContent = 'جارٍ الرفع…';
+    try {
+      const blob = await resizeImg(file, 1280);
+      const r = await fetch('/api/rooms/bg/upload', { method: 'POST', headers: { 'X-E': me.e, 'X-H': me.h, 'X-Id': String(e.id), 'X-Mime': 'image/jpeg', 'Content-Type': 'application/octet-stream' }, body: blob });
+      const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'فشل رفع الصورة');
+      say('تم تعيين خلفية الروم 🖼️'); if (RS && RS.id === e.id) { RS.st.room.bg = j.bg; paint(); }
+      editDlg(Object.assign({}, e.r, { emoji: e.emoji, theme: e.theme, mics: e.mics, bg: j.bg }));
+    } catch (x) { say(x.message); if (pv) pv.textContent = 'لا توجد صورة خلفية'; }
+  }
+  async function removeBg() {
+    const me = idn(), e = RM.ed; if (!me || !e) return;
+    try { await post('/api/rooms/bg/remove', { ...me, id: e.id }); say('تمت إزالة الخلفية'); if (RS && RS.id === e.id) { RS.st.room.bg = 0; paint(); } editDlg(Object.assign({}, e.r, { emoji: e.emoji, theme: e.theme, mics: e.mics, bg: 0 })); } catch (x) { say(x.message); }
   }
   async function saveEdit() {
     const me = idn(), e = RM.ed; if (!me || !e) return;
@@ -358,7 +420,7 @@
       <div class="rm-chat" id="rmChat"></div>
       <div class="rm-f"><button class="rm-ib" data-rm="members" aria-label="المتواجدون">${I('users', 20)}<i class="bd" id="rmN">0</i></button>
         <input id="rmIn" maxlength="300" placeholder="اكتب رسالة…" autocomplete="off"><button class="rm-ib go" data-rm="send" aria-label="إرسال">${I('send', 20)}</button>
-        <button class="rm-ib gf" data-rm="gift" aria-label="هدية">${I('gift', 22)}</button><span id="rmMicW"></span></div>
+        <span class="rm-gw"><button class="rm-ib gf" data-rm="gift" aria-label="هدية">${I('gift', 22)}</button><span id="rmMicW"></span></span></div>
       <div class="rm-gb" id="rmGb"></div><div class="rm-fx" id="rmFx"></div></div>`;
     document.body.appendChild(x);
     let mn = $('#rmmini'); if (!mn) { mn = document.createElement('div'); mn.id = 'rmmini'; document.body.appendChild(mn); }
@@ -381,6 +443,9 @@
     const x = $('#rmx'); if (!x || !RS) return;
     const st = RS.st, r = st.room, t = th(r.theme);
     x.style.setProperty('--t1', t[0]); x.style.setProperty('--t2', t[1]); x.style.setProperty('--ac', t[2]);
+    const bgv = +r.bg || 0;
+    if (bgv) { if (x.dataset.bg !== String(bgv)) { x.dataset.bg = String(bgv); x.style.background = `url("/api/rooms/bg/${r.id}?v=${bgv}") center/cover no-repeat, linear-gradient(180deg,var(--t1),var(--t2) 72%)`; } x.classList.add('hasbg'); }
+    else if (x.dataset.bg) { delete x.dataset.bg; x.style.background = ''; x.classList.remove('hasbg'); }
     $('#rmTitle').textContent = r.emoji + ' ' + r.name;
     $('#rmSub').innerHTML = `<span class="rm-pill" style="padding:1px 8px">${I('users', 11)}${st.n}</span><span>رقم الروم ${r.id}</span>${r.locked ? I('lock', 12) : ''}${r.openMic ? '<span>🎤 مايك مفتوح</span>' : ''}`;
     $('#rmN').textContent = st.n;
@@ -402,6 +467,7 @@
   function paintMicBtn() {
     const w = $('#rmMicW'); if (!w || !RS) return;
     const st = RS.st, m = meM(), mod = isMod();
+    w.className = (RS.seat < 0 && !(mod || st.room.openMic)) ? 'up' : '';
     if (RS.seat >= 0) {
       const off = RS.forced || RS.selfMute;
       w.innerHTML = `<button class="rm-ib mc ${off ? 'off' : ''}" data-rm="mute" aria-label="كتم">${I(off ? 'micoff' : 'mic', 24)}</button><button class="rm-ib" style="width:36px;height:36px;margin-inline-start:6px" data-rm="down" aria-label="النزول من المايك">${I('x', 16)}</button>`;
@@ -721,6 +787,7 @@
     } else if (!a.paused) a.pause();
   }
   function paintMusic() {
+    try { const t = $('#rmMt'), g = $('#rmMgo'); if (t && !t.value && g && !g.disabled) paintMdlg(); } catch (e) {}
     const box = $('#rmMus'); if (!box || !RS) return;
     const m = RS.st.room.music || {}, mod = isMod();
     if (!m.url) { box.style.display = mod ? '' : 'none'; box.className = 'rm-mus'; box.innerHTML = mod ? `<span class="eq"><i></i><i></i><i></i></span><span class="t" style="opacity:.8">لا توجد موسيقى — أضف موسيقى خلفية للروم</span><button data-rm="music" aria-label="موسيقى">${I('plus')}</button>` : ''; return; }
@@ -730,22 +797,54 @@
       ${mod ? `<button data-rm="mtoggle" aria-label="تشغيل/إيقاف">${I(m.playing ? 'pause' : 'play')}</button><button data-rm="music" aria-label="تغيير">${I('music')}</button>` : ''}`;
   }
   const MCATS = [['all', 'الكل'], ['energetic', '🔥 حماسية'], ['iraqi', '🇮🇶 عراقية'], ['other', '🎶 أخرى']];
+  function npHtml() {
+    const m = RS.st.room.music || {};
+    if (!m.url) return `<div class="rm-np"><div class="ic">${I('music', 22)}</div><div class="tx"><b>لا توجد موسيقى حالياً</b><small>ارفع ملفاً أو اختر من المكتبة</small></div></div>`;
+    return `<div class="rm-np"><div class="ic"><span class="eq"><i></i><i></i><i></i></span></div><div class="tx"><b>${E(m.title || 'موسيقى')}</b><small>${m.playing ? 'تُشغَّل للجميع الآن' : 'متوقفة مؤقتاً'}</small></div>
+      <button data-rm="mtoggle" aria-label="تشغيل/إيقاف">${I(m.playing ? 'pause' : 'play', 20)}</button><button class="r" data-rm="mstop" aria-label="إزالة">${I('x', 18)}</button></div>`;
+  }
+  function filesHtml() {
+    const fs = RS.mfiles || [], cur = (RS.st.room.music || {}).url;
+    if (!fs.length) return '';
+    return `<div class="rm-sec">ملفاتي المرفوعة لهذا الروم</div><div class="rm-tl">${fs.map((f, i) => `<div class="rm-tr${cur === f.url ? ' cur' : ''}"><button class="pl" data-rm="mfplay" data-v="${i}">${I('play', 18)}<span>${E(f.title)}</span></button><button class="dl" data-rm="mfdel" data-v="${i}" aria-label="حذف">${I('x', 16)}</button></div>`).join('')}</div>`;
+  }
   function musicBody() {
     const tracks = RS.tracks || [], cat = RS.mcat || 'all';
     const list = tracks.map((t, i) => ({ t, i })).filter(x => cat === 'all' || (x.t.cat || 'other') === cat);
-    return `<div class="rm-mt" style="display:flex;gap:6px;overflow-x:auto;margin-bottom:8px">${MCATS.map(c => `<button class="rm-act${cat === c[0] ? ' on' : ''}" style="white-space:nowrap;flex:0 0 auto;${cat === c[0] ? 'outline:2px solid var(--p,#0bc5d6)' : ''}" data-rm="mcat" data-v="${c[0]}">${c[1]}</button>`).join('')}</div>
-      ${list.length ? list.map(x => `<button class="rm-act" data-rm="mplay" data-v="${x.i}">${I('play', 18)} ${E(x.t.title)}</button>`).join('') : '<div class="mu" style="font-size:.85rem">' + (tracks.length ? 'لا توجد مقاطع في هذا التصنيف.' : 'لا توجد مقاطع في مكتبة التطبيق بعد. يمكنك إضافة رابط مباشر.') + '</div>'}`;
+    if (!tracks.length) return '';
+    return `<div class="rm-sec">مكتبة التطبيق</div><div class="rm-ch">${MCATS.map(c => `<button class="${cat === c[0] ? 'on' : ''}" data-rm="mcat" data-v="${c[0]}">${c[1]}</button>`).join('')}</div>
+      <div class="rm-tl">${list.length ? list.map(x => `<div class="rm-tr${(RS.st.room.music || {}).url === x.t.url ? ' cur' : ''}"><button class="pl" data-rm="mplay" data-v="${x.i}">${I('play', 18)}<span>${E(x.t.title)}</span></button></div>`).join('') : '<div class="mu" style="font-size:.85rem;padding:6px">لا توجد مقاطع في هذا التصنيف.</div>'}</div>`;
+  }
+  function paintMdlg() { const el = $('#rmMd'); if (el) el.innerHTML = mdInner(); }
+  function mdInner() {
+    return npHtml() + `<div class="rm-up"><div class="big">⬆️ ارفع ملف موسيقى</div><small>mp3 أو m4a أو ogg أو wav — حتى 10MB — يُرفع للسيرفر ويُشغَّل للجميع فوراً</small>
+      <input type="file" id="rmMf" accept="audio/*,.mp3,.m4a,.ogg,.wav" style="display:none"><input type="text" id="rmMt" maxlength="60" placeholder="اسم المقطع (اختياري)">
+      <button class="go" id="rmMgo" data-rm="mpick">${I('plus', 18)} اختيار ملف ورفعه</button><div class="rm-pb" id="rmPb"><i></i></div></div>` + filesHtml() + musicBody();
   }
   async function musicDlg() {
-    let tracks = []; try { tracks = (await get('/api/rooms/music')).tracks || []; } catch (e) {}
-    RS.tracks = tracks; if (!RS.mcat) RS.mcat = 'all';
-    dlg(`<h2 style="margin-top:0">🎵 موسيقى الروم</h2><div class="rm-f1">
-      <label>من مكتبة التطبيق</label><div id="rmMlib">${musicBody()}</div>
-      <label>أو رابط مقطع صوتي مباشر (https://… .mp3)<input id="rmMu" placeholder="https://example.com/song.mp3" style="direction:ltr"></label>
-      <label>اسم المقطع<input id="rmMt" maxlength="60" placeholder="اسم يظهر للجميع"></label>
-      <button class="btn" data-rm="mcustom">تشغيل الرابط</button>
-      <button class="rm-act r" data-rm="mstop">إيقاف الموسيقى وإزالتها</button>
+    RS.mcat = RS.mcat || 'all';
+    dlg(`<div class="rm-md"><h2>${I('music', 24)} موسيقى الروم</h2><div id="rmMd">${mdInner()}</div>
       <div class="mu" style="font-size:.74rem">استخدم موسيقى مسموح لك باستخدامها. تُشغَّل للجميع بشكل متزامن ويستطيع كل شخص كتمها أو خفض صوتها لنفسه.</div></div>`);
+    try { RS.tracks = (await get('/api/rooms/music')).tracks || []; } catch (e) { RS.tracks = []; }
+    try { RS.mfiles = (await get('/api/rooms/music/mine?tok=' + encodeURIComponent(RS.tok))).files || []; } catch (e) { RS.mfiles = []; }
+    paintMdlg();
+  }
+  function uploadMusic(file) {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) return say('الملف أكبر من 10MB');
+    if (!/^audio\//.test(file.type) && !/\.(mp3|m4a|ogg|wav|aac)$/i.test(file.name)) return say('اختر ملفاً صوتياً (mp3)');
+    const btn = $('#rmMgo'), pb = $('#rmPb'), bar = pb && pb.firstElementChild, title = (($('#rmMt') || {}).value || '').trim() || file.name;
+    if (btn) { btn.disabled = true; btn.textContent = 'جارٍ الرفع…'; } if (pb) pb.style.display = 'block';
+    const x = new XMLHttpRequest(); x.open('POST', '/api/rooms/music/upload');
+    x.setRequestHeader('X-Tok', RS.tok); x.setRequestHeader('X-Title', encodeURIComponent(title)); x.setRequestHeader('X-Mime', file.type || (/\.m4a$/i.test(file.name) ? 'audio/mp4' : 'audio/mpeg')); x.setRequestHeader('Content-Type', 'application/octet-stream');
+    x.upload.onprogress = (e) => { if (bar && e.lengthComputable) bar.style.width = Math.round(e.loaded / e.total * 100) + '%'; };
+    x.onload = async () => {
+      let j = {}; try { j = JSON.parse(x.responseText); } catch (e) {}
+      if (x.status === 200 && j.ok) { say('تم رفع المقطع وتشغيله للجميع 🎶'); try { RS.mfiles = (await get('/api/rooms/music/mine?tok=' + encodeURIComponent(RS.tok))).files || []; } catch (e) {} paintMdlg(); }
+      else { say(j.error || 'فشل الرفع'); paintMdlg(); }
+    };
+    x.onerror = () => { say('تعذّر رفع الملف، تحقق من الاتصال'); paintMdlg(); };
+    x.send(file);
   }
 
   /* ---------- الهدايا ---------- */
@@ -868,6 +967,8 @@
       case 'newdlg': return newDlg();
       case 'mydlg': return myDlg();
       case 'pe': RM.cd.emoji = v; if (RM.ed) RM.ed.emoji = v; document.querySelectorAll('#rmE1 button').forEach((x) => x.classList.toggle('on', x.dataset.v === v)); return;
+      case 'bgpick': { const f = $('#rmBgF'); if (f) f.click(); return; }
+      case 'bgdel': return removeBg();
       case 'pt': RM.cd.theme = +v; if (RM.ed) RM.ed.theme = +v; document.querySelectorAll('#rmT1 button').forEach((x) => x.classList.toggle('on', +x.dataset.v === +v)); return;
       case 'docreate': return doCreate(b);
       case 'esave': return saveEdit();
@@ -901,11 +1002,13 @@
       case 'kick': if (!confirm('طرد هذا المستخدم من الروم؟')) return; try { $('#d').close(); } catch (e) {} return act('mod_kick', { uid: v, ban: false });
       case 'ban': if (!confirm('حظر هذا المستخدم من الروم نهائياً؟')) return; try { $('#d').close(); } catch (e) {} return act('mod_kick', { uid: v, ban: true });
       case 'music': return musicDlg();
-      case 'mcat': { RS.mcat = v; const el = $('#rmMlib'); if (el) el.innerHTML = musicBody(); return; }
-      case 'mplay': { const t = (RS.tracks || [])[+v]; if (!t) return; try { $('#d').close(); } catch (e) {} return act('music', { op: 'play', url: t.url, title: t.title }); }
-      case 'mcustom': { const url = (($('#rmMu') || {}).value || '').trim(), title = (($('#rmMt') || {}).value || '').trim(); if (!url) return say('ألصق رابط المقطع'); const r = await act('music', { op: 'play', url, title }); if (r) { try { $('#d').close(); } catch (e) {} } return; }
-      case 'mstop': try { $('#d').close(); } catch (e) {} return act('music', { op: 'stop' });
-      case 'mtoggle': return act('music', { op: RS.st.room.music.playing ? 'pause' : 'play' });
+      case 'mcat': { RS.mcat = v; return paintMdlg(); }
+      case 'mpick': { const f = $('#rmMf'); if (f) f.click(); return; }
+      case 'mplay': { const t = (RS.tracks || [])[+v]; if (!t) return; await act('music', { op: 'play', url: t.url, title: t.title }); return paintMdlg(); }
+      case 'mfplay': { const t = (RS.mfiles || [])[+v]; if (!t) return; await act('music', { op: 'play', url: t.url, title: t.title }); return paintMdlg(); }
+      case 'mfdel': { const t = (RS.mfiles || [])[+v]; if (!t || !confirm('حذف هذا المقطع من الروم؟')) return; await act('music', { op: 'del', id: t.id }); RS.mfiles.splice(+v, 1); return paintMdlg(); }
+      case 'mstop': await act('music', { op: 'stop' }); return paintMdlg();
+      case 'mtoggle': await act('music', { op: RS.st.room.music.playing ? 'pause' : 'play' }); return paintMdlg();
       case 'mmute': RS.mmute = !RS.mmute; RS.mus.volume = RS.mmute ? 0 : RS.mvol; return paintMusic();
     }
   }
@@ -915,8 +1018,11 @@
     Promise.resolve(handle(b.dataset.rm, b.dataset.v, b)).catch((e) => console.error('rooms', e));
   }, true);
   document.addEventListener('change', (ev) => {
-    if (!RS) return; const t = ev.target;
+    const t = ev.target;
+    if (t.id === 'rmBgF') { const f = t.files && t.files[0]; t.value = ''; uploadBg(f); return; }
+    if (!RS) return;
     if (t.id === 'rmDf') setDeaf(t.checked);
+    if (t.id === 'rmMf') { const f = t.files && t.files[0]; t.value = ''; uploadMusic(f); }
     if (t.id === 'rmMm') { RS.mmute = t.checked; RS.mus.volume = RS.mmute ? 0 : RS.mvol; paintMusic(); }
   });
   document.addEventListener('input', (ev) => { if (RS && ev.target.id === 'rmVol') { RS.mvol = ev.target.value / 100; if (!RS.mmute) RS.mus.volume = RS.mvol; } });
