@@ -43,6 +43,8 @@ module.exports = (app, express, deps) => {
        aud_cut BIGINT NOT NULL DEFAULT 0, aud_n INT NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
     `CREATE TABLE IF NOT EXISTS room_music(
        id SERIAL PRIMARY KEY, title TEXT NOT NULL, url TEXT NOT NULL, active BOOLEAN NOT NULL DEFAULT TRUE, sort INT NOT NULL DEFAULT 0)`,
+    `ALTER TABLE room_music ADD COLUMN IF NOT EXISTS cat TEXT NOT NULL DEFAULT 'other'`,
+    `CREATE TABLE IF NOT EXISTS room_music_files(id SERIAL PRIMARY KEY, mime TEXT NOT NULL, data BYTEA NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
     `CREATE TABLE IF NOT EXISTS room_settings(k TEXT PRIMARY KEY, v JSONB NOT NULL)`,
     `CREATE TABLE IF NOT EXISTS room_sales(
        id BIGSERIAL PRIMARY KEY, email TEXT NOT NULL, room_id INT, kind TEXT NOT NULL, pts BIGINT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
@@ -461,7 +463,7 @@ module.exports = (app, express, deps) => {
         const op = txt(b.op, 8);
         if (op === 'play') {
           const url = txt(b.url, 500);
-          if (url) { if (!/^https:\/\/[^\s]+$/i.test(url)) fail(400, 'رابط الموسيقى يجب أن يبدأ بـ https://'); L.music = { url, title: clean(b.title, 60) || 'موسيقى', playing: true, pos: 0, ts: now }; }
+          if (url) { if (!/^https:\/\/[^\s]+$/i.test(url) && !/^\/api\/rooms\/music\/file\/\d+$/.test(url)) fail(400, 'رابط الموسيقى يجب أن يبدأ بـ https://'); L.music = { url, title: clean(b.title, 60) || 'موسيقى', playing: true, pos: 0, ts: now }; }
           else if (L.music.url) L.music = Object.assign({}, L.music, { playing: true, ts: now });
           else fail(400, 'اختر موسيقى أولاً');
         } else if (op === 'pause') { if (L.music.playing) L.music = Object.assign({}, L.music, { playing: false, pos: L.music.pos + (now - L.music.ts) / 1000, ts: now }); }
@@ -568,7 +570,7 @@ module.exports = (app, express, deps) => {
       COALESCE((SELECT SUM(total-owner_cut-aud_cut) FROM room_gift_log WHERE created_at > NOW()-INTERVAL '30 days'),0)::float8 g30`)).rows[0];
     st.d1 = per.s1 + per.g1; st.d7 = per.s7 + per.g7; st.d30 = per.s30 + per.g30;
     st.pr = pr; // دينار لكل نقطة
-    const music = (await q(`SELECT id,title,url,active,sort FROM room_music ORDER BY sort,id`)).rows;
+    const music = (await q(`SELECT id,title,url,active,sort,cat FROM room_music ORDER BY cat,sort,id`)).rows;
     const live_n = [...live.values()].reduce((x, L) => x + L.members.size, 0);
     res.json({ ok: true, cfg: c, rooms, stats: Object.assign(st, { live: live_n }), music });
   }));
@@ -639,20 +641,44 @@ module.exports = (app, express, deps) => {
     const r = (await q(`INSERT INTO rooms(owner_email,name,mics) VALUES($1,$2,$3) RETURNING id`, [String(u.email).toLowerCase(), name, c.baseMics])).rows[0];
     res.json({ ok: true, id: r.id });
   }));
+  const CATS = ['energetic', 'iraqi', 'other'];
+  const okUrl = (u) => /^https:\/\/[^\s]+$/i.test(u) || /^\/api\/rooms\/music\/file\/\d+$/.test(u);
   app.post('/api/ctl/rooms/music/save', ...ctl, jsonBody, wrap(async (req, res) => {
     const b = req.body || {}, title = clean(b.title, 60), url = txt(b.url, 500), id = num(b.id, 0, 0, 1e9);
-    if (!title) fail(400, 'اكتب اسم المقطع'); if (!/^https:\/\/[^\s]+$/i.test(url)) fail(400, 'الرابط يجب أن يبدأ بـ https://');
+    const cat = CATS.includes(b.cat) ? b.cat : 'other';
+    if (!title) fail(400, 'اكتب اسم المقطع'); if (!okUrl(url)) fail(400, 'الرابط يجب أن يبدأ بـ https://');
     const active = b.active !== false && b.active !== 0, sort = num(b.sort, 0, 0, 100000);
-    if (id) await q(`UPDATE room_music SET title=$2,url=$3,active=$4,sort=$5 WHERE id=$1`, [id, title, url, active, sort]);
-    else await q(`INSERT INTO room_music(title,url,active,sort) VALUES($1,$2,$3,$4)`, [title, url, active, sort || 10]);
+    if (id) await q(`UPDATE room_music SET title=$2,url=$3,active=$4,sort=$5,cat=$6 WHERE id=$1`, [id, title, url, active, sort, cat]);
+    else await q(`INSERT INTO room_music(title,url,active,sort,cat) VALUES($1,$2,$3,$4,$5)`, [title, url, active, sort || 10, cat]);
     res.json({ ok: true });
   }));
+  // رفع ملف صوتي مباشرة (حتى 12MB) ← يُخزَّن في قاعدة البيانات ويُقدَّم من السيرفر
+  app.post('/api/ctl/rooms/music/upload', ...ctl, express.raw({ type: () => true, limit: '12mb' }), wrap(async (req, res) => {
+    const mime = String(req.get('x-mime') || req.get('content-type') || '').toLowerCase();
+    if (!/^audio\/(mpeg|mp3|mp4|aac|x-m4a|m4a|ogg|wav|x-wav|webm)$/.test(mime)) fail(400, 'نوع الملف غير مدعوم (استخدم mp3 أو m4a أو ogg أو wav)');
+    if (!Buffer.isBuffer(req.body) || req.body.length < 2000) fail(400, 'الملف فارغ أو غير صالح');
+    const title = clean(decodeURIComponent(String(req.get('x-title') || '')), 60), cat = CATS.includes(req.get('x-cat')) ? req.get('x-cat') : 'other';
+    if (!title) fail(400, 'اكتب اسم المقطع');
+    const f = (await q(`INSERT INTO room_music_files(mime,data) VALUES($1,$2) RETURNING id`, [mime, req.body])).rows[0];
+    await q(`INSERT INTO room_music(title,url,active,sort,cat) VALUES($1,$2,TRUE,10,$3)`, [title, '/api/rooms/music/file/' + f.id, cat]);
+    res.json({ ok: true });
+  }));
+  app.get('/api/rooms/music/file/:id', wrap(async (req, res) => {
+    const r = (await q(`SELECT mime,data FROM room_music_files WHERE id=$1`, [num(req.params.id, 0, 0, 1e9)])).rows[0]; if (!r) return res.status(404).end();
+    const d = r.data, size = d.length, m = /bytes=(\d*)-(\d*)/.exec(req.get('range') || '');
+    res.set({ 'Content-Type': r.mime, 'Accept-Ranges': 'bytes', 'Cache-Control': 'public, max-age=86400' });
+    if (m) { let a = m[1] === '' ? Math.max(0, size - +m[2]) : +m[1], z = m[1] !== '' && m[2] !== '' ? Math.min(+m[2], size - 1) : size - 1; if (m[1] === '') z = size - 1; if (a > z || a >= size) return res.status(416).set('Content-Range', 'bytes */' + size).end(); res.status(206).set({ 'Content-Range': `bytes ${a}-${z}/${size}`, 'Content-Length': z - a + 1 }); return res.end(d.subarray(a, z + 1)); }
+    res.set('Content-Length', size); res.end(d);
+  }));
   app.post('/api/ctl/rooms/music/delete', ...ctl, jsonBody, wrap(async (req, res) => {
-    await q(`DELETE FROM room_music WHERE id=$1`, [num((req.body || {}).id, 0, 0, 1e9)]); res.json({ ok: true });
+    const id = num((req.body || {}).id, 0, 0, 1e9), r = (await q(`SELECT url FROM room_music WHERE id=$1`, [id])).rows[0];
+    await q(`DELETE FROM room_music WHERE id=$1`, [id]);
+    const fm = r && /\/file\/(\d+)$/.exec(r.url); if (fm) await q(`DELETE FROM room_music_files WHERE id=$1`, [+fm[1]]);
+    res.json({ ok: true });
   }));
   // مكتبة الموسيقى للمستخدمين
   app.get('/api/rooms/music', wrap(async (_req, res) => {
     res.set('Cache-Control', 'no-store');
-    res.json({ ok: true, tracks: (await q(`SELECT id,title,url FROM room_music WHERE active ORDER BY sort,id`)).rows });
+    res.json({ ok: true, tracks: (await q(`SELECT id,title,url,cat FROM room_music WHERE active ORDER BY sort,id`)).rows });
   }));
 };
