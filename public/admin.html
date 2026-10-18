@@ -1000,21 +1000,27 @@ async function secLoad(){if(!LS('adminkey',''))return;const [cfg,al,de]=await Pr
 PT2.sec=()=>{const D=window._secD;if(LS('adminkey','')&&(!D||Date.now()-D.t>10000))setTimeout(secLoad,0);return PP(`<div id="sec-admin">${LS('adminkey','')?(D?secHtml(D):'<div class="c mu" style="text-align:center;padding:22px">جارٍ تحميل بيانات الحماية...</div>'):'<div class="c mu" style="text-align:center;padding:22px">احفظ مفتاح الإدارة (الإعدادات ← التحكم المركزي) لعرض بيانات الحماية</div>'}</div>`)};
 
 /* ===== تبويب الهدايا: إدارة الهدايا وأسعارها + الإعدادات + إحصاءات وسجل ===== */
-function rmHtml(D){const c=D.cfg||{},st=D.stats||{},rs=D.rooms||[],ms=D.music||[];
+function rmHtml(D){const c=D.cfg||{},st=D.stats||{},rs=D.rooms||[],ms=D.music||[],pr=+st.pr||0;
 const num=(id,l,v,mn,mx)=>`<label>${l}<input id="${id}" type="number" min="${mn}" max="${mx}" value="${v}"></label>`;
-return `<div class="gd k" style="margin-bottom:12px">${kp('رومات نشطة',f(st.rooms||0),'bell')}${kp('متصلون الآن',f(st.live||0),'bell')}${kp('مبيعات الرومات (نقاط)',f(st.sales||0),'bell')}</div>
-<div class="gd k" style="margin-bottom:12px">${kp('قيمة هدايا الرومات',f(st.gifts||0),'bell')}${kp('نصيب أصحاب الرومات',f(st.oc||0),'bell')}${kp('نصيب المتواجدين',f(st.ac||0),'bell')}</div>
-<div class="c" style="margin-bottom:12px"><h3>⚙️ إعدادات الرومات</h3>
+const dn=p=>f(Math.round((+p||0)*pr))+' د.ع',sub=p=>`<small class="mu">≈ ${dn(p)}</small>`;
+const pt=p=>f(p||0)+' نقطة';
+return `<div class="c" style="margin-bottom:12px"><div class="rw"><h3 style="margin:0">💰 أرباح التطبيق من الرومات</h3><button class="btn o s" data-a="p_rmref">تحديث</button></div><div class="mu" style="font-size:.76rem;margin:6px 0 10px">تُسجَّل تلقائياً في تبويب «المالية» ضمن أرباحك: شراء الروم + رسوم المايكات + حصتك من كل هدية داخل الروم (الباقي بعد نصيب صاحب الروم والحاضرين).</div>
+<div class="gd k" style="margin-bottom:8px">${kp('إجمالي أرباحك',pt(st.profit),'coin',sub(st.profit))}${kp('شراء الرومات ('+f(st.create_n||0)+')',pt(st.create_pts),'wallet',sub(st.create_pts))}${kp('رسوم المايكات ('+f(st.mic_n||0)+')',pt(st.mic_pts),'wallet',sub(st.mic_pts))}</div>
+<div class="gd k" style="margin-bottom:8px">${kp('حصتك من الهدايا',pt(st.app_gift),'gift',sub(st.app_gift))}${kp('قيمة الهدايا ('+f(st.gift_n||0)+')',pt(st.gifts),'gift')}${kp('نصيب أصحاب الرومات',pt(st.oc),'users')}</div>
+<div class="gd k">${kp('آخر 24 ساعة',pt(st.d1),'gauge',sub(st.d1))}${kp('آخر 7 أيام',pt(st.d7),'gauge',sub(st.d7))}${kp('آخر 30 يوماً',pt(st.d30),'gauge',sub(st.d30))}</div></div>
+<div class="gd k" style="margin-bottom:12px">${kp('رومات نشطة',f(st.rooms||0)+' / '+f(st.rooms_all||0),'chat')}${kp('متصلون الآن',f(st.live||0),'users')}${kp('نصيب المتواجدين',pt(st.ac),'users')}</div>
+<div class="c" style="margin-bottom:12px"><h3>🎙️ الرومات (${rs.length})</h3>${tbl(['الروم','المالك','مايكات','متصلون','رسوم مدفوعة','هدايا','حصتك',''],rs.map(r=>`<tr style="${r.active?'':'opacity:.5'}"><td>${esc(r.emoji)} <b>${esc(r.name)}</b>${r.locked?' 🔒':''}${r.open_mic?' 🎤':''}<div class="mu" style="font-size:.72rem">#${r.id}</div></td><td>${esc(r.oname||'—')}<div class="mu" dir="ltr" style="font-size:.72rem">${esc(r.owner_email)}</div></td><td>${r.mics}</td><td>${r.n}${r.spk?` <small class="mu">(${r.spk} على المايك)</small>`:''}</td><td>${f(r.paid||0)}</td><td>${f(r.gt||0)}</td><td>${f(r.app_cut||0)}</td><td><button class="btn o s" data-a="p_rmdet" data-v="${r.id}">تفاصيل</button>${r.active?'':' <span class="mu">مُغلق</span>'}</td></tr>`),'لا توجد رومات بعد')}</div>
+<div class="c" style="margin-bottom:12px"><h3>⚙️ إعدادات الرومات والأسعار</h3>
 <div class="lr"><span class="sp">تفعيل قسم الرومات</span><label class="tg"><input type="checkbox" id="rm_on" ${c.enabled?'checked':''}><i></i></label></div>
-${num('rm_cp','سعر شراء الروم (نقطة)',+c.createPrice||0,0,1000000000000)}
+${num('rm_cp','سعر شراء الروم (نقطة) — ربح لك',+c.createPrice||0,0,1000000000000)}
 ${num('rm_bm','عدد المايكات المشمولة مع الروم',+c.baseMics||2,1,12)}
-${num('rm_mp','سعر المايك الإضافي (نقطة)',+c.micPrice||0,0,1000000000000)}
+${num('rm_mp','رسوم المايك الإضافي (نقطة) — ربح لك',+c.micPrice||0,0,1000000000000)}
 ${num('rm_xm','أقصى عدد مايكات للروم',+c.maxMics||8,1,12)}
 ${num('rm_mm','أقصى عدد أشخاص في الروم',+c.maxMembers||40,2,200)}
 ${num('rm_mo','عدد الرومات المسموح للمستخدم امتلاكها',+c.maxOwned||1,1,20)}
 ${num('rm_op','نسبة صاحب الروم من كل هدية داخل رومه (٪)',+c.ownerPct||0,0,100)}
 ${num('rm_ap','نسبة المتواجدين في الروم (توزَّع بالتساوي) (٪)',+c.audPct||0,0,100)}
-<div class="mu" style="font-size:.74rem;margin:4px 0 8px">المتبقي من الهدية (100 − النسبتين) يبقى للتطبيق. مجموع النسبتين لا يتجاوز 100٪. المتواجدون = كل من في الروم لحظة الإرسال عدا المرسل وصاحب الروم.</div>
+<div class="mu" style="font-size:.74rem;margin:4px 0 8px">المتبقي من الهدية (100 − النسبتين) هو <b>حصتك</b> كصاحب تطبيق. مجموع النسبتين لا يتجاوز 100٪. المتواجدون = كل من في الروم لحظة الإرسال عدا المرسل وصاحب الروم.</div>
 <button class="btn" data-a="p_rmcfg">حفظ الإعدادات</button></div>
 <div class="c" style="margin-bottom:12px"><h3>🎵 مكتبة الموسيقى (${ms.length})</h3><div class="mu" style="font-size:.74rem;margin-bottom:8px">روابط مباشرة https لملفات صوتية تملك حق استخدامها. تظهر لأصحاب الرومات والمشرفين لاختيار موسيقى خلفية.</div>
 ${ms.map(m=>`<div class="card" style="padding:10px;margin-bottom:8px;${m.active?'':'opacity:.6'}"><input id="rm_t${m.id}" value="${esc(m.title)}" maxlength="60" placeholder="الاسم"><input id="rm_u${m.id}" value="${esc(m.url)}" dir="ltr" placeholder="https://..." style="margin-top:6px">
@@ -1022,17 +1028,42 @@ ${ms.map(m=>`<div class="card" style="padding:10px;margin-bottom:8px;${m.active?
 <div class="rw l" style="gap:6px"><button class="btn s" style="flex:1" data-a="p_rmmsave" data-v="${m.id}">حفظ</button><button class="btn r s" style="flex:1" data-a="p_rmmdel" data-v="${m.id}">حذف</button></div></div>`).join('')||'<div class="mu" style="text-align:center;padding:12px">لا توجد مقاطع بعد</div>'}
 <h4 style="margin:10px 0 4px">➕ إضافة مقطع</h4><input id="rm_t0" placeholder="اسم المقطع" maxlength="60"><input id="rm_u0" placeholder="https://example.com/song.mp3" dir="ltr" style="margin-top:6px">
 <button class="btn" style="margin-top:8px" data-a="p_rmmsave" data-v="0">إضافة</button></div>
-<div class="c" style="margin-bottom:12px"><h3>🎁 منح روم مجاناً</h3><input id="rm_ge" placeholder="بريد المستخدم" dir="ltr"><input id="rm_gn" placeholder="اسم الروم" maxlength="40" style="margin-top:6px"><button class="btn" style="margin-top:8px" data-a="p_rmgrant">منح الروم</button></div>
-<div class="c"><h3>🎙️ الرومات (${rs.length})</h3>${tbl(['الروم','المالك','مايكات','متصلون','هدايا','نصيب المالك',''],rs.map(r=>`<tr style="${r.active?'':'opacity:.5'}"><td>${esc(r.emoji)} ${esc(r.name)}</td><td dir="ltr">${esc(r.owner_email)}</td><td>${r.mics}</td><td>${r.n}</td><td>${f(r.gt||0)}</td><td>${f(r.oe||0)}</td><td>${r.active?`<button class="btn r s" data-a="p_rmclose" data-v="${r.id}">إغلاق</button>`:'<span class="mu">مُغلق</span>'}</td></tr>`),'لا توجد رومات بعد')}</div>`}
+<div class="c"><h3>🎁 منح روم مجاناً</h3><input id="rm_ge" placeholder="بريد المستخدم" dir="ltr"><input id="rm_gn" placeholder="اسم الروم" maxlength="40" style="margin-top:6px"><button class="btn" style="margin-top:8px" data-a="p_rmgrant">منح الروم</button></div>`}
+async function rmDetail(id){const j=await ctlApi('/rooms/detail?id='+id,'GET');if(!j)return;const r=j.room,gs=j.gs||{},sl=j.sales||[],S0=(window._rmD||{}).stats||{},pr=+S0.pr||0,dn=p=>f(Math.round((+p||0)*pr))+' د.ع';
+const sv=k=>sl.find(x=>x.kind==k)||{n:0,pts:0},cr=sv('create'),mc=sv('mic'),appg=(gs.total||0)-(gs.oc||0)-(gs.ac||0),tot=(cr.pts||0)+(mc.pts||0)+appg;
+const RL={owner:'صاحب الروم',admin:'مشرف',member:'عضو'};
+ppd(`<h2 style="margin:0 0 4px">${esc(r.emoji)} ${esc(r.name)} <small class="mu">#${r.id}</small></h2>
+<div class="mu" style="font-size:.78rem;margin-bottom:8px">المالك: <b>${esc(r.oname||'—')}</b> <span dir="ltr">${esc(r.owner_email)}</span><br>أُنشئ: ${dt(r.created_at)} · آخر نشاط: ${dt(r.last_active)} · ${r.active?'<span class="bx a">نشط</span>':'<span class="bx b">مُغلق</span>'}${r.pin?' · 🔒 الرمز: <b dir="ltr">'+esc(r.pin)+'</b>':''}</div>
+<div class="gd k" style="margin-bottom:8px">${kp('أرباحك من هذا الروم',f(tot)+' نقطة','coin','<small class="mu">≈ '+dn(tot)+'</small>')}${kp('شراء الروم',f(cr.pts||0),'wallet')}${kp('رسوم المايكات ('+f(mc.n||0)+')',f(mc.pts||0),'wallet')}</div>
+<div class="gd k" style="margin-bottom:10px">${kp('قيمة الهدايا ('+f(gs.n||0)+')',f(gs.total||0),'gift')}${kp('صاحب الروم',f(gs.oc||0),'users')}${kp('الحاضرون / حصتك',f(gs.ac||0)+' / '+f(appg),'users')}</div>
+<h4 style="margin:6px 0">✏️ تعديل الروم</h4>
+<label>الاسم<input id="rd_n" maxlength="40" value="${esc(r.name)}"></label><label>الوصف<input id="rd_d" maxlength="120" value="${esc(r.descr||'')}"></label><label>رسالة الترحيب<input id="rd_w" maxlength="160" value="${esc(r.welcome||'')}"></label>
+<label>عدد المايكات (1-12)<input id="rd_m" type="number" min="1" max="12" value="${r.mics}"></label>
+<div class="lr"><span class="sp">مايك مفتوح للجميع</span><label class="tg"><input type="checkbox" id="rd_o" ${r.open_mic?'checked':''}><i></i></label></div>
+<div class="rw l" style="flex-wrap:wrap;gap:6px;margin:8px 0"><button class="btn s" data-a="p_rmsave" data-v="${r.id}">حفظ التعديلات</button>${r.pin?`<button class="btn o s" data-a="p_rmclrpin" data-v="${r.id}">إزالة الرمز السري</button>`:''}${(j.bans||[]).length?`<button class="btn o s" data-a="p_rmunban" data-v="${r.id}">رفع الحظر عن الكل (${j.bans.length})</button>`:''}${(j.members||[]).length?`<button class="btn o s" data-a="p_rmeject" data-v="${r.id}">إخراج الجميع</button>`:''}${r.active?`<button class="btn r s" data-a="p_rmclose" data-v="${r.id}">إغلاق الروم</button>`:`<button class="btn gn s" data-a="p_rmopen" data-v="${r.id}">إعادة فتح الروم</button>`}</div>
+<h4 style="margin:10px 0 4px">👥 المتواجدون الآن (${(j.members||[]).length})</h4>${tbl(['المتواجد','الدور','مايك',''],(j.members||[]).map(m=>`<tr><td>${esc(m.name)}<div class="mu" dir="ltr" style="font-size:.7rem">${esc(m.email)}</div></td><td>${RL[m.role]||m.role}</td><td>${m.mic>=0?'🎤 '+(m.mic+1):'—'}</td><td>${m.role=='owner'?'':`<button class="btn o s" data-a="p_rmkick" data-i="${r.id}" data-v="${esc(m.uid)}">طرد</button> <button class="btn r s" data-a="p_rmban" data-i="${r.id}" data-v="${esc(m.uid)}">حظر</button>`}</td></tr>`),'لا أحد داخل الروم الآن')}
+${(j.admins||[]).length?`<div class="mu" style="font-size:.78rem;margin-top:6px">المشرفون: <span dir="ltr">${j.admins.map(esc).join('، ')}</span></div>`:''}
+<h4 style="margin:10px 0 4px">🎁 آخر الهدايا</h4>${tbl(['من','الهدية','القيمة','المالك','الحاضرون','حصتك','الوقت'],(j.gifts||[]).map(g=>`<tr><td>${esc(g.frm)}</td><td>${esc(g.emoji)} ${esc(g.name)}${g.qty>1?' ×'+g.qty:''}</td><td>${f(g.total)}</td><td>${f(g.owner_cut)}</td><td>${f(g.aud_cut)}${g.aud_n?` <small class="mu">(${g.aud_n})</small>`:''}</td><td>${f(g.total-g.owner_cut-g.aud_cut)}</td><td class="mu">${dt(g.created_at)}</td></tr>`),'لا هدايا بعد')}`)}
 async function rmLoad(){if(!LS('adminkey',''))return;const j=await ctlApi('/rooms','GET');if(!j)return;window._rmD=Object.assign(j,{t:Date.now()});const r=$('#rm-admin');if(r)r.innerHTML=rmHtml(window._rmD)}
+setInterval(()=>{try{if(S.r=='panel'&&S.pt=='rooms'&&LS('adminkey','')&&!(($('#d')||{}).open)&&!/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName||''))rmLoad()}catch(e){}},5000);
 PT2.rooms=()=>{const D=window._rmD;if(LS('adminkey','')&&(!D||Date.now()-D.t>10000))setTimeout(rmLoad,0);return PP(`<div id="rm-admin">${LS('adminkey','')?(D?rmHtml(D):'<div class="c mu" style="text-align:center;padding:22px">جارٍ تحميل الرومات...</div>'):'<div class="c mu" style="text-align:center;padding:22px">احفظ مفتاح الإدارة (الإعدادات ← التحكم المركزي) لإدارة الرومات</div>'}</div>`)};
 function prm(a,i,v){
+ const cl=()=>{try{$('#d').close()}catch(e){}},upd=(body,msg,keep)=>ctlApi('/rooms/update','POST',body).then(j=>{if(j&&j.ok){toast(msg);rmLoad();if(keep)rmDetail(body.id);else cl()}});
+ if(a=='rmref'){rmLoad();return 1}
+ if(a=='rmdet'){rmDetail(+v);return 1}
  if(a=='rmcfg'){if(!need('cfg'))return 1;const g=k=>+$('#'+k).value||0;ctlApi('/rooms/config','POST',{enabled:$('#rm_on').checked,createPrice:g('rm_cp'),baseMics:g('rm_bm'),micPrice:g('rm_mp'),maxMics:g('rm_xm'),maxMembers:g('rm_mm'),maxOwned:g('rm_mo'),ownerPct:g('rm_op'),audPct:g('rm_ap')}).then(j=>{if(j&&j.ok){toast('تم حفظ إعدادات الرومات');rmLoad()}});return 1}
+ if(a=='rmsave'){if(!need('cfg'))return 1;upd({id:+v,name:($('#rd_n').value||'').trim(),descr:($('#rd_d').value||'').trim(),welcome:($('#rd_w').value||'').trim(),mics:+$('#rd_m').value||2,openMic:$('#rd_o').checked},'تم حفظ تعديلات الروم',1);return 1}
+ if(a=='rmclrpin'){if(!need('cfg'))return 1;upd({id:+v,clearPin:true},'تمت إزالة الرمز السري',1);return 1}
+ if(a=='rmunban'){if(!need('cfg'))return 1;if(!confirm('رفع الحظر عن كل المحظورين من هذا الروم؟'))return 1;upd({id:+v,unbanAll:true},'تم رفع الحظر',1);return 1}
+ if(a=='rmeject'){if(!need('cfg'))return 1;if(!confirm('إخراج كل المتواجدين من الروم الآن؟ (يستطيعون الدخول مجدداً)'))return 1;upd({id:+v,eject:true},'تم إخراج الجميع',1);return 1}
+ if(a=='rmopen'){if(!need('cfg'))return 1;upd({id:+v,active:true},'تمت إعادة فتح الروم',1);return 1}
+ if(a=='rmkick'||a=='rmban'){if(!need('cfg'))return 1;if(!confirm(a=='rmban'?'حظر هذا المستخدم من الروم؟':'طرد هذا المستخدم من الروم؟'))return 1;ctlApi('/rooms/kick','POST',{id:+i,uid:v,ban:a=='rmban'}).then(j=>{if(j&&j.ok){toast(a=='rmban'?'تم الحظر':'تم الطرد');rmLoad();rmDetail(+i)}});return 1}
  if(a=='rmmsave'){if(!need('cfg'))return 1;const id=+v||0,g=k=>$('#rm_'+k+id);ctlApi('/rooms/music/save','POST',{id,title:(g('t').value||'').trim(),url:(g('u').value||'').trim(),active:id?g('a').checked:true}).then(j=>{if(j&&j.ok){toast(id?'تم الحفظ':'تمت الإضافة');rmLoad()}});return 1}
  if(a=='rmmdel'){if(!need('cfg'))return 1;if(!confirm('حذف هذا المقطع؟'))return 1;ctlApi('/rooms/music/delete','POST',{id:+v}).then(j=>{if(j&&j.ok){toast('تم الحذف');rmLoad()}});return 1}
- if(a=='rmclose'){if(!need('cfg'))return 1;if(!confirm('إغلاق هذا الروم نهائياً وإخراج الجميع منه؟'))return 1;ctlApi('/rooms/close','POST',{id:+v}).then(j=>{if(j&&j.ok){toast('تم إغلاق الروم');rmLoad()}});return 1}
+ if(a=='rmclose'){if(!need('cfg'))return 1;if(!confirm('إغلاق هذا الروم نهائياً وإخراج الجميع منه؟'))return 1;ctlApi('/rooms/close','POST',{id:+v}).then(j=>{if(j&&j.ok){toast('تم إغلاق الروم');rmLoad();cl()}});return 1}
  if(a=='rmgrant'){if(!need('cfg'))return 1;ctlApi('/rooms/grant','POST',{email:($('#rm_ge').value||'').trim(),name:($('#rm_gn').value||'').trim()}).then(j=>{if(j&&j.ok){toast('تم منح الروم');rmLoad()}});return 1}
  return 0}
+
 function gfHtml(D){const c=D.cfg||{},st=D.stats||{},gs=D.gifts||[],top=D.top||[],log=D.log||[];
 return `<div class="gd k" style="margin-bottom:12px">${kp('هدايا مُرسلة',f(st.qty||0),'bell')}${kp('نقاط أُنفقت',f(st.pts||0),'bell')}${kp('نقاط وصلت للمستلمين',f(st.recv||0),'bell')}</div>
 <div class="c" style="margin-bottom:12px"><h3>⚙️ إعدادات الهدايا</h3>
@@ -1287,7 +1318,7 @@ if(r.ok){const j=await r.json();if(sv==null)LSset(SYNK,+j.max||0);else if(Array.
 const c=j.config;if(c&&typeof c=='object'&&Object.keys(c).length)return cfgMark(c)}}catch(e){}
 try{const r=await fetch('config.json?_='+Date.now(),{cache:'no-store'});return r.ok?cfgMark(await r.json()):null}catch(e){return null}}
 /* ===== تبويب المالية (وارد/صادر/إيرادات/مصروفات/أرباح) ===== */
-const FCN={counters:'مبيعات العدادات',agency:'رسوم الوكالات',orders:'مقدمات وأقساط الطلبات',store:'المتجر والبطاقات',withdrawals:'سحوبات مدفوعة',ref:'عمولات الإحالة',yields:'عوائد العدادات الممنوحة',game_comm:'عمولة لعبة العب معنا',wheel_in:'دخل عجلة الحظ (جواهر)',wheel_prizes:'جوائز عجلة الحظ'};
+const FCN={counters:'مبيعات العدادات',agency:'رسوم الوكالات',orders:'مقدمات وأقساط الطلبات',store:'المتجر والبطاقات',withdrawals:'سحوبات مدفوعة',ref:'عمولات الإحالة',yields:'عوائد العدادات الممنوحة',game_comm:'عمولة لعبة العب معنا',room_create:'شراء رومات',room_mic:'رسوم مايكات الرومات',room_gift:'حصة التطبيق من هدايا الرومات',wheel_in:'دخل عجلة الحظ (جواهر)',wheel_prizes:'جوائز عجلة الحظ'};
 const fcn=c=>FCN[c]||c;
 async function finLoad(){const j=await ctlApi('/fin','GET');window._finL=0;if(j){window._fin=j;draw()}}
 function finMonths(){const s=new Set((window._fin&&window._fin.rows||[]).map(r=>r.m));const n=new Date(Date.now()+3*36e5);s.add(n.getUTCFullYear()+'-'+String(n.getUTCMonth()+1).padStart(2,'0'));return[...s].sort().reverse().slice(0,24)}

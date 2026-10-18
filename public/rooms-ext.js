@@ -46,13 +46,15 @@
   /* ---------- أنماط ---------- */
   const css = document.createElement('style');
   css.textContent = `
-  /* الشريط السفلي: 6 عناصر يجب أن تتسع داخل الإطار على أي شاشة */
-  nav{padding-inline:3px!important;gap:0!important}
-  nav button{flex:1 1 0!important;min-width:0!important;font-size:.66rem!important;padding:0!important;white-space:nowrap;letter-spacing:-.1px}
+  /* الشريط السفلي: ثلاثة أزرار | دائرة العداد في المنتصف تماماً | ثلاثة أزرار */
+  nav{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr)) 64px repeat(3,minmax(0,1fr))!important;align-items:end!important;gap:0!important;padding-inline:4px!important}
+  nav button{min-width:0!important;font-size:.64rem!important;padding:0!important;white-space:nowrap;letter-spacing:-.1px}
   nav button span{width:34px!important;height:34px!important}
-  nav .fab{flex:none!important;width:54px!important;height:54px!important;margin-inline:3px!important;transform:translateY(-14px)!important}
+  nav .fab{width:54px!important;height:54px!important;margin:0 auto!important;justify-self:center!important;transform:translateY(-14px)!important}
   nav .fab svg{width:24px!important;height:24px!important}
-  @media(max-width:350px){nav button{font-size:.56rem!important}nav button span{width:30px!important;height:30px!important}nav .fab{width:46px!important;height:46px!important}}
+  @media(max-width:350px){nav{grid-template-columns:repeat(3,minmax(0,1fr)) 52px repeat(3,minmax(0,1fr))!important}nav button{font-size:.54rem!important}nav button span{width:28px!important;height:28px!important}nav .fab{width:46px!important;height:46px!important}}
+  .rm-snd{position:absolute;left:50%;top:76px;transform:translateX(-50%);z-index:9;font:inherit;font-weight:700;border:0;border-radius:99px;padding:10px 20px;background:#f59e0b;color:#1f1300;box-shadow:0 8px 24px #000a;animation:rmpulse 1.2s infinite}
+  @keyframes rmpulse{50%{transform:translateX(-50%) scale(1.06)}}
   .rm-hero{border-radius:22px;padding:18px;margin:6px 0 14px;color:#fff;background:linear-gradient(135deg,#0e7c86,#6d28d9);position:relative;overflow:hidden;box-shadow:0 10px 28px #0006}
   .rm-hero:after{content:"🎙️";position:absolute;left:-6px;bottom:-18px;font-size:6.2rem;opacity:.16;transform:rotate(-14deg)}
   .rm-hero h2{margin:0 0 4px;font-size:1.25rem}.rm-hero p{margin:0 0 12px;opacity:.9;font-size:.9rem}
@@ -272,9 +274,11 @@
   /* ============================== جلسة الغرفة ============================== */
   async function openRoom(id, pin) {
     const me = idn(); if (!me) return;
+    unlockAudio(); // داخل نقرة المستخدم: يفتح الصوت ويجهّز عناصر التشغيل
     if (RS && RS.id === id) { showRoom(); return; }
     if (RS) await leaveRoom(true);
     let j;
+    const cfgP = loadCfg(); // بيانات ICE/TURN تُجدَّد مع كل دخول بالتوازي مع طلب الدخول
     try { j = await post('/api/rooms/join', { ...me, id, pin: pin || '' }); }
     catch (e) {
       if (e.message === 'pin' || /الرمز/.test(e.message)) {
@@ -285,13 +289,15 @@
       return say(e.message);
     }
     try { $('#d').close(); } catch (e) {}
-    if (!RM.cfg) await loadCfg();
+    await cfgP;
     RS = { id, pin: pin || '', tok: j.tok, me: j.me, st: j.state, chat: j.chat || [], es: null, out: {}, inn: {}, ice: {}, local: null, seat: -1, deaf: false, forced: false, selfMute: false,
-      ac: null, an: {}, audios: {}, mus: new Audio(), mvol: 0.35, mmute: false, skew: 0, lastMus: '', fail: 0, gone: false };
+      ac: null, an: {}, audios: {}, mus: new Audio(), mvol: 0.35, mmute: false, skew: 0, lastMus: '', fail: 0, gone: false,
+      sq: [], sqt: null, spkAt: {}, tries: {}, needAt: {}, pre: null, preT: null };
     RS.mus.loop = true; RS.mus.preload = 'auto'; RS.mus.volume = RS.mvol;
-    try { RS.ac = new (window.AudioContext || window.webkitAudioContext)(); RS.ac.resume && RS.ac.resume(); } catch (e) {}
+    RS.ac = getAC(); try { RS.ac && RS.ac.resume && RS.ac.resume(); } catch (e) {}
     buildRoom(); connect(); applyState(j.state, true);
-    try { RS.lv = setInterval(levels, 110); } catch (e) {}
+    try { RS.lv = setInterval(levels, 110); RS.hl = setInterval(health, 2000); RS.mo = setInterval(monitor, 3000); } catch (e) {}
+    wakeLock();
   }
 
   function connect() {
@@ -303,14 +309,21 @@
     on('chat', (c) => addChat(c));
     on('gift', (g) => giftFx(g));
     on('sig', (s) => onSig(s));
+    on('peerup', (d) => { // عضو صار جاهزاً لاستقبال الإشارات: ابدأ الاتصال به فوراً
+      if (!RS || !RS.local || RS.seat < 0) return;
+      if (d.all) { Object.keys(RS.out).forEach((u) => { if (RS.out[u].pc.connectionState !== 'connected') rebuildOut(u); }); syncPeers(); return; }
+      const m = mem(d.uid); if (!m) return; const o = RS.out[d.uid];
+      if (!o) makeOut(m); else if (o.pc.connectionState !== 'connected' && Date.now() - o.t > 2500) { RS.tries[d.uid] = 0; closeOut(d.uid); makeOut(m); }
+    });
     on('mute', (m) => { RS.forced = !!m.on; applyMute(); say(m.on ? 'تم كتمك من قِبل المشرف' : 'أُلغي كتمك'); });
     on('unseat', () => say('تم إنزالك من المايك'));
     on('kicked', () => { say('تم طردك من الروم'); cleanup(); });
     on('banned', () => { say('تم حظرك من هذا الروم'); cleanup(); });
     on('closed', () => { say('أُغلق الروم'); cleanup(); });
     on('moved', () => { if (RS) cleanup(); });
+    es.onopen = () => { if (RS && RS.reopen) { RS.reopen = false; resumeAudio(); health(); } };
     es.onerror = async () => {
-      if (!RS || RS.gone) return;
+      if (!RS || RS.gone) return; RS.reopen = true;
       if (es.readyState === 2) { // رفض السيرفر الجلسة: نحاول الدخول من جديد مرة واحدة
         if (RS.fail++ > 1) { say('انقطع الاتصال بالروم'); return cleanup(); }
         const me = idn(); if (!me) return cleanup();
@@ -430,20 +443,88 @@
     applyMusic();
   }
 
-  /* ---------- الصوت: بث المتحدثين لكل الحاضرين (WebRTC) ---------- */
-  const pcCfg = () => ({ iceServers: (RM.ice && RM.ice.length ? RM.ice : [{ urls: 'stun:stun.l.google.com:19302' }]), bundlePolicy: 'max-bundle' });
-  const sig = (to, d) => act('sig', { to, d });
+  /* ---------- الصوت: بث المتحدثين لكل الحاضرين (WebRTC) ----------
+     - الإشارات تُرسل دفعات كل 20ms (طلب واحد بدل عشرات الطلبات) فيبدأ الصوت أسرع
+     - ضبط Opus: FEC + بلا DTX + حزم 20ms + معدل بت يتكيّف مع عدد المستمعين وجودة الشبكة
+     - مخزن استقبال صغير (يتكيّف تلقائياً مع التقطيع) لتقليل التأخير
+     - إصلاح ذاتي: أي اتصال لا يصل لحالة connected خلال ثوانٍ يُعاد بناؤه من الطرفين */
+  const SILENT = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+  let ACX = null; const POOL = [];
+  function getAC() { try { if (!ACX || ACX.state === 'closed') ACX = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' }); } catch (e) { try { ACX = new (window.AudioContext || window.webkitAudioContext)(); } catch (x) {} } return ACX; }
+  function unlockAudio() { // يُستدعى داخل نقرة المستخدم: يفتح الصوت على iOS/Android ويجهّز عناصر التشغيل مسبقاً
+    try { const c = getAC(); c && c.state === 'suspended' && c.resume(); } catch (e) {}
+    while (POOL.length < 12) {
+      const a = document.createElement('audio'); a.autoplay = true; a.playsInline = true; a.setAttribute('playsinline', ''); a.preload = 'auto'; a.style.display = 'none';
+      a.src = SILENT; document.body.appendChild(a); const p = a.play(); if (p && p.catch) p.catch(() => {}); POOL.push(a);
+    }
+  }
+  const takeEl = () => { const a = POOL.pop(); if (a) return a; const n = document.createElement('audio'); n.autoplay = true; n.playsInline = true; n.setAttribute('playsinline', ''); n.style.display = 'none'; document.body.appendChild(n); return n; };
+  const giveEl = (a) => { try { a.pause(); a.srcObject = null; a.removeAttribute('src'); a.muted = false; } catch (e) {} if (POOL.length < 16) POOL.push(a); else { try { a.remove(); } catch (e) {} } };
+
+  const pcCfg = () => ({ iceServers: (RM.ice && RM.ice.length ? RM.ice : [{ urls: 'stun:stun.l.google.com:19302' }]), bundlePolicy: 'max-bundle', rtcpMuxPolicy: 'require', iceCandidatePoolSize: 4 });
   const newId = () => Math.random().toString(36).slice(2, 9);
+
+  /* دفعات الإشارات */
+  function sig(to, d) {
+    if (!RS) return; (RS.sq || (RS.sq = [])).push({ to, d });
+    if (!RS.sqt) RS.sqt = setTimeout(flushSig, 20);
+  }
+  function flushSig() {
+    if (!RS) return; RS.sqt = null; const list = RS.sq.splice(0, 60); if (!list.length) return;
+    if (RS.sq.length) RS.sqt = setTimeout(flushSig, 5);
+    fetch('/api/rooms/act', { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true, body: JSON.stringify({ tok: RS.tok, a: 'sigb', list }) }).catch(() => {});
+  }
+
+  /* ضبط Opus داخل SDP */
+  function tuneSdp(sdp, kbps) {
+    try {
+      const m = /a=rtpmap:(\d+) opus\/48000/.exec(sdp); if (!m) return sdp;
+      const pt = m[1], prm = `minptime=10;useinbandfec=1;usedtx=0;stereo=0;sprop-stereo=0;maxplaybackrate=48000;sprop-maxcapturerate=48000;maxaveragebitrate=${Math.round(kbps * 1000)}`;
+      const re = new RegExp(`a=fmtp:${pt} [^\\r\\n]*`);
+      if (re.test(sdp)) sdp = sdp.replace(re, `a=fmtp:${pt} ${prm}`);
+      else sdp = sdp.replace(new RegExp(`(a=rtpmap:${pt} opus/48000[^\\r\\n]*)`), `$1\r\na=fmtp:${pt} ${prm}`);
+      if (!/a=ptime:/.test(sdp)) sdp = sdp.replace(/(a=fmtp:\d+ [^\r\n]*minptime=10[^\r\n]*)/, `$1\r\na=ptime:20`);
+      return sdp;
+    } catch (e) { return sdp; }
+  }
+  const baseKbps = () => { const n = RS ? RS.st.n : 1; return n <= 10 ? 40 : n <= 25 ? 32 : 24; }; // كلما زاد المستمعون قلّ الرفع لكل اتصال
+  async function applySend(o) { // معدل البت وأولوية الشبكة بعد التفاوض (قبله لا تعمل setParameters)
+    try {
+      const s = o.pc.getSenders().find((x) => x.track && x.track.kind === 'audio'); if (!s || !s.getParameters) return;
+      const p = s.getParameters(); if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+      p.encodings[0].maxBitrate = Math.round((o.kbps || baseKbps()) * 1000);
+      try { p.encodings[0].priority = 'high'; p.encodings[0].networkPriority = 'high'; } catch (e) {}
+      await s.setParameters(p);
+    } catch (e) {}
+  }
+  function tuneRecv(pc, ms) {
+    try { pc.getReceivers().forEach((r) => { if (r.track && r.track.kind === 'audio') { try { r.jitterBufferTarget = ms; } catch (e) {} try { r.playoutDelayHint = ms / 1000; } catch (e) {} } }); } catch (e) {}
+  }
+
+  /* التقاط المايك: يُطلب فور النقر لتوفير زمن التهيئة */
+  const micOpts = () => ({ audio: { echoCancellation: { ideal: true }, noiseSuppression: { ideal: true }, autoGainControl: { ideal: true }, channelCount: { ideal: 1 }, sampleRate: { ideal: 48000 }, sampleSize: { ideal: 16 }, latency: { ideal: 0.01 } }, video: false });
+  function getMic() { return navigator.mediaDevices.getUserMedia(micOpts()); }
+  function preMic() { // نبدأ طلب المايك بالتوازي مع طلب الصعود للسيرفر
+    if (!RS || RS.pre || RS.local || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    const rs = RS; rs.pre = getMic().catch(() => null);
+    rs.preT = setTimeout(() => dropPre(rs), 9000);
+  }
+  function dropPre(rs) { rs = rs || RS; if (!rs || !rs.pre) return; const p = rs.pre; rs.pre = null; clearTimeout(rs.preT); p.then((st) => { try { st && st.getTracks().forEach((t) => t.stop()); } catch (e) {} }); }
+  async function primeMic() { // عند رفع اليد: نأخذ إذن المايك مسبقاً ثم نغلقه فوراً (فلا يتأخر الصعود لاحقاً)
+    try { if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return; const st = await getMic(); st.getTracks().forEach((t) => t.stop()); } catch (e) {}
+  }
 
   async function startMic(slot) {
     if (!RS) return;
-    RS.seat = slot;
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { say('المتصفح لا يدعم المايك (يلزم رابط https)'); RS.seat = -1; act('mic_leave'); return; }
-    try {
-      RS.local = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }, video: false });
-    } catch (e) { RS.seat = -1; RS.local = null; say('اسمح للمتصفح باستخدام المايك ثم حاول مجدداً'); act('mic_leave'); paint(); return; }
-    if (!RS || RS.seat < 0) { try { RS && RS.local && RS.local.getTracks().forEach((t) => t.stop()); } catch (e) {} if (RS) RS.local = null; return; }
-    applyMute(); watch(RS.me.uid, RS.local, true); say('أنت الآن على المايك 🎤'); paintMicBtn(); syncPeers();
+    const rs = RS; rs.seat = slot;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { say('المتصفح لا يدعم المايك (يلزم رابط https)'); rs.seat = -1; act('mic_leave'); return; }
+    let st = null;
+    try { const pre = rs.pre; rs.pre = null; clearTimeout(rs.preT); st = pre ? await pre : null; if (!st || !st.active) st = await getMic(); }
+    catch (e) { if (RS === rs) { rs.seat = -1; rs.local = null; say('اسمح للمتصفح باستخدام المايك ثم حاول مجدداً'); act('mic_leave'); paint(); } return; }
+    if (RS !== rs || rs.seat < 0) { try { st.getTracks().forEach((t) => t.stop()); } catch (e) {} if (RS === rs) rs.local = null; return; }
+    rs.local = st;
+    try { st.getAudioTracks().forEach((t) => { try { t.contentHint = 'speech'; } catch (e) {} t.onended = () => { if (RS === rs && rs.local === st) { say('انقطع المايك — أعد الصعود'); act('mic_leave'); stopMic(); } }; }); } catch (e) {}
+    applyMute(); watch(rs.me.uid, st, true); say('أنت الآن على المايك 🎤'); paintMicBtn(); syncPeers();
   }
   function stopMic() {
     if (!RS) return;
@@ -456,15 +537,20 @@
     RS.local.getAudioTracks().forEach((t) => { t.enabled = !(RS.forced || RS.selfMute); });
     paintMicBtn();
   }
-  function closeOut(uid) { const o = RS.out[uid]; if (o) { try { o.pc.close(); } catch (e) {} delete RS.out[uid]; } }
-  function closeIn(uid) { const o = RS.inn[uid]; if (o) { try { o.pc.close(); } catch (e) {} delete RS.inn[uid]; } const a = RS.audios[uid]; if (a) { try { a.srcObject = null; a.remove(); } catch (e) {} delete RS.audios[uid]; } unwatch(uid); }
+  function closeOut(uid) { const o = RS.out[uid]; if (o) { try { o.pc.onconnectionstatechange = null; o.pc.close(); } catch (e) {} delete RS.out[uid]; } }
+  function closeIn(uid) {
+    const o = RS.inn[uid]; if (o) { try { o.pc.onconnectionstatechange = null; o.pc.close(); } catch (e) {} delete RS.inn[uid]; }
+    const a = RS.audios[uid]; if (a) { giveEl(a); delete RS.audios[uid]; }
+    unwatch(uid);
+  }
   function closeAllPcs() { if (!RS) return; Object.keys(RS.out).forEach(closeOut); Object.keys(RS.inn).forEach(closeIn); }
 
   function syncPeers() {
     if (!RS) return;
-    const st = RS.st, ids = new Set(st.members.map((m) => m.uid)), spk = new Set(st.members.filter((m) => m.mic >= 0).map((m) => m.uid));
+    const st = RS.st, ids = new Set(st.members.map((m) => m.uid)), spk = new Set(st.members.filter((m) => m.mic >= 0).map((m) => m.uid)), now = Date.now();
+    spk.forEach((u) => { if (!RS.spkAt[u]) RS.spkAt[u] = now; }); Object.keys(RS.spkAt).forEach((u) => { if (!spk.has(u)) delete RS.spkAt[u]; });
     // استقبال: نغلق ما لم يعد متحدثاً
-    Object.keys(RS.inn).forEach((u) => { if ((!spk.has(u) || !ids.has(u)) && Date.now() - RS.inn[u].t > 4000) closeIn(u); });
+    Object.keys(RS.inn).forEach((u) => { if ((!spk.has(u) || !ids.has(u)) && now - RS.inn[u].t > 2500) closeIn(u); });
     // إرسال (إن كنت على المايك): اتصال بكل حاضر
     if (RS.local && RS.seat >= 0) {
       Object.keys(RS.out).forEach((u) => { const m = mem(u); if (!m || RS.out[u].j !== m.j) closeOut(u); });
@@ -474,15 +560,29 @@
   async function makeOut(m) {
     if (!RS || !RS.local) return;
     const uid = m.uid, cid = newId(), pc = new RTCPeerConnection(pcCfg());
-    const o = (RS.out[uid] = { pc, cid, j: m.j, q: [] });
-    RS.local.getAudioTracks().forEach((t) => pc.addTrack(t, RS.local));
-    try { const s = pc.getSenders()[0]; if (s && s.getParameters) { const p = s.getParameters(); p.encodings = p.encodings && p.encodings.length ? p.encodings : [{}]; p.encodings[0].maxBitrate = 28000; s.setParameters(p).catch(() => {}); } } catch (e) {}
+    const o = (RS.out[uid] = { pc, cid, j: m.j, q: [], t: Date.now(), kbps: baseKbps() });
+    const tr = RS.local.getAudioTracks()[0];
+    try { pc.addTransceiver(tr, { direction: 'sendonly', streams: [RS.local], sendEncodings: [{ maxBitrate: o.kbps * 1000, priority: 'high', networkPriority: 'high' }] }); }
+    catch (e) { try { pc.addTrack(tr, RS.local); } catch (x) {} }
     pc.onicecandidate = (e) => { if (e.candidate) sig(uid, { k: 'ice', c: cid, cand: e.candidate }); };
     pc.onconnectionstatechange = () => {
       if (!RS || RS.out[uid] !== o) return;
-      if (pc.connectionState === 'failed') { closeOut(uid); setTimeout(() => { if (RS && RS.local && !RS.out[uid]) { const mm = mem(uid); if (mm) makeOut(mm); } }, 1500); }
+      const s = pc.connectionState;
+      if (s === 'connected') { o.ok = Date.now(); RS.tries[uid] = 0; applySend(o); }
+      else if (s === 'failed') rebuildOut(uid);
+      else if (s === 'disconnected') { clearTimeout(o.dt); o.dt = setTimeout(() => { if (RS && RS.out[uid] === o && pc.connectionState !== 'connected') rebuildOut(uid); }, 2500); }
     };
-    try { const off = await pc.createOffer(); await pc.setLocalDescription(off); sig(uid, { k: 'offer', c: cid, sdp: pc.localDescription }); } catch (e) { closeOut(uid); }
+    try {
+      const off = await pc.createOffer({ offerToReceiveAudio: false });
+      const od = { type: off.type, sdp: tuneSdp(off.sdp, o.kbps) }; // كائن جديد: خاصية sdp في Safari للقراءة فقط
+      await pc.setLocalDescription(od);
+      sig(uid, { k: 'offer', c: cid, sdp: od });
+    } catch (e) { closeOut(uid); }
+  }
+  function rebuildOut(uid) { // إعادة بناء الاتصال بمستمع (مع تباطؤ تدريجي كي لا نُغرق الشبكة)
+    if (!RS) return; closeOut(uid);
+    const n = (RS.tries[uid] = (RS.tries[uid] || 0) + 1); if (n > 6) return;
+    setTimeout(() => { if (RS && RS.local && RS.seat >= 0 && !RS.out[uid]) { const mm = mem(uid); if (mm) makeOut(mm); } }, Math.min(300 * n, 2500));
   }
   async function onSig(s) {
     if (!RS) return;
@@ -490,38 +590,105 @@
     try {
       if (d.k === 'offer') {
         closeIn(from);
-        const pc = new RTCPeerConnection(pcCfg()), o = (RS.inn[from] = { pc, cid: d.c, q: [], t: Date.now() });
+        const pc = new RTCPeerConnection(pcCfg()), o = (RS.inn[from] = { pc, cid: d.c, q: [], t: Date.now(), jb: 60, lost: 0, rcv: 0, calm: 0 });
         pc.onicecandidate = (e) => { if (e.candidate) sig(from, { k: 'ice', c: d.c, cand: e.candidate }); };
-        pc.ontrack = (e) => attachAudio(from, e.streams[0] || new MediaStream([e.track]));
-        pc.onconnectionstatechange = () => { if (RS && RS.inn[from] === o && pc.connectionState === 'failed') closeIn(from); };
+        pc.ontrack = (e) => { tuneRecv(pc, o.jb); attachAudio(from, e.streams[0] || new MediaStream([e.track])); };
+        pc.onconnectionstatechange = () => {
+          if (!RS || RS.inn[from] !== o) return;
+          const st = pc.connectionState;
+          if (st === 'connected') o.ok = Date.now();
+          else if (st === 'failed') { closeIn(from); sig(from, { k: 'need' }); }
+          else if (st === 'disconnected') { clearTimeout(o.dt); o.dt = setTimeout(() => { if (RS && RS.inn[from] === o && pc.connectionState !== 'connected') { closeIn(from); sig(from, { k: 'need' }); } }, 3000); }
+        };
         await pc.setRemoteDescription(d.sdp);
         o.q.splice(0).forEach((c) => pc.addIceCandidate(c).catch(() => {}));
-        const ans = await pc.createAnswer(); await pc.setLocalDescription(ans);
-        sig(from, { k: 'answer', c: d.c, sdp: pc.localDescription });
+        const ans = await pc.createAnswer(), ad = { type: ans.type, sdp: tuneSdp(ans.sdp, baseKbpsFor(from)) };
+        await pc.setLocalDescription(ad);
+        sig(from, { k: 'answer', c: d.c, sdp: ad });
+        tuneRecv(pc, o.jb);
       } else if (d.k === 'answer') {
         const o = RS.out[from]; if (!o || o.cid !== d.c) return;
         await o.pc.setRemoteDescription(d.sdp); o.q.splice(0).forEach((c) => o.pc.addIceCandidate(c).catch(() => {}));
+        applySend(o);
       } else if (d.k === 'ice') {
         const o = (RS.out[from] && RS.out[from].cid === d.c ? RS.out[from] : null) || (RS.inn[from] && RS.inn[from].cid === d.c ? RS.inn[from] : null);
         if (!o) return;
         if (o.pc.remoteDescription) o.pc.addIceCandidate(d.cand).catch(() => {}); else o.q.push(d.cand);
+      } else if (d.k === 'need') { // المستمع يطلب إعادة الاتصال
+        if (RS.local && RS.seat >= 0) { const m = mem(from); if (m) { closeOut(from); RS.tries[from] = Math.max(0, (RS.tries[from] || 0) - 1); makeOut(m); } }
       }
-    } catch (e) { /* تفاوض فاشل: سيُعاد عند تغير الحالة */ }
+    } catch (e) { /* تفاوض فاشل: يعالجه فحص الصحة */ }
   }
+  const baseKbpsFor = () => baseKbps();
+
   function attachAudio(uid, stream) {
     let a = RS.audios[uid];
-    if (!a) { a = document.createElement('audio'); a.autoplay = true; a.playsInline = true; a.style.display = 'none'; $('#rmx').appendChild(a); RS.audios[uid] = a; }
-    a.srcObject = stream; a.muted = RS.deaf;
-    const p = a.play(); if (p && p.catch) p.catch(() => { RS.blocked = true; });
-    watch(uid, stream, false);
+    if (!a) { a = takeEl(); RS.audios[uid] = a; }
+    try { a.pause(); a.removeAttribute('src'); } catch (e) {}
+    a.srcObject = stream; a.muted = RS.deaf; a.volume = 1;
+    const go = () => { const p = a.play(); if (p && p.catch) p.catch(() => { RS && (RS.blocked = true); soundBanner(true); }); };
+    go(); watch(uid, stream, false);
+  }
+  function soundBanner(on) {
+    let b = $('#rmSnd');
+    if (!on) { if (b) b.remove(); return; }
+    if (b || !$('#rmx')) return;
+    b = document.createElement('button'); b.id = 'rmSnd'; b.className = 'rm-snd'; b.textContent = '🔊 اضغط لتفعيل الصوت';
+    b.onclick = () => { resumeAudio(); soundBanner(false); };
+    $('#rmx').appendChild(b);
   }
   function resumeAudio() {
     if (!RS) return;
-    try { RS.ac && RS.ac.state === 'suspended' && RS.ac.resume(); } catch (e) {}
-    Object.values(RS.audios).forEach((a) => { const p = a.play(); if (p && p.catch) p.catch(() => {}); });
+    try { const c = getAC(); c && c.state === 'suspended' && c.resume(); } catch (e) {}
+    let bad = false;
+    Object.values(RS.audios).forEach((a) => { if (a.paused && a.srcObject) { const p = a.play(); if (p && p.catch) p.catch(() => { bad = true; }); } });
+    if (!bad && RS.blocked) { RS.blocked = false; soundBanner(false); }
     if (RS.mus && RS.mus.src && RS.st.room.music.playing && RS.mus.paused) RS.mus.play().catch(() => {});
   }
   function setDeaf(on) { RS.deaf = on; Object.values(RS.audios).forEach((a) => { a.muted = on; }); }
+
+  /* ---------- فحص الصحة والتكيّف (كل ثانيتين / 3 ثوانٍ) ---------- */
+  function health() {
+    if (!RS) return; const now = Date.now(), st = RS.st;
+    // المتحدث: أي اتصال بمستمع لم يصل لحالة connected خلال 7 ثوانٍ يُعاد بناؤه
+    if (RS.local && RS.seat >= 0) {
+      Object.keys(RS.out).forEach((u) => { const o = RS.out[u]; if (o.pc.connectionState !== 'connected' && now - o.t > 7000) rebuildOut(u); });
+      st.members.forEach((m) => { if (m.uid !== RS.me.uid && !RS.out[m.uid] && !(RS.tries[m.uid] > 6)) makeOut(m); });
+    }
+    // المستمع: متحدث على المايك بلا اتصال صوتي واصل → نطلب منه إعادة الاتصال
+    st.members.forEach((m) => {
+      if (m.mic < 0 || m.uid === RS.me.uid) return;
+      const o = RS.inn[m.uid], since = Math.max(RS.spkAt[m.uid] || now, o ? o.t : 0);
+      if ((!o || o.pc.connectionState !== 'connected') && now - since > 6000 && now - (RS.needAt[m.uid] || 0) > 6000) {
+        RS.needAt[m.uid] = now; if (o) closeIn(m.uid); sig(m.uid, { k: 'need' });
+      }
+    });
+    if (RS.blocked) resumeAudio();
+  }
+  async function monitor() { // يقيس الفقد والارتجاج: يرفع المخزن عند التقطيع ويخفضه عند الاستقرار، ويخفض معدل الرفع عند ضعف الشبكة
+    if (!RS) return;
+    for (const uid of Object.keys(RS.inn)) {
+      const o = RS.inn[uid]; if (!o || o.pc.connectionState !== 'connected') continue;
+      try {
+        const rep = await o.pc.getStats(); let lost = 0, rcv = 0, jit = 0;
+        rep.forEach((r) => { if (r.type === 'inbound-rtp' && (r.kind === 'audio' || r.mediaType === 'audio')) { lost = r.packetsLost || 0; rcv = r.packetsReceived || 0; jit = r.jitter || 0; } });
+        const dl = lost - o.lost, dr = rcv - o.rcv; o.lost = lost; o.rcv = rcv;
+        const rate = dr + dl > 20 ? dl / (dr + dl) : 0;
+        if (rate > 0.04 || jit > 0.03) { o.jb = Math.min(260, o.jb + 40); o.calm = 0; }
+        else if (++o.calm > 4 && o.jb > 40) { o.jb = Math.max(40, o.jb - 10); o.calm = 0; }
+        tuneRecv(o.pc, o.jb);
+      } catch (e) {}
+    }
+    for (const uid of Object.keys(RS.out)) {
+      const o = RS.out[uid]; if (!o || o.pc.connectionState !== 'connected') continue;
+      try {
+        const rep = await o.pc.getStats(); let fl = 0;
+        rep.forEach((r) => { if (r.type === 'remote-inbound-rtp') fl = r.fractionLost || 0; });
+        const want = fl > 0.08 ? Math.max(16, Math.round(baseKbps() * 0.6)) : baseKbps();
+        if (want !== o.kbps) { o.kbps = want; applySend(o); }
+      } catch (e) {}
+    }
+  }
 
   /* ---------- كشف من يتكلم (حلقة حول الصورة) ---------- */
   function watch(uid, stream, local) {
@@ -662,11 +829,12 @@
   /* ---------- الخروج ---------- */
   function cleanup() {
     const rs = RS; if (!rs) return; rs.gone = true; RS = null;
-    try { clearInterval(rs.lv); rs.es && rs.es.close(); } catch (e) {}
-    try { Object.values(rs.out).forEach((o) => o.pc.close()); Object.values(rs.inn).forEach((o) => o.pc.close()); } catch (e) {}
-    try { rs.local && rs.local.getTracks().forEach((t) => t.stop()); } catch (e) {}
+    try { clearInterval(rs.lv); clearInterval(rs.hl); clearInterval(rs.mo); clearTimeout(rs.sqt); rs.es && rs.es.close(); } catch (e) {}
+    try { Object.values(rs.out).forEach((o) => { o.pc.onconnectionstatechange = null; o.pc.close(); }); Object.values(rs.inn).forEach((o) => { o.pc.onconnectionstatechange = null; o.pc.close(); }); } catch (e) {}
+    try { rs.local && rs.local.getTracks().forEach((t) => t.stop()); dropPre(rs); } catch (e) {}
     try { rs.mus.pause(); rs.mus.removeAttribute('src'); } catch (e) {}
-    try { Object.values(rs.audios).forEach((a) => { a.srcObject = null; }); rs.ac && rs.ac.close(); } catch (e) {}
+    try { Object.values(rs.audios).forEach((a) => giveEl(a)); } catch (e) {}
+    try { releaseWake(); soundBanner(false); } catch (e) {}
     const x = $('#rmx'); if (x) x.remove(); const mn = $('#rmmini'); if (mn) mn.classList.remove('on');
     try { if (S.r === 'rooms') loadList(); } catch (e) {}
   }
@@ -676,6 +844,14 @@
     cleanup(); if (!quiet) { try { $('#d').close(); } catch (e) {} }
   }
   window.addEventListener('pagehide', () => { if (RS) { try { navigator.sendBeacon('/api/rooms/leave', new Blob([JSON.stringify({ tok: RS.tok })], { type: 'application/json' })); } catch (e) {} } });
+
+  /* ---------- إبقاء الشاشة مستيقظة + استئناف الصوت عند العودة أو تغيّر الشبكة ---------- */
+  let WL = null;
+  async function wakeLock() { try { if (navigator.wakeLock && RS && !WL) { WL = await navigator.wakeLock.request('screen'); WL.addEventListener('release', () => { WL = null; }); } } catch (e) { WL = null; } }
+  function releaseWake() { try { WL && WL.release(); } catch (e) {} WL = null; }
+  document.addEventListener('visibilitychange', () => { if (!RS) return; if (!document.hidden) { wakeLock(); resumeAudio(); health(); } });
+  window.addEventListener('online', () => { if (RS) { setTimeout(() => { resumeAudio(); health(); }, 600); } });
+  ['touchstart', 'pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, () => { if (RS && RS.blocked) resumeAudio(); }, { passive: true }));
 
   /* ============================== الأوامر (نقرات) ============================== */
   async function handle(a, v, b) {
@@ -704,13 +880,13 @@
       case 'gto': RS.g.to = v || ''; return gPaint();
       case 'gsend': return giftSend();
       case 'mute': RS.selfMute = !RS.selfMute; if (RS.forced) say('كتمك المشرف ولا يمكنك فتح المايك الآن'); return applyMute();
-      case 'take': { const r = await act('mic_take', {}); return r; }
-      case 'hand': { const me = meM(); const r = await act('hand', { on: !(me && me.hand) }); if (r && me && !me.hand) say('تم إرسال طلبك لصاحب الروم ✋'); return; }
+      case 'take': { preMic(); const r = await act('mic_take', {}); if (!r) dropPre(); return r; }
+      case 'hand': { const me = meM(); if (me && !me.hand) primeMic(); const r = await act('hand', { on: !(me && me.hand) }); if (r && me && !me.hand) say('تم إرسال طلبك لصاحب الروم ✋'); return; }
       case 'seat': return seatDlg(+v);
       case 'mem': return memDlg(v);
       case 'up': try { $('#d').close(); } catch (e) {} return act('mod_up', { uid: v });
       case 'upslot': try { $('#d').close(); } catch (e) {} return act('mod_up', { uid: v, slot: +b.dataset.s });
-      case 'takeslot': try { $('#d').close(); } catch (e) {} return act('mic_take', { slot: +v });
+      case 'takeslot': { try { $('#d').close(); } catch (e) {} preMic(); const r = await act('mic_take', { slot: +v }); if (!r) dropPre(); return r; }
       case 'down': try { $('#d').close(); } catch (e) {} return v ? act('mod_down', { uid: v }) : act('mic_leave', {});
       case 'mmuteu': try { $('#d').close(); } catch (e) {} return act('mod_mute', { uid: v, on: b.dataset.on === '1' });
       case 'adm': try { $('#d').close(); } catch (e) {} return act('mod_admin', { uid: v, on: b.dataset.on === '1' });
