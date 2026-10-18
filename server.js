@@ -111,7 +111,10 @@ P2PX.parsers(app, express); // صور إثبات التحويل ورسائل P2P
 app.set('trust proxy', 1);
 const CLOUD = require('./cloud-state-ext'); CLOUD.parsers(app, express); // مزامنة حالة الحساب (حد أكبر لهذا المسار)
 require('./poke-ext')(app); // مزامنة فورية لكل الأقسام
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({ contentSecurityPolicy: { useDefaults: false, directives: {
+  // توجيهات آمنة لا تكسر السكربتات الحالية: منع التضمين في مواقع أخرى (clickjacking) ومنع الإضافات القديمة
+  'frame-ancestors': ["'self'"], 'object-src': ["'none'"], 'base-uri': ["'self'"], 'form-action': ["'self'"],
+} } }));
 // نافذة Google المنبثقة تحتاج هذا (القيمة الافتراضية same-origin في helmet تمنع إرجاع نتيجة الدخول للصفحة)
 app.use((_req, res, next) => { res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups'); next(); });
 // الإعدادات المنشورة قد تحتوي صوراً، لذلك حد أكبر لهذا المسار فقط
@@ -437,8 +440,12 @@ app.post('/api/sync/account-register', wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
+const LOGIN_FAILS = new Map(); // محاولات دخول فاشلة لكل حساب (لا لكل IP: شبكات CGNAT تشارك العنوان)
+const loginBlocked = (k) => { const f = LOGIN_FAILS.get(k); return !!f && Date.now() - f.t < 15 * 60 * 1000 && f.n >= 8; };
+const loginFail = (k) => { const f = LOGIN_FAILS.get(k); if (!f || Date.now() - f.t >= 15 * 60 * 1000) LOGIN_FAILS.set(k, { n: 1, t: Date.now() }); else f.n++; if (LOGIN_FAILS.size > 20000) LOGIN_FAILS.clear(); };
 app.post('/api/sync/account-login', wrap(async (req, res) => {
   const ident = String(req.body.email || req.body.phone || '').trim().toLowerCase();
+  if (loginBlocked(ident)) fail(429, 'محاولات كثيرة، حاول بعد 15 دقيقة');
   const hash = String(req.body.pass_hash || '');
   const password = String(req.body.password || '');
   if (!ident) fail(400, 'أدخل البريد أو رقم الهاتف');
@@ -484,7 +491,8 @@ app.post('/api/sync/account-login', wrap(async (req, res) => {
     }
   }
 
-  if (!match) fail(401, 'كلمة المرور غير صحيحة');
+  if (!match) { loginFail(ident); fail(401, 'كلمة المرور غير صحيحة'); }
+  LOGIN_FAILS.delete(ident);
 
   res.json({
     ok: true,
@@ -967,13 +975,25 @@ app.get('/api/sync', syncLimiter, wrap(async (req, res) => {
   if (req.query.since !== 'init') {
     const since = Math.max(0, parseInt(req.query.since, 10) || 0);
     if (since < max) cmds = (await pool.query('SELECT id, body FROM sync_cmds WHERE id>$1 ORDER BY id LIMIT 200', [since])).rows;
+    // أوامر الأرصدة/العدادات الشخصية لا تُسلَّم إلا لصاحبها المُوثَّق (بصمة كلمة المرور)؛ البقية تصلهم إشارة فارغة
+    const qe = req.get('x-e') ? decodeURIComponent(req.get('x-e')) : req.query.e, qh = req.get('x-h') || req.query.h;
+    const me = (qe && qh) ? await (app.locals.authEmail || (async () => ''))(qe, qh) : '';
+    cmds = cmds.map((c) => {
+      const b = c.body;
+      if (b && ['adj', 'set', 'gc', 'rz', 'rc'].includes(b.t) && !(me && String(b.e || '').toLowerCase() === me)) return { id: c.id, body: { t: 'ping' } };
+      return c;
+    });
   }
   res.json({ config: cfg ? cfg.val : null, cmds, max });
 }));
 
 app.get('/api/sync/account-state', wrap(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
   const email = String(req.query.email || req.query.ident || '').trim().toLowerCase();
   if (!email) fail(400, 'البريد مطلوب');
+  // بيانات الحساب (الرصيد/الهاتف/التوثيق) لصاحبها فقط: بريد + بصمة كلمة المرور
+  const okAuth = await (app.locals.authEmail || (async () => ''))(email, req.get('x-h') || req.query.h);
+  if (!okAuth) fail(401, 'سجّل الدخول لعرض بيانات الحساب');
   const cleanPh = normPhone(email);
   let r = await pool.query(
     `SELECT email, name, phone, pts, gems, usd, blk, kyc, vml, vph, cl FROM sync_accounts WHERE LOWER(email)=$1 OR phone=$1 OR phone=$2 LIMIT 1`,

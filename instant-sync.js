@@ -10,12 +10,21 @@
 module.exports = (app, express, deps) => {
   const { pool, wrap, ctl, fail } = deps;
   const MAX_CLIENTS = 4000;
+  // أوامر تخص مستخدماً بعينه (أرصدة/عدادات): لا تُرسل إلا لصاحبها المُوثَّق، والبقية تصلهم إشارة فارغة فقط
+  const PERSONAL = new Set(['adj', 'set', 'gc', 'rz', 'rc']);
+  const authEmail = async (e, h) => {
+    e = String(e || '').trim().toLowerCase().slice(0, 120); h = String(h || '').slice(0, 200);
+    if (!e || !h) return '';
+    try { const r = await pool.query('SELECT 1 FROM sync_accounts WHERE LOWER(email)=$1 AND pass_hash=$2', [e, h]); return r.rowCount ? e : ''; } catch (x) { return ''; }
+  };
+  app.locals.authEmail = authEmail;
   const clients = new Set();
   const sent = new Set();
   let watermark = null;
 
-  app.get('/api/sync/stream', (req, res) => {
+  app.get('/api/sync/stream', async (req, res) => {
     if (clients.size >= MAX_CLIENTS) return res.status(503).end();
+    const verified = await authEmail(req.query.email, req.query.h);
     res.set({
       'Content-Type': 'text/event-stream; charset=utf-8',
       'Cache-Control': 'no-cache, no-transform',
@@ -26,7 +35,7 @@ module.exports = (app, express, deps) => {
     if (typeof res.flushHeaders === 'function') res.flushHeaders();
     res.write('retry: 2000\n\n: connected\n\n');
 
-    const email = String(req.query.email || '').trim().toLowerCase().slice(0, 120);
+    const email = verified; // بريد غير موثَّق = لا يستلم أوامر الآخرين الشخصية
     const client = { res, email };
     clients.add(client);
 
@@ -50,11 +59,15 @@ module.exports = (app, express, deps) => {
   });
 
   function broadcast(id, body) {
-    const msg = 'event: cmd\ndata: ' + JSON.stringify({ id, body }) + '\n\n';
+    const full = 'event: cmd\ndata: ' + JSON.stringify({ id, body }) + '\n\n';
+    const redacted = 'event: cmd\ndata: ' + JSON.stringify({ id, body: { t: 'ping' } }) + '\n\n';
     const target = body && body.e ? String(body.e).toLowerCase() : '';
+    const personal = !!(body && PERSONAL.has(body.t));
     let n = 0;
     clients.forEach((c) => {
-      if (target && c.email && c.email !== target) return;
+      let msg = full;
+      if (personal) { if (!(c.email && c.email === target)) msg = redacted; }
+      else if (target && c.email && c.email !== target) return;
       try { c.res.write(msg); n++; } catch (e) { clients.delete(c); }
     });
     sent.add(Number(id));

@@ -37,9 +37,8 @@ exports.routes = (app, { pool, wrap }) => {
 
   // خريطة {بريد: نسخة} لمن لديه صورة (خفيفة، تُسحب كل 5 ثوانٍ)
   app.get('/api/avatars', wrap(async (_req, res) => {
-    const r = await q(`SELECT email,v FROM user_avatars`);
-    const m = {}; r.rows.forEach((x) => (m[x.email] = Number(x.v)));
-    res.set('Cache-Control', 'no-store'); res.json({ map: m });
+    // أُغلق: كان يكشف بريد كل مستخدم لديه صورة. الصور تُجلب الآن بالمعرّف العام (uid) من مسارات الأخبار والرومات
+    res.set('Cache-Control', 'no-store'); res.json({ map: {} });
   }));
 
   // الصورة نفسها (قابلة للتخزين المؤقت بحسب النسخة v)

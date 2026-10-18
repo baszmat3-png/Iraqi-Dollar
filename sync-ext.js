@@ -29,12 +29,19 @@ module.exports = function (app, express) {
   const admin = (req, res) => {
     const k = process.env.ADMIN_KEY;
     if (!k) { res.status(503).json({ error: 'ADMIN_KEY غير مضبوط' }); return 0; }
-    if (req.get('X-Admin-Key') !== k) { res.status(401).json({ error: 'مفتاح الإدارة غير صحيح' }); return 0; }
+    if (!(() => { try { const x = Buffer.from(String(req.get('X-Admin-Key') || '')), y = Buffer.from(k); return x.length === y.length && require('crypto').timingSafeEqual(x, y); } catch (e) { return false; } })()) { res.status(401).json({ error: 'مفتاح الإدارة غير صحيح' }); return 0; }
     return 1;
   };
 
   /* المستخدم يرفع طلباته وطلبات سحبه (جديدة، أو تحديث عدد الأقساط المسددة) */
-  app.post('/api/sync/push', parse, (req, res) => {
+  /* هوية المستخدم لمسارات الطلبات: البريد المستخدم في الطلب + بصمة كلمة المرور (ترويسة x-h) */
+  const needAuth = (req, res, next) => {
+    const au = req.app.locals.authEmail, e = email((req.body && req.body.e) || req.query.e), h = req.get('x-h') || (req.body && req.body.h) || req.query.h;
+    if (!au || !e || !h) return res.status(401).json({ error: 'auth' });
+    au(e, h).then((ok) => (ok && ok === e ? next() : res.status(401).json({ error: 'auth' }))).catch(() => res.status(401).json({ error: 'auth' }));
+  };
+
+  app.post('/api/sync/push', parse, needAuth, (req, res) => {
     const b = req.body || {}, e = email(b.e);
     if (!e) return res.status(400).json({ error: 'e' });
     KINDS.forEach(k => (Array.isArray(b[k]) ? b[k] : []).slice(0, 20).forEach(r => {
@@ -52,7 +59,7 @@ module.exports = function (app, express) {
   });
 
   /* المستخدم يقرأ حالة طلباته (بدون رقم الحساب أو الباركود) */
-  app.get('/api/sync/mine', (req, res) => {
+  app.get('/api/sync/mine', needAuth, (req, res) => {
     const e = email(req.query.e), since = +req.query.since || 0;
     if (!e) return res.status(400).json({ error: 'e' });
     const o = { seq: DB.seq, idx: { ords: {}, wreq: {}, rq: {} }, recs: { ords: [], wreq: [], rq: [] } };
@@ -92,7 +99,7 @@ module.exports = function (app, express) {
     save(); res.json({ ok: 1, mt, seq: DB.seq });
   });
   /* المستخدم يرفع ملفات التوثيق بعد رفع الطلب نفسه */
-  app.post('/api/sync/kycf', express.json({ limit: '9mb' }), (req, res) => {
+  app.post('/api/sync/kycf', express.json({ limit: '9mb' }), needAuth, (req, res) => {
     const b = req.body || {}, e = email(b.e), id = String(b.id || '');
     if (!e || !okId(id)) return res.status(400).json({ error: 'e' });
     const rq = DB.rq[id];
