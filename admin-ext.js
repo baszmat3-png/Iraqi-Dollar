@@ -141,6 +141,7 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     await q(`INSERT INTO sync_cmds(body) VALUES($1)`, [JSON.stringify(cmd)]);
     await q(`INSERT INTO bal_log(email,op,pts,gems,usd,b_pts,b_gems,b_usd,a_pts,a_gems,a_usd,note) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
       [em, op, after.pts - before.pts, after.gems - before.gems, after.usd - before.usd, before.pts, before.gems, before.usd, after.pts, after.gems, after.usd, txt(b.note, 200)]).catch(() => {});
+    try { if (app.locals.liveBalKick) app.locals.liveBalKick(); } catch (e) { /* اختياري */ }
     return { before, after };
   }
   exports.applyBal = applyBal;

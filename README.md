@@ -216,3 +216,8 @@ require('./account-delete-ext')(app, { pool, wrap, fail });
 
 ### Google Play
 AAB موقّع بمفتاح الرفع · رابط الخصوصية `/privacy-policy.html` · رابط الحذف `/delete-account.html` · الحذف داخل التطبيق من «حسابي ← حذف حسابي».
+
+## رمز التحقق عبر البريد عند إنشاء الحساب (OTP)
+- `email-otp-ext.js` (سيرفر) + `public/email-otp.js` (واجهة). الرمز يُولَّد ويُتحقق منه في السيرفر فقط، صالح 5 دقائق، 5 محاولات، وإعادة إرسال كل 60 ثانية.
+- الإرسال عبر نفس إعدادات Render الموجودة (Resend / Brevo / Webhook / SMTP). على الخطة المجانية استخدم Resend أو Brevo لأن منافذ SMTP محجوبة.
+- عند استبدال `server.js` أو `index.html` ببنية جديدة أبقِ هذين السطرين: `require('./email-otp-ext')(app, { pool, wrap, fail, sha, EM, deliver: deliverOtpEmail });` و `<script src="/email-otp.js?v=1"></script>`.

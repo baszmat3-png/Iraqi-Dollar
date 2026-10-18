@@ -87,6 +87,7 @@ const MXT = require('./merchant-ext');
 const SOC = require('./social-ext');
 const EXT5 = require('./extras-ext');
 const STOREX = require('./store-ext');
+const NEWSX = require('./news-ext'); // أخبار المستخدمين
 const P2PX = require('./p2p-ext'); // المرحلة 20: نظام شراء النقاط P2P
 
 // أعمدة العدادات (عدد العدادات + هل تعمل) تُخزَّن على السيرفر ليراها المالك لكل المستخدمين
@@ -104,6 +105,7 @@ AX.parsers(app, express); // صور الدعم والبلاغات (حد أكبر
 MXT.parsers(app, express); // صور التجار والصور الشخصية
 SOC.parsers(app, express); // الأصدقاء والرسائل
 EXT5.parsers(app, express); // صور حملات التبرع
+NEWSX.parsers(app, express); // صور أخبار المستخدمين
 STOREX.parsers(app, express); // دفعات أكواد المتجر الكبيرة
 P2PX.parsers(app, express); // صور إثبات التحويل ورسائل P2P (حد أكبر)
 app.set('trust proxy', 1);
@@ -125,6 +127,7 @@ const wrap = (fn) => (req, res) => fn(req, res).catch((e) => {
 const fail = (http, message) => { const e = new Error(message); e.http = http; throw e; };
 CLOUD.routes(app, { pool, wrap, fail }); // حالة الحساب السحابية
 require('./account-delete-ext')(app, { pool, wrap, fail }); // حذف الحساب (متطلب Google Play)
+require('./email-otp-ext')(app, { pool, wrap, fail, sha, EM, deliver: deliverOtpEmail }); // رمز تحقق البريد عند إنشاء الحساب
 
 async function tx(fn) {
   const c = await pool.connect();
@@ -1459,6 +1462,8 @@ AX.routes(app, { pool, wrap, ctl }); // المرحلة 1ب: الإدارة
 require('./pricing-ext').migrate(pool); // المرحلة 5: توحيد التسعيرة المنشورة
 MXT.routes(app, { pool, wrap, ctl }); // المرحلة 2: التجار + الصور الشخصية
 EXT5.routes(app, { pool, wrap, ctl, SYNC }); // المرحلة 5: شراء رموز الإحالة + حملات التبرع
+NEWSX.routes(app, { pool, wrap, ctl }); // أخبار المستخدمين
+require('./live-bal')(app, { pool, wrap, ctl }); // بثّ فوري لأرصدة كل المستخدمين للوحة التحكم
 SOC.routes(app, { pool, wrap, ctl }); // المرحلة 4: الأصدقاء + الرسائل + الإشعارات الفورية
 require('./security-ext').routes(app, { pool, wrap, sendWhatsApp, normPhone }); // المرحلة 3: الجلسات + رمز واتساب + المصادقة الثنائية
 require('./fin-ext').routes(app, { pool, wrap, ctl, SYNC, GAME }); // المرحلة 1ج: المالية
