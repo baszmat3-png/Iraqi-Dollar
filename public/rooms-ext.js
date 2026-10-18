@@ -545,15 +545,17 @@
   function tuneSdp(sdp, kbps) {
     try {
       const m = /a=rtpmap:(\d+) opus\/48000/.exec(sdp); if (!m) return sdp;
-      const pt = m[1], prm = `minptime=10;useinbandfec=1;usedtx=0;stereo=0;sprop-stereo=0;maxplaybackrate=48000;sprop-maxcapturerate=48000;maxaveragebitrate=${Math.round(kbps * 1000)}`;
-      const re = new RegExp(`a=fmtp:${pt} [^\\r\\n]*`);
+      const big = (RS ? RS.st.n : 1) > 8; // غرف كبيرة: حزم 40ms تقلّل ضغط الرفع (ترويسات الشبكة) بحوالي الربع
+      // usedtx=1: لا يُرسل شيء وقت الصمت (المتحدث يصمت أغلب الوقت) فيوفّر معظم الرفع؛ FEC داخلي يعوّض الفقد
+      const prm = `minptime=10;maxptime=${big ? 60 : 40};useinbandfec=1;usedtx=1;cbr=0;stereo=0;sprop-stereo=0;maxplaybackrate=48000;sprop-maxcapturerate=48000;maxaveragebitrate=${Math.round(kbps * 1000)}`;
+      const pt = m[1], re = new RegExp(`a=fmtp:${pt} [^\\r\\n]*`);
       if (re.test(sdp)) sdp = sdp.replace(re, `a=fmtp:${pt} ${prm}`);
       else sdp = sdp.replace(new RegExp(`(a=rtpmap:${pt} opus/48000[^\\r\\n]*)`), `$1\r\na=fmtp:${pt} ${prm}`);
-      if (!/a=ptime:/.test(sdp)) sdp = sdp.replace(/(a=fmtp:\d+ [^\r\n]*minptime=10[^\r\n]*)/, `$1\r\na=ptime:20`);
+      sdp = sdp.replace(/a=ptime:\d+\r?\n/g, '').replace(/(a=fmtp:\d+ [^\r\n]*minptime=10[^\r\n]*)/, `$1\r\na=ptime:${big ? 40 : 20}`);
       return sdp;
     } catch (e) { return sdp; }
   }
-  const baseKbps = () => { const n = RS ? RS.st.n : 1; return n <= 10 ? 40 : n <= 25 ? 32 : 24; }; // كلما زاد المستمعون قلّ الرفع لكل اتصال
+  const baseKbps = () => { const n = Math.max(1, RS ? RS.st.n - 1 : 1); return Math.max(16, Math.min(48, Math.round(560 / n))); }; // ميزانية رفع ثابتة تقريباً توزَّع على المستمعين: صوت أنقى في الغرف الصغيرة واستقرار في الكبيرة
   async function applySend(o) { // معدل البت وأولوية الشبكة بعد التفاوض (قبله لا تعمل setParameters)
     try {
       const s = o.pc.getSenders().find((x) => x.track && x.track.kind === 'audio'); if (!s || !s.getParameters) return;
@@ -750,8 +752,12 @@
       try {
         const rep = await o.pc.getStats(); let fl = 0;
         rep.forEach((r) => { if (r.type === 'remote-inbound-rtp') fl = r.fractionLost || 0; });
-        const want = fl > 0.08 ? Math.max(16, Math.round(baseKbps() * 0.6)) : baseKbps();
-        if (want !== o.kbps) { o.kbps = want; applySend(o); }
+        o.fl = fl;
+        let want;
+        if (fl > 0.12) want = Math.max(12, Math.round(baseKbps() * 0.5));
+        else if (fl > 0.05) want = Math.max(14, Math.round(baseKbps() * 0.7));
+        else want = baseKbps();
+        if (want < o.kbps || (fl < 0.02 && want > o.kbps)) { o.kbps = want; applySend(o); }
       } catch (e) {}
     }
   }
