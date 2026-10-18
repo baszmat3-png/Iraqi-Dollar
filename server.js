@@ -87,6 +87,7 @@ const MXT = require('./merchant-ext');
 const SOC = require('./social-ext');
 const EXT5 = require('./extras-ext');
 const STOREX = require('./store-ext');
+const NEWSX = require('./news-ext'); // أخبار المستخدمين
 const P2PX = require('./p2p-ext'); // المرحلة 20: نظام شراء النقاط P2P
 
 // أعمدة العدادات (عدد العدادات + هل تعمل) تُخزَّن على السيرفر ليراها المالك لكل المستخدمين
@@ -104,9 +105,12 @@ AX.parsers(app, express); // صور الدعم والبلاغات (حد أكبر
 MXT.parsers(app, express); // صور التجار والصور الشخصية
 SOC.parsers(app, express); // الأصدقاء والرسائل
 EXT5.parsers(app, express); // صور حملات التبرع
+NEWSX.parsers(app, express); // صور أخبار المستخدمين
 STOREX.parsers(app, express); // دفعات أكواد المتجر الكبيرة
 P2PX.parsers(app, express); // صور إثبات التحويل ورسائل P2P (حد أكبر)
 app.set('trust proxy', 1);
+const CLOUD = require('./cloud-state-ext'); CLOUD.parsers(app, express); // مزامنة حالة الحساب (حد أكبر لهذا المسار)
+require('./poke-ext')(app); // مزامنة فورية لكل الأقسام
 app.use(helmet({ contentSecurityPolicy: false }));
 // نافذة Google المنبثقة تحتاج هذا (القيمة الافتراضية same-origin في helmet تمنع إرجاع نتيجة الدخول للصفحة)
 app.use((_req, res, next) => { res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups'); next(); });
@@ -121,6 +125,8 @@ const wrap = (fn) => (req, res) => fn(req, res).catch((e) => {
   res.status(500).json({ error: 'خطأ داخلي في الخادم' });
 });
 const fail = (http, message) => { const e = new Error(message); e.http = http; throw e; };
+CLOUD.routes(app, { pool, wrap, fail }); // حالة الحساب السحابية
+require('./account-delete-ext')(app, { pool, wrap, fail }); // حذف الحساب (متطلب Google Play)
 
 async function tx(fn) {
   const c = await pool.connect();
@@ -1138,7 +1144,8 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
         pending = (await pool.query(
           `SELECT 1 FROM sync_cmds WHERE id>$1 AND body->>'t' IN ('adj','set','rz','rc') AND (body->>'e' IS NULL OR LOWER(body->>'e')=LOWER($2)) LIMIT 1`, [cv, email])).rows.length > 0;
       }
-      const wb = own && !pending;
+      const nm = own && !isDemo && Array.isArray(a.l) && a.l.length === 3; // عميل جديد: دمج الأرصدة بالفروقات
+      const wb = own && !pending && !nm && !a.ro;
       // تغيير الاسم من إعدادات المستخدم: يُقبل من جهاز صاحب الحساب فقط وما دام الحساب غير موثّق (بعد التوثيق يُقفل الاسم نهائياً)
       const ncName = String(a.n || '').trim().replace(/\s+/g, ' ').slice(0, 80);
       const ncOK = own && !!a.nc && !cur.rows[0].kyc && ncName.length >= 3;
@@ -1155,12 +1162,28 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
          WHERE LOWER(email)=LOWER($1)`,
         [email, ncOK ? ncName : String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), passHash, vml, vph, pn, gn, un, isDemo, isKyc, wb, ncOK]
       );
-      if (wb && a.ncl != null && (await colsReady)) {
+      let bp = null;
+      if (nm) { try { bp = await CLOUD.mergeBal(pool, email, String(req.body.cid || 'x').slice(0, 40), a.l, a.k); } catch (e3) { console.error('mergeBal', e3.message); } }
+      if ((wb || nm) && a.ncl != null && (await colsReady)) {
         const nc = Math.max(0, Math.min(100000, Math.floor(Number(a.ncl)) || 0));
         await pool.query(`UPDATE sync_accounts SET ncl=$2, nrun=$3 WHERE LOWER(email)=LOWER($1)`, [email, nc, a.nrun ? 1 : 0]).catch(() => {});
       }
+      // العدادات: الجهاز يرفع قائمته فقط إن كانت نسخة السيرفر لم تتغير منذ آخر مزامنة له (clb)، وإلا يُرفض الرفع ويأخذ نسخة السيرفر
+      let clrej = false;
+      if (own && !isDemo && Array.isArray(a.cl) && typeof a.clb === 'string') {
+        const nowMs = Date.now();
+        const sg = (l) => (Array.isArray(l) ? l : []).filter((c) => c && Number(c.e) > nowMs).map((c) => (Math.floor(Number(c.i)) | 0) + ':' + Math.round(Number(c.e))).sort().join(',');
+        const cr = (await pool.query('SELECT cl FROM sync_accounts WHERE LOWER(email)=LOWER($1)', [email])).rows[0];
+        if (sg(cr && cr.cl) === a.clb) {
+          const nl = a.cl.slice(0, 100).map((c) => ({ i: Math.floor(Number(c && c.i)), e: Math.round(Number(c && c.e)) }))
+            .filter((c) => c.i >= 0 && c.i < 20 && c.e > nowMs && c.e < nowMs + 400 * 864e5);
+          try { await pool.query(`UPDATE sync_accounts SET cl=$2::jsonb, ncl=$3, cl_at=NOW() WHERE LOWER(email)=LOWER($1)`, [email, JSON.stringify(nl), nl.length]); }
+          catch (e2) { await pool.query(`UPDATE sync_accounts SET cl=$2::jsonb, cl_at=NOW() WHERE LOWER(email)=LOWER($1)`, [email, JSON.stringify(nl)]).catch(() => {}); }
+        } else clrej = true;
+      }
       const row = (await pool.query('SELECT * FROM sync_accounts WHERE LOWER(email)=LOWER($1)', [email])).rows[0];
       returnedAccounts.push({
+        clrej, bp,
         e: row.email,
         n: row.name,
         pts: Number(row.pts) || 0,
@@ -1438,6 +1461,9 @@ AX.routes(app, { pool, wrap, ctl }); // المرحلة 1ب: الإدارة
 require('./pricing-ext').migrate(pool); // المرحلة 5: توحيد التسعيرة المنشورة
 MXT.routes(app, { pool, wrap, ctl }); // المرحلة 2: التجار + الصور الشخصية
 EXT5.routes(app, { pool, wrap, ctl, SYNC }); // المرحلة 5: شراء رموز الإحالة + حملات التبرع
+require('./email-otp-ext')(app, { pool, wrap, fail, sha, EM, deliver: deliverOtpEmail }); // رمز تحقق البريد عند إنشاء الحساب
+NEWSX.routes(app, { pool, wrap, ctl }); // أخبار المستخدمين
+require('./live-bal')(app, { pool, wrap, ctl }); // بثّ فوري لأرصدة كل المستخدمين للوحة التحكم
 SOC.routes(app, { pool, wrap, ctl }); // المرحلة 4: الأصدقاء + الرسائل + الإشعارات الفورية
 require('./security-ext').routes(app, { pool, wrap, sendWhatsApp, normPhone }); // المرحلة 3: الجلسات + رمز واتساب + المصادقة الثنائية
 require('./fin-ext').routes(app, { pool, wrap, ctl, SYNC, GAME }); // المرحلة 1ج: المالية
@@ -1445,8 +1471,8 @@ EXCL.routes(app, { pool, wrap, ctl, GAME }); // المرحلة 14: المستث�
 require('./instant-sync')(app, express, { pool, wrap, ctl, fail }); // بث فوري SSE + البحث بكود الإحالة
 require('./security-server')(app, express, { pool, wrap, ctl, fail }); // الحماية: بصمة الجهاز + VPN + تلاعب الوقت
 require('./gifts-ext')(app, express, { pool, wrap, ctl, fail });
+require('./rooms-ext')(app, express, { pool, wrap, ctl, fail }); // الرومات الصوتية (+ مكتبة الموسيقى + خلفية الروم)
 require('./google-auth-ext')(app, { pool, wrap, fail }); // الدخول وإنشاء الحساب عبر Google
-require('./rooms-ext')(app, express, { pool, wrap, ctl, fail }); // الرومات الصوتية
 P2PX(app, express, { pool, wrap, ctl, fail }); // المرحلة 20: P2P
 STOREX(app, express, { pool, wrap, ctl, fail }); // المرحلة 12: مخزون أكواد البطاقات + الطلبات + التسليم التلقائي // الهدايا بين المستخدمين (تُشترى بالنقاط) + قسم الهدايا في لوحة التحكم
 

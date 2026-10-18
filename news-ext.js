@@ -29,7 +29,6 @@ exports.routes = (app, { pool, wrap, ctl }) => {
        likes INT NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
     `CREATE INDEX IF NOT EXISTS user_news_idx ON user_news(id DESC)`,
     `CREATE TABLE IF NOT EXISTS user_news_likes(news_id BIGINT NOT NULL REFERENCES user_news(id) ON DELETE CASCADE, email TEXT NOT NULL, PRIMARY KEY(news_id,email))`,
-    `CREATE TABLE IF NOT EXISTS user_news_reports(news_id BIGINT NOT NULL REFERENCES user_news(id) ON DELETE CASCADE, email TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY(news_id,email))`,
     `CREATE TABLE IF NOT EXISTS avatars(email TEXT PRIMARY KEY, img TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
   ];
   const ready = (async () => {
@@ -54,8 +53,7 @@ exports.routes = (app, { pool, wrap, ctl }) => {
   const SELECT = `SELECT n.id, n.email, n.title, n.descr, (n.img IS NOT NULL) AS has_img, n.likes,
       (EXTRACT(EPOCH FROM n.created_at)*1000)::bigint AS ts,
       a.name, COALESCE(NULLIF(a.rcode,''), a.uid) AS rcode,
-      (SELECT (EXTRACT(EPOCH FROM v.updated_at)*1000)::bigint FROM avatars v WHERE v.email=LOWER(n.email)) AS av,
-      (SELECT COUNT(*) FROM user_news_reports r WHERE r.news_id=n.id) AS nrep`;
+      (SELECT (EXTRACT(EPOCH FROM v.updated_at)*1000)::bigint FROM avatars v WHERE v.email=LOWER(n.email)) AS av`;
   const FROM = ` FROM user_news n LEFT JOIN sync_accounts a ON LOWER(a.email)=LOWER(n.email)`;
 
   const shape = (r, mine, admin, me) => ({
@@ -65,14 +63,14 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     ts: Number(r.ts) || 0,
     own: !!(me && String(r.email).toLowerCase() === me),
     pub: { name: r.name || 'مستخدم', code: r.rcode || '', av: r.av ? Number(r.av) : 0 },
-    ...(admin ? { email: r.email, reports: Number(r.nrep) || 0 } : {}),
+    ...(admin ? { email: r.email } : {}),
   });
 
   /* ---------- المستخدمون ---------- */
   app.get('/api/news/list', wrap(async (req, res) => {
     res.set('Cache-Control', 'no-store');
     const e = txt(req.query.e, 200).toLowerCase();
-    const rows = (await q(`${SELECT}${FROM} WHERE (SELECT COUNT(*) FROM user_news_reports r WHERE r.news_id=n.id) < 3 ORDER BY n.id DESC LIMIT 60`)).rows;
+    const rows = (await q(`${SELECT}${FROM} ORDER BY n.id DESC LIMIT 60`)).rows;
     let mine = null;
     if (e && rows.length) {
       const l = (await q(`SELECT news_id FROM user_news_likes WHERE email=$1 AND news_id=ANY($2::bigint[])`, [e, rows.map((r) => r.id)])).rows;
@@ -129,20 +127,6 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     finally { cl.release(); }
     ping({ id, likes });
     res.json({ ok: true, liked, likes });
-  }));
-
-  /* بلاغ عن خبر مخالف (متطلب سياسة المحتوى الذي ينشره المستخدمون): 3 بلاغات تخفي الخبر تلقائياً حتى تراجعه الإدارة */
-  app.post('/api/u/news/report', lim, wrap(async (req, res) => {
-    const u = await who(req.body);
-    const id = Number(req.body.id) || 0;
-    const n = (await q(`SELECT LOWER(email) AS email FROM user_news WHERE id=$1`, [id])).rows[0];
-    if (!n) fail(404, 'الخبر غير موجود');
-    if (n.email === u.email) fail(400, 'لا يمكنك الإبلاغ عن خبرك');
-    const reason = txt(req.body.reason, 200);
-    await q(`INSERT INTO user_news_reports(news_id,email,reason) VALUES($1,$2,$3) ON CONFLICT (news_id,email) DO UPDATE SET reason=EXCLUDED.reason`, [id, u.email, reason]);
-    const c = Number((await q(`SELECT COUNT(*) AS c FROM user_news_reports WHERE news_id=$1`, [id])).rows[0].c) || 0;
-    if (c >= 3) ping({ del: id });
-    res.json({ ok: true });
   }));
 
   app.post('/api/u/news/delete', lim, wrap(async (req, res) => {
