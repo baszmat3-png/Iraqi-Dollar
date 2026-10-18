@@ -46,6 +46,13 @@
   /* ---------- أنماط ---------- */
   const css = document.createElement('style');
   css.textContent = `
+  /* الشريط السفلي: 6 عناصر يجب أن تتسع داخل الإطار على أي شاشة */
+  nav{padding-inline:3px!important;gap:0!important}
+  nav button{flex:1 1 0!important;min-width:0!important;font-size:.66rem!important;padding:0!important;white-space:nowrap;letter-spacing:-.1px}
+  nav button span{width:34px!important;height:34px!important}
+  nav .fab{flex:none!important;width:54px!important;height:54px!important;margin-inline:3px!important;transform:translateY(-14px)!important}
+  nav .fab svg{width:24px!important;height:24px!important}
+  @media(max-width:350px){nav button{font-size:.56rem!important}nav button span{width:30px!important;height:30px!important}nav .fab{width:46px!important;height:46px!important}}
   .rm-hero{border-radius:22px;padding:18px;margin:6px 0 14px;color:#fff;background:linear-gradient(135deg,#0e7c86,#6d28d9);position:relative;overflow:hidden;box-shadow:0 10px 28px #0006}
   .rm-hero:after{content:"🎙️";position:absolute;left:-6px;bottom:-18px;font-size:6.2rem;opacity:.16;transform:rotate(-14deg)}
   .rm-hero h2{margin:0 0 4px;font-size:1.25rem}.rm-hero p{margin:0 0 12px;opacity:.9;font-size:.9rem}
