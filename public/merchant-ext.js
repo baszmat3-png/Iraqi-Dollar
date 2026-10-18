@@ -290,14 +290,14 @@ ${fld('mxar', 'رمز الإحالة', '', code, 'readonly dir="ltr" style="opac
   /* ---------- دعوة الإحالة + المشاركة ---------- */
   const code = () => { try { return String(ucode({ e: S.acc.e })); } catch (e) { return ''; } };
   const invite = () => { const c = code(), link = location.origin + '/?ref=' + encodeURIComponent(c);
-    return `🌟 انضم إلى منصة «الدولار العراقي» 🌟\n\n✅ اشترِ عدادات واكسب نقاطاً يومياً\n✅ حوّل واسحب أرباحك بسهولة\n🎁 سجّل برمز الإحالة الخاص بي واستفد من المكافآت\n\n🔑 رمز الإحالة: ${c}\n🔗 رابط المنصة: ${link}`; };
+    return `🌟 انضم إلى منصة «الكنز العراقي» 🌟\n\n✅ اشترِ عدادات واكسب نقاطاً يومياً\n✅ حوّل واسحب أرباحك بسهولة\n🎁 سجّل برمز الإحالة الخاص بي واستفد من المكافآت\n\n🔑 رمز الإحالة: ${c}\n🔗 رابط المنصة: ${link}`; };
   function inviteDlg() {
     if (!S.acc) return;
     dlg(`<h2 style="margin-top:0">دعوة صديق</h2><div class="card" style="white-space:pre-line;line-height:1.9;padding:14px">${esc(invite())}</div><div class="g2" style="margin-top:10px"><button class="btn" data-a="mxinvc">نسخ الدعوة</button><button class="btn o" data-a="mxshare">${ic('share', 16)} مشاركة</button></div>`);
   }
   async function share() {
     const t = invite();
-    try { if (navigator.share) { await navigator.share({ title: 'الدولار العراقي', text: t }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+    try { if (navigator.share) { await navigator.share({ title: 'الكنز العراقي', text: t }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
     window.open('https://wa.me/?text=' + encodeURIComponent(t), '_blank', 'noopener');
   }
   const shareRow = () => '<button class="li" data-a="mxshare">' + ic('chev') + '<div class="sp"><b>مشاركة رمز الإحالة</b><div class="mu">أرسل دعوة جاهزة مع رابط المنصة لأصدقائك</div></div></button>';

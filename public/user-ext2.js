@@ -51,7 +51,7 @@
   /* ---- كليشة الدعوة ---- */
   const code = () => { try { return S.acc ? ucode({ e: S.acc.e }) : ''; } catch (e) { return ''; } };
   const link = () => location.origin + '/';
-  AVX.text = (c) => `🎁 دعوة للانضمام إلى منصة «الدولار العراقي»
+  AVX.text = (c) => `🎁 دعوة للانضمام إلى منصة «الكنز العراقي»
 
 اربح نقاطاً يومياً عبر العدادات، واشترِ من المتجر، وحوّل لأصدقائك بسهولة.
 
@@ -65,7 +65,7 @@
     const fb = () => { const x = document.createElement('textarea'); x.value = t; x.style.cssText = 'position:fixed;opacity:0'; document.body.append(x); x.select(); try { document.execCommand('copy'); say(msg); } catch (e) { say('تعذر النسخ'); } x.remove(); };
     try { navigator.clipboard.writeText(t).then(() => say(msg), fb); } catch (e) { fb(); }
   };
-  const shareText = (t) => { if (navigator.share) navigator.share({ title: 'الدولار العراقي', text: t }).catch(() => {}); else copyText(t, 'تم نسخ الدعوة'); };
+  const shareText = (t) => { if (navigator.share) navigator.share({ title: 'الكنز العراقي', text: t }).catch(() => {}); else copyText(t, 'تم نسخ الدعوة'); };
 
   AVX.inviteCard = () => { const c = code(); if (!c) return ''; return `<div class="card" id="avx-inv"><b style="font-size:1.1rem">ادعُ أصدقاءك واربح</b><p class="mu" style="margin:6px 0 10px">انسخ الدعوة الجاهزة أو شاركها مباشرة. تحصل على عمولة عندما يشتري صديقك عداداً برمزك <b dir="ltr" class="cy">${esc(c)}</b>.</p><div class="row"><button class="btn" data-avx="icopy">نسخ الدعوة</button><button class="btn o" data-avx="ishare">مشاركة</button></div></div>`; };
 

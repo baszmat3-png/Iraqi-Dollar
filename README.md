@@ -1,6 +1,6 @@
 # Iraqi Dollar – Application & Backend
 
-تطبيق الدولار العراقي (Iraqi Dollar) مبني باستخدام:
+تطبيق الكنز العراقي (Iraqi Dollar) مبني باستخدام:
 - **Backend**: Node.js + Express + PostgreSQL.
 - **Frontend**: واجهة مستخدم متجاوبة باللغة العربية (RTL) تُقدَّم من `public/index.html`.
 - **OTP Verification**: دعم التحقق بالبريد الإلكتروني عبر **Nodemailer**، ورسائل واتساب عبر **WP Sender API**.

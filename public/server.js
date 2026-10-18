@@ -277,7 +277,7 @@ app.post(['/api/otp/send-whatsapp', '/api/auth/send-whatsapp'], wrap(async (req,
 async function deliverOtpEmail(toEmail, code) {
   const html = `
     <div dir="rtl" style="font-family:sans-serif;max-width:500px;margin:auto;padding:24px;border:1px solid #1f2e3d;border-radius:12px;background:#0d1821;color:#fff">
-      <h2 style="color:#00d2c4;text-align:center;margin-top:0">تطبيق الدولار العراقي</h2>
+      <h2 style="color:#00d2c4;text-align:center;margin-top:0">تطبيق الكنز العراقي</h2>
       <p style="font-size:1.1rem;text-align:center">رمز تأكيد وتوثيق بريدك الإلكتروني هو:</p>
       <div style="font-size:2.4rem;font-weight:bold;letter-spacing:6px;text-align:center;padding:16px;background:#152636;color:#00e5ff;border-radius:8px;margin:20px 0">
         ${code}
@@ -296,7 +296,7 @@ async function deliverOtpEmail(toEmail, code) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          from: process.env.EMAIL_FROM || 'الدولار العراقي <onboarding@resend.dev>',
+          from: process.env.EMAIL_FROM || 'الكنز العراقي <onboarding@resend.dev>',
           to: [toEmail],
           subject: `رمز تأكيد البريد الإلكتروني: ${code}`,
           html
@@ -321,7 +321,7 @@ async function deliverOtpEmail(toEmail, code) {
           'Accept': 'application/json'
         },
         body: JSON.stringify({
-          sender: { name: 'الدولار العراقي', email: smtpUser || 'noreply@iraqidollar.com' },
+          sender: { name: 'الكنز العراقي', email: smtpUser || 'noreply@iraqidollar.com' },
           to: [{ email: toEmail }],
           subject: `رمز تأكيد البريد الإلكتروني: ${code}`,
           htmlContent: html
@@ -370,7 +370,7 @@ async function deliverOtpEmail(toEmail, code) {
         socketTimeout: 5000,
       });
       await t587.sendMail({
-        from: `"الدولار العراقي" <${smtpUser}>`,
+        from: `"الكنز العراقي" <${smtpUser}>`,
         to: toEmail,
         subject: `رمز تأكيد البريد الإلكتروني: ${code}`,
         html
@@ -392,7 +392,7 @@ async function deliverOtpEmail(toEmail, code) {
         socketTimeout: 5000,
       });
       await t465.sendMail({
-        from: `"الدولار العراقي" <${smtpUser}>`,
+        from: `"الكنز العراقي" <${smtpUser}>`,
         to: toEmail,
         subject: `رمز تأكيد البريد الإلكتروني: ${code}`,
         html
