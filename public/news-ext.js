@@ -75,7 +75,7 @@
 ${n.img ? `<img class="nw-img" loading="lazy" alt="" src="${E(n.img)}" onerror="this.remove()">` : ''}
 <div class="nw-d${openId[n.id] ? ' open' : ''}">${E(n.descr)}</div>
 ${long ? `<button class="nw-more" data-nw="more" data-id="${n.id}">${openId[n.id] ? 'عرض أقل' : 'قراءة المزيد'}</button>` : ''}
-<div class="nw-ft"><button class="nw-like${n.liked ? ' on' : ''}" data-nw="like" data-id="${n.id}" aria-label="إعجاب">${SVG_HEART}<span>${n.likes || 0}</span></button>${n.own ? `<button class="nw-del" data-nw="del" data-id="${n.id}">حذف خبري</button>` : ''}</div>
+<div class="nw-ft"><button class="nw-like${n.liked ? ' on' : ''}" data-nw="like" data-id="${n.id}" aria-label="إعجاب">${SVG_HEART}<span>${n.likes || 0}</span></button>${n.own ? `<button class="nw-del" data-nw="del" data-id="${n.id}">حذف خبري</button>` : `<button class="nw-del" data-nw="rep" data-id="${n.id}" style="color:inherit;opacity:.7">🚩 إبلاغ</button>`}</div>
 </article>`;
   };
   const inner = () => {
@@ -171,6 +171,14 @@ ${long ? `<button class="nw-more" data-nw="more" data-id="${n.id}">${openId[n.id
       try { const r = await J('/api/u/news/like', Object.assign({ id }, m)); n.liked = r.liked; n.likes = r.likes; }
       catch (x) { n.liked = !n.liked; n.likes = Math.max(0, (n.likes || 0) + (n.liked ? 1 : -1)); say(x.message); }
       sig = JSON.stringify(items); paint();
+      return;
+    }
+    if (a === 'rep') {
+      const m = me(); if (!m) return say('سجّل الدخول بحساب حقيقي للإبلاغ');
+      const why = prompt('سبب الإبلاغ عن هذا الخبر (محتوى مسيء، احتيال، إعلان مخالف...):');
+      if (why === null) return;
+      try { await J('/api/u/news/report', Object.assign({ id, reason: why }, m)); say('تم إرسال البلاغ، شكراً لك'); }
+      catch (x) { say(x.message); }
       return;
     }
     if (a === 'del') {

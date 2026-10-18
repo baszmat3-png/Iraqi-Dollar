@@ -221,3 +221,7 @@ AAB موقّع بمفتاح الرفع · رابط الخصوصية `/privacy-po
 - `email-otp-ext.js` (سيرفر) + `public/email-otp.js` (واجهة). الرمز يُولَّد ويُتحقق منه في السيرفر فقط، صالح 5 دقائق، 5 محاولات، وإعادة إرسال كل 60 ثانية.
 - الإرسال عبر نفس إعدادات Render الموجودة (Resend / Brevo / Webhook / SMTP). على الخطة المجانية استخدم Resend أو Brevo لأن منافذ SMTP محجوبة.
 - عند استبدال `server.js` أو `index.html` ببنية جديدة أبقِ هذين السطرين: `require('./email-otp-ext')(app, { pool, wrap, fail, sha, EM, deliver: deliverOtpEmail });` و `<script src="/email-otp.js?v=1"></script>`.
+
+## الإبلاغ عن الأخبار (سياسة المحتوى في Google Play)
+- زر «🚩 إبلاغ» تحت كل خبر لغير ناشره: `POST /api/u/news/report`. جدول `user_news_reports` يُنشأ تلقائياً.
+- 3 بلاغات تُخفي الخبر عن الجميع تلقائياً، وتظهر أعداد البلاغات في لوحة التحكم (أخبار المستخدمين) لتحذفه أو تتركه.

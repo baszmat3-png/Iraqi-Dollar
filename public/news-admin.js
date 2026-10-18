@@ -64,7 +64,7 @@
 <h3>${esc(n.title)}</h3>
 ${n.img ? `<img class="im" loading="lazy" alt="" src="${esc(n.img)}" onerror="this.remove()">` : ''}
 <div class="ds">${esc(n.descr)}</div>
-<div class="ft"><span class="lk">❤ ${n.likes || 0} إعجاب</span><button class="dl" data-del="${n.id}">🗑 حذف الخبر</button></div></div>`;
+<div class="ft"><span class="lk">❤ ${n.likes || 0} إعجاب${n.reports ? ` · <b style="color:#ff6b6b">🚩 ${n.reports} بلاغ</b>` : ''}</span><button class="dl" data-del="${n.id}">🗑 حذف الخبر</button></div></div>`;
   };
 
   function render() {
