@@ -1,0 +1,19 @@
+روابط تنزيل التطبيقات (آخر بناء تلقائي من GitHub Actions)
+=========================================================
+تطبيق المستخدمين (الكنز العراقي) APK:
+https://github.com/baszmat3-png/Iraqi-Dollar-App/releases/download/latest/app-release.apk
+
+تطبيق لوحة التحكم (الإدارة) APK:
+https://github.com/baszmat3-png/Iraqi-Dollar-App/releases/download/latest/admin-release.apk
+
+ملف Google Play (AAB):
+https://github.com/baszmat3-png/Iraqi-Dollar-App/releases/download/latest/app-release.aab
+(ملاحظة: هذا الـ AAB موقّع بمفتاح مؤقت؛ لرفعه على Play استخدم النسخة الموقّعة بمفتاح الرفع الدائم app-release-signed.aab)
+
+صفحة الإصدارات: https://github.com/baszmat3-png/Iraqi-Dollar-App/releases/tag/latest
+الموقع: https://iraqi-dollar-drjx.onrender.com
+لوحة التحكم على الويب: https://iraqi-dollar-drjx.onrender.com/admin
+سياسة الخصوصية: https://iraqi-dollar-drjx.onrender.com/privacy-policy.html
+حذف الحساب: https://iraqi-dollar-drjx.onrender.com/delete-account.html
+
+تنبيه: رابط تطبيق لوحة التحكم للإدارة فقط، لا تشاركه مع المستخدمين.
