@@ -46,6 +46,7 @@
 #nwo .em{text-align:center;color:var(--mu);padding:30px}
 `;
   document.head.appendChild(css);
+  { const g = document.createElement('style'); g.textContent = 'body:not(.stf-in) #nwb,body:not(.stf-in) #nwo{display:none!important}'; document.head.appendChild(g); }   // يظهر بعد دخول لوحة التحكم فقط كبقية الأزرار العائمة
 
   const btn = document.createElement('button'); btn.id = 'nwb'; btn.innerHTML = '📰 أخبار المستخدمين <i hidden></i>';
   const ov = document.createElement('div'); ov.id = 'nwo';
@@ -104,5 +105,5 @@ ${n.img ? `<img class="im" loading="lazy" alt="" src="${esc(n.img)}" onerror="th
     catch (x) { say(x.message); b.disabled = false; }
   });
   setTimeout(() => load(), 1500);
-  setInterval(() => { if (!ov.classList.contains('on') && !document.hidden) load(); }, 20000);
+  setInterval(() => { if (!ov.classList.contains('on') && !document.hidden && document.body.classList.contains('stf-in')) load(); }, 20000);
 })();

@@ -1156,6 +1156,7 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
         [email, ncOK ? ncName : String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), passHash, vml, vph, pn, gn, un, isDemo, isKyc, wb, ncOK, own]
       );
       let bp = null;
+      if (!own && !isDemo && !a.ro) bp = [Number(cur.rows[0].pts) || 0, Number(cur.rows[0].gems) || 0, Number(cur.rows[0].usd) || 0]; // جهاز غير موثَّق: يقرأ رصيد السيرفر فقط
       if (nm) { try { bp = await CLOUD.mergeBal(pool, email, String(req.body.cid || 'x').slice(0, 40), a.l, a.k); } catch (e3) { console.error('mergeBal', e3.message); } }
       if ((wb || nm) && a.ncl != null && (await colsReady)) {
         const nc = Math.max(0, Math.min(100000, Math.floor(Number(a.ncl)) || 0));

@@ -106,7 +106,11 @@ exports.mergeBal = async (pool, email, cid, l, k) => {
     const C = [num(cur.pts), num(cur.gems), num(cur.usd)];
     const dv = (await c.query('SELECT sp,sg,su,rp,rg,ru FROM dev_bal WHERE email=$1 AND cid=$2', [em, cid])).rows[0];
     let R;
-    if (!dv) R = [Math.max(C[0], L[0]), Math.max(C[1], L[1]), Math.max(C[2], L[2])];
+    if (!dv) {
+      // جهاز بلا سجل: إن كان للحساب أجهزة معروفة فالسيرفر هو المرجع (وإلا فقد يعيد جهاز قديم رصيداً مصفّراً/معدّلاً من الإدارة)؛ أول جهاز للحساب (ترحيل) يأخذ الأكبر
+      const known = (await c.query('SELECT 1 FROM dev_bal WHERE email=$1 LIMIT 1', [em])).rows.length > 0;
+      R = known ? C.slice() : [Math.max(C[0], L[0]), Math.max(C[1], L[1]), Math.max(C[2], L[2])];
+    }
     else {
       const sent = [num(dv.sp), num(dv.sg), num(dv.su)], ret = [num(dv.rp), num(dv.rg), num(dv.ru)];
       const base = eq(K, ret) ? ret : sent;   // لم يستلم الرد السابق => نقارن بما أرسله آخر مرة

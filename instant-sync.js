@@ -111,6 +111,26 @@ module.exports = (app, express, deps) => {
     busy = false;
   }, 1000);
 
+  /* ---------- دفع فوري لتغيّر الرصيد: أي تغيير في pts/gems/usd لحساب له جهاز متصل (من الإدارة أو من جهاز آخر) يصل لكل أجهزته خلال ثانية ---------- */
+  const lastBal = new Map();
+  let balBusy = false;
+  setInterval(async () => {
+    if (balBusy || !clients.size) { if (!clients.size) lastBal.clear(); return; }
+    balBusy = true;
+    try {
+      const em = [...new Set([...clients].map((c) => c.email).filter(Boolean))].slice(0, 2000);
+      if (em.length) {
+        const r = await pool.query('SELECT LOWER(email) e, pts, gems, usd FROM sync_accounts WHERE LOWER(email)=ANY($1::text[])', [em]);
+        r.rows.forEach((x) => {
+          const sig = String(x.pts) + '|' + String(x.gems) + '|' + String(x.usd), old = lastBal.get(x.e);
+          lastBal.set(x.e, sig);
+          if (old !== undefined && old !== sig) app.locals.broadcastStore({ k: 'bal' }, x.e);
+        });
+      }
+    } catch (e) { /* يعاود */ }
+    balBusy = false;
+  }, 1000);
+
   /* ---------- البحث بكود الإحالة أو البريد (للإدارة) ---------- */
   app.get('/api/ctl/find-code', ...ctl, wrap(async (req, res) => {
     const raw = String(req.query.code || '').trim().replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));

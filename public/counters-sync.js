@@ -74,7 +74,7 @@
         let sentBal = null;
         if (a && !a.demo) {
           if (balBusy && Date.now() - balBusy < 12000) a.ro = 1;
-          else { balBusy = Date.now(); sentBal = [a.pts, a.gems, a.usd]; a.l = sentBal.slice(); let k = null; try { k = JSON.parse(localStorage.getItem('bk:' + String(S.acc.e).toLowerCase()) || 'null'); } catch (x) {} if (k) a.k = k; }
+          else { lastRep = Date.now(); balBusy = Date.now(); sentBal = [a.pts, a.gems, a.usd]; a.l = sentBal.slice(); let k = null; try { k = JSON.parse(localStorage.getItem('bk:' + String(S.acc.e).toLowerCase()) || 'null'); } catch (x) {} if (k) a.k = k; }
         }
         if (a && !a.demo) {
           const H = getH(S.acc.e);
@@ -142,7 +142,7 @@
   setTimeout(fixMul, 500);
 
   // أوامر «شحن عداد» القديمة لم تعد تُطبَّق محلياً (كانت تضيف مرتين وتضيع إن لم يوجد حساب محلي)؛ السيرفر مرجع العدادات
-  const poll = () => { try { if (S.acc && !document.hidden) of('/api/sync/account-state?email=' + encodeURIComponent(S.acc.e), { cache: 'no-store' }).then((r) => r.ok ? r.json() : null).then((j) => { const A = j && j.account; if (A && Array.isArray(A.cl)) reconcile(A.email, A.cl, false); }).catch(() => {}); } catch (x) {} };
+  const poll = () => { try { if (S.acc && !document.hidden) of('/api/sync/account-state?email=' + encodeURIComponent(S.acc.e), { cache: 'no-store' }).then((r) => r.ok ? r.json() : null).then((j) => { const A = j && j.account; if (A && Array.isArray(A.cl)) reconcile(A.email, A.cl, false); try { if (A && S.acc && !S.acc.demo && same(A.email) && A.pts != null) { const k = JSON.parse(localStorage.getItem('bk:' + String(S.acc.e).toLowerCase()) || 'null'); if (!k || k[0] !== +A.pts || k[1] !== +A.gems || Math.abs(k[2] - +A.usd) > 0.004) { if (Date.now() - lastRep > 1500) syncReport(); } } } catch (x) {} }).catch(() => {}); } catch (x) {} };
   const oc = window.cmdRun;
   if (typeof oc === 'function') {
     window.cmdRun = function (b) {
@@ -159,6 +159,10 @@
       return oc.call(this, b);
     };
   }
+
+  // تغيّر رصيد الحساب على السيرفر (لوحة الإدارة أو جهاز آخر): مزامنة فورية بالفروقات
+  let lastRep = 0;
+  window.addEventListener('store-evt', (ev) => { try { if (ev && ev.detail && ev.detail.k === 'bal' && S.acc && !S.acc.demo && Date.now() - lastRep > 1500) syncReport(); } catch (x) {} });
 
   window.gcOne = function () { setTimeout(poll, 300); return 0; };
   setInterval(poll, 5000);
