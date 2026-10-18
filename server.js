@@ -127,7 +127,6 @@ const wrap = (fn) => (req, res) => fn(req, res).catch((e) => {
 const fail = (http, message) => { const e = new Error(message); e.http = http; throw e; };
 CLOUD.routes(app, { pool, wrap, fail }); // حالة الحساب السحابية
 require('./account-delete-ext')(app, { pool, wrap, fail }); // حذف الحساب (متطلب Google Play)
-require('./email-otp-ext')(app, { pool, wrap, fail, sha, EM, deliver: deliverOtpEmail }); // رمز تحقق البريد عند إنشاء الحساب
 
 async function tx(fn) {
   const c = await pool.connect();
@@ -1462,6 +1461,7 @@ AX.routes(app, { pool, wrap, ctl }); // المرحلة 1ب: الإدارة
 require('./pricing-ext').migrate(pool); // المرحلة 5: توحيد التسعيرة المنشورة
 MXT.routes(app, { pool, wrap, ctl }); // المرحلة 2: التجار + الصور الشخصية
 EXT5.routes(app, { pool, wrap, ctl, SYNC }); // المرحلة 5: شراء رموز الإحالة + حملات التبرع
+require('./email-otp-ext')(app, { pool, wrap, fail, sha, EM, deliver: deliverOtpEmail }); // رمز تحقق البريد عند إنشاء الحساب
 NEWSX.routes(app, { pool, wrap, ctl }); // أخبار المستخدمين
 require('./live-bal')(app, { pool, wrap, ctl }); // بثّ فوري لأرصدة كل المستخدمين للوحة التحكم
 SOC.routes(app, { pool, wrap, ctl }); // المرحلة 4: الأصدقاء + الرسائل + الإشعارات الفورية
