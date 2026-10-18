@@ -45,6 +45,11 @@ module.exports = (app, express, deps) => {
        id SERIAL PRIMARY KEY, title TEXT NOT NULL, url TEXT NOT NULL, active BOOLEAN NOT NULL DEFAULT TRUE, sort INT NOT NULL DEFAULT 0)`,
     `ALTER TABLE room_music ADD COLUMN IF NOT EXISTS cat TEXT NOT NULL DEFAULT 'other'`,
     `CREATE TABLE IF NOT EXISTS room_music_files(id SERIAL PRIMARY KEY, mime TEXT NOT NULL, data BYTEA NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
+    `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS bg BIGINT NOT NULL DEFAULT 0`,
+    `CREATE TABLE IF NOT EXISTS room_bg(room_id INT PRIMARY KEY, mime TEXT NOT NULL, data BYTEA NOT NULL)`,
+    `ALTER TABLE room_music_files ADD COLUMN IF NOT EXISTS room_id INT`,
+    `ALTER TABLE room_music_files ADD COLUMN IF NOT EXISTS title TEXT`,
+    `CREATE INDEX IF NOT EXISTS room_music_files_room_idx ON room_music_files(room_id)`,
     `CREATE TABLE IF NOT EXISTS room_settings(k TEXT PRIMARY KEY, v JSONB NOT NULL)`,
     `CREATE TABLE IF NOT EXISTS room_sales(
        id BIGSERIAL PRIMARY KEY, email TEXT NOT NULL, room_id INT, kind TEXT NOT NULL, pts BIGINT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
@@ -145,7 +150,7 @@ module.exports = (app, express, deps) => {
     const mic = new Map(); L.mics.forEach((s, i) => { if (s.email) mic.set(s.email, i); });
     return {
       room: {
-        id: L.row.id, name: L.row.name, descr: L.row.descr, emoji: L.row.emoji, theme: L.row.theme, mics: L.mics.length,
+        id: L.row.id, name: L.row.name, descr: L.row.descr, emoji: L.row.emoji, theme: L.row.theme, bg: Number(L.row.bg) || 0, mics: L.mics.length,
         openMic: L.row.open_mic, welcome: L.row.welcome, locked: !!L.row.pin, ownerUid: L.ownerUid, music: L.music,
       },
       members: [...L.members.values()].map((m) => ({
@@ -233,7 +238,7 @@ module.exports = (app, express, deps) => {
     await finIn(cl, 'rm:s:' + sid, me.email, kind === 'create' ? 'room_create' : 'room_mic', amount, kind === 'create' ? 'شراء روم' : 'رسوم مايك روم');
     return amount > 0 ? [await addCmd(cl, me.email, -amount, label, '')] : [];
   }
-  const pubRoom = (r, c) => ({ id: r.id, name: r.name, emoji: r.emoji, theme: r.theme, descr: r.descr, welcome: r.welcome || '', mics: r.mics, locked: !!r.pin, openMic: r.open_mic, n: c, active: r.active });
+  const pubRoom = (r, c) => ({ id: r.id, name: r.name, emoji: r.emoji, theme: r.theme, bg: Number(r.bg) || 0, descr: r.descr, welcome: r.welcome || '', mics: r.mics, locked: !!r.pin, openMic: r.open_mic, n: c, active: r.active });
 
   /* ======================= واجهة التطبيق ======================= */
   app.get('/api/rooms/config', wrap(async (_req, res) => {
@@ -468,6 +473,11 @@ module.exports = (app, express, deps) => {
           else fail(400, 'اختر موسيقى أولاً');
         } else if (op === 'pause') { if (L.music.playing) L.music = Object.assign({}, L.music, { playing: false, pos: L.music.pos + (now - L.music.ts) / 1000, ts: now }); }
         else if (op === 'stop') L.music = { url: '', title: '', playing: false, pos: 0, ts: 0 };
+        else if (op === 'del') {
+          const fid = num(b.id, 0, 0, 1e9), u = '/api/rooms/music/file/' + fid;
+          await q(`DELETE FROM room_music_files WHERE id=$1 AND room_id=$2`, [fid, L.row.id]);
+          if (L.music.url === u) L.music = { url: '', title: '', playing: false, pos: 0, ts: 0 };
+        }
         push(L); break;
       }
       case 'sig': { // تمرير إشارات WebRTC بين عضوين في نفس الروم
@@ -675,6 +685,59 @@ module.exports = (app, express, deps) => {
     await q(`DELETE FROM room_music WHERE id=$1`, [id]);
     const fm = r && /\/file\/(\d+)$/.exec(r.url); if (fm) await q(`DELETE FROM room_music_files WHERE id=$1`, [+fm[1]]);
     res.json({ ok: true });
+  }));
+
+  /* ---------- صورة خلفية الروم (صاحب الروم فقط) — تظهر لكل من في الروم ---------- */
+  const IMG_RE = /^image\/(jpeg|png|webp)$/;
+  async function ownRoom(e, h, id) {
+    const me = await acct(e, h), r = (await q(`SELECT id FROM rooms WHERE id=$1 AND active AND LOWER(owner_email)=$2`, [num(id, 0, 0, 1e9), me.email])).rows[0];
+    if (!r) fail(403, 'هذا الروم ليس لك'); return r.id;
+  }
+  app.post('/api/rooms/bg/upload', express.raw({ type: () => true, limit: '3mb' }), wrap(async (req, res) => {
+    const id = await ownRoom(req.get('x-e'), req.get('x-h'), req.get('x-id'));
+    const mime = String(req.get('x-mime') || '').toLowerCase().split(';')[0].trim();
+    if (!IMG_RE.test(mime)) fail(400, 'الصورة يجب أن تكون JPG أو PNG أو WebP');
+    const d = req.body; if (!Buffer.isBuffer(d) || d.length < 500) fail(400, 'الصورة غير صالحة');
+    const okMagic = (mime === 'image/jpeg' && d[0] === 0xff && d[1] === 0xd8) || (mime === 'image/png' && d[0] === 0x89 && d[1] === 0x50) || (mime === 'image/webp' && d.slice(0, 4).toString() === 'RIFF');
+    if (!okMagic) fail(400, 'الصورة غير صالحة');
+    const ver = Date.now();
+    await q(`INSERT INTO room_bg(room_id,mime,data) VALUES($1,$2,$3) ON CONFLICT (room_id) DO UPDATE SET mime=$2,data=$3`, [id, mime, d]);
+    await q(`UPDATE rooms SET bg=$2 WHERE id=$1`, [id, ver]);
+    const L = live.get(id); if (L) { L.row.bg = ver; push(L); }
+    res.json({ ok: true, bg: ver });
+  }));
+  app.post('/api/rooms/bg/remove', jsonBody, wrap(async (req, res) => {
+    const b = req.body || {}, id = await ownRoom(b.e, b.h, b.id);
+    await q(`DELETE FROM room_bg WHERE room_id=$1`, [id]); await q(`UPDATE rooms SET bg=0 WHERE id=$1`, [id]);
+    const L = live.get(id); if (L) { L.row.bg = 0; push(L); }
+    res.json({ ok: true });
+  }));
+  app.get('/api/rooms/bg/:id', wrap(async (req, res) => {
+    const r = (await q(`SELECT mime,data FROM room_bg WHERE room_id=$1`, [num(req.params.id, 0, 0, 1e9)])).rows[0]; if (!r) return res.status(404).end();
+    res.set({ 'Content-Type': r.mime, 'Cache-Control': 'public, max-age=31536000, immutable', 'Content-Length': r.data.length }); res.end(r.data);
+  }));
+
+  /* رفع ملف صوتي من صاحب الروم/المشرف ← يُحفظ على السيرفر ويُشغَّل للجميع فوراً */
+  const AUDIO_RE = /^audio\/(mpeg|mp3|mp4|aac|x-m4a|m4a|ogg|wav|x-wav|webm)$/;
+  app.post('/api/rooms/music/upload', express.raw({ type: () => true, limit: '11mb' }), wrap(async (req, res) => {
+    const ent = byTok.get(txt(req.get('x-tok'), 80)); if (!ent) fail(401, 'انتهت جلسة الروم، ادخل من جديد');
+    const { L, m } = ent; if (!isMod(L, m.email)) fail(403, 'لصاحب الروم والمشرفين فقط');
+    const now = Date.now(); if (m.up && now - m.up < 4000) fail(429, 'انتظر قليلاً قبل رفع مقطع آخر'); m.up = now;
+    const mime = String(req.get('x-mime') || '').toLowerCase().split(';')[0].trim();
+    if (!AUDIO_RE.test(mime)) fail(400, 'نوع الملف غير مدعوم (mp3 أو m4a أو ogg أو wav)');
+    if (!Buffer.isBuffer(req.body) || req.body.length < 2000) fail(400, 'الملف فارغ أو غير صالح');
+    let title = ''; try { title = clean(decodeURIComponent(String(req.get('x-title') || '')), 60); } catch (e) {}
+    title = title.replace(/\.(mp3|m4a|ogg|wav|aac|webm|mp4)$/i, '') || 'موسيقى';
+    const f = (await q(`INSERT INTO room_music_files(mime,data,room_id,title) VALUES($1,$2,$3,$4) RETURNING id`, [mime, req.body, L.row.id, title])).rows[0];
+    // نحتفظ بآخر 6 ملفات للروم فقط (ما عدا المشغَّل الآن)
+    await q(`DELETE FROM room_music_files WHERE room_id=$1 AND id NOT IN (SELECT id FROM room_music_files WHERE room_id=$1 ORDER BY id DESC LIMIT 6) AND id<>$2`, [L.row.id, f.id]);
+    L.music = { url: '/api/rooms/music/file/' + f.id, title, playing: true, pos: 0, ts: Date.now() };
+    push(L); res.json({ ok: true, id: f.id });
+  }));
+  app.get('/api/rooms/music/mine', wrap(async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const ent = byTok.get(txt(req.query.tok, 80)); if (!ent) fail(401, 'انتهت جلسة الروم');
+    res.json({ ok: true, files: (await q(`SELECT id,title FROM room_music_files WHERE room_id=$1 ORDER BY id DESC`, [ent.L.row.id])).rows.map((r) => ({ id: r.id, title: r.title || 'موسيقى', url: '/api/rooms/music/file/' + r.id })) });
   }));
   // مكتبة الموسيقى للمستخدمين
   app.get('/api/rooms/music', wrap(async (_req, res) => {
