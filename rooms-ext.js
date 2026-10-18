@@ -5,6 +5,8 @@
  *  - هدايا داخل الروم: نسبة لصاحب الروم + نسبة تُوزَّع بالتساوي على من بالروم (تُضبط من لوحة التحكم)
  *  - بث فوري عبر SSE + تمرير إشارات WebRTC (الصوت نفسه يمر بين الأجهزة مباشرة)
  *  - موسيقى خلفية متزامنة (رابط صوتي أو من مكتبة الإدارة)
+ *  - الأرباح: شراء الروم + رسوم المايكات + حصة التطبيق من الهدايا تُسجَّل في دفتر «المالية» (fin_ev) فتدخل في أرباح صاحب التطبيق
+ *  - الإشارات: طابور لكل عضو + دفعات (sigb) كي لا تضيع إشارة الاتصال قبل ربط البث
  *
  *  GET  /api/rooms/config      : الأسعار والنسب + خوادم ICE
  *  GET  /api/rooms/list        : الرومات النشطة
@@ -22,7 +24,7 @@ const NTHEMES = 8;
 module.exports = (app, express, deps) => {
   const { pool, wrap, ctl, fail } = deps;
   const q = (s, p) => pool.query(s, p);
-  const jsonBody = express.json({ limit: '24kb' });
+  const jsonBody = express.json({ limit: '96kb' });
 
   /* ======================= قاعدة البيانات ======================= */
   const ddl = [
@@ -44,11 +46,46 @@ module.exports = (app, express, deps) => {
     `CREATE TABLE IF NOT EXISTS room_settings(k TEXT PRIMARY KEY, v JSONB NOT NULL)`,
     `CREATE TABLE IF NOT EXISTS room_sales(
        id BIGSERIAL PRIMARY KEY, email TEXT NOT NULL, room_id INT, kind TEXT NOT NULL, pts BIGINT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
+    `CREATE INDEX IF NOT EXISTS room_sales_room_idx ON room_sales(room_id)`,
+    `CREATE INDEX IF NOT EXISTS room_gift_log_room_idx ON room_gift_log(room_id)`,
   ];
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  /* ---- ربط الأرباح بدفتر المالية (fin_ev): دينار لكل نقطة من إعدادات التطبيق ---- */
+  async function ptRate(cl) {
+    const r = (await (cl || pool).query(`SELECT val FROM sync_kv WHERE key='config'`)).rows[0];
+    const c = (r && r.val && r.val.cfg) || {};
+    return (Number(c.agRate) > 0 ? Number(c.agRate) : 132) / 1000;
+  }
+  async function finIn(cl, uid, email, cat, pts, note) {
+    pts = Math.floor(Number(pts) || 0); if (!(pts > 0)) return;
+    await cl.query('SAVEPOINT fin_sp'); // تسجيل الأرباح لا يجوز أن يُفشل عملية الشراء نفسها
+    try {
+      const pr = await ptRate(cl);
+      await cl.query(`INSERT INTO fin_ev(uid,email,kind,cat,pts,iqd,note,src) VALUES($1,$2,'in',$3,$4,$5,$6,'auto') ON CONFLICT DO NOTHING`,
+        [uid, email, cat, pts, Math.round(pts * pr * 100) / 100, txt(note, 80)]);
+      await cl.query('RELEASE SAVEPOINT fin_sp');
+    } catch (e) { console.error('rooms-ext fin log:', e.message); await cl.query('ROLLBACK TO SAVEPOINT fin_sp'); }
+  }
+  async function backfillFin() { // يملأ ما فات من مبيعات وهدايا الرومات السابقة (آمن للتكرار)
+    const pr = await ptRate();
+    await q(`INSERT INTO fin_ev(uid,ts,email,kind,cat,pts,iqd,note,src)
+      SELECT 'rm:s:'||s.id, s.created_at, s.email, 'in', CASE WHEN s.kind='create' THEN 'room_create' ELSE 'room_mic' END, s.pts,
+             ROUND((s.pts*$1::numeric),2), CASE WHEN s.kind='create' THEN 'شراء روم' ELSE 'رسوم مايك روم' END, 'auto'
+        FROM room_sales s WHERE s.pts>0 ON CONFLICT DO NOTHING`, [pr]);
+    await q(`INSERT INTO fin_ev(uid,ts,email,kind,cat,pts,iqd,note,src)
+      SELECT 'rm:g:'||g.id, g.created_at, g.from_email, 'in', 'room_gift', (g.total-g.owner_cut-g.aud_cut),
+             ROUND(((g.total-g.owner_cut-g.aud_cut)*$1::numeric),2), 'حصة التطبيق من هدية روم', 'auto'
+        FROM room_gift_log g WHERE (g.total-g.owner_cut-g.aud_cut)>0 ON CONFLICT DO NOTHING`, [pr]);
+  }
   const ready = (async () => {
     for (let t = 0; t < 10; t++) {
-      try { for (const s of ddl) await q(s); return; }
-      catch (e) { if (t === 9) throw e; await new Promise((r) => setTimeout(r, 1500)); }
+      try { for (const s of ddl) await q(s); break; }
+      catch (e) { if (t === 9) throw e; await sleep(1500); }
+    }
+    for (let t = 0; t < 6; t++) {
+      try { await backfillFin(); break; }
+      catch (e) { if (t === 5) console.error('rooms-ext fin backfill:', e.message); else await sleep(2500); }
     }
   })().catch((e) => console.error('rooms-ext schema:', e.message));
   app.use(['/api/rooms', '/api/ctl/rooms'], (_req, _res, next) => ready.then(() => next(), next));
@@ -72,8 +109,14 @@ module.exports = (app, express, deps) => {
   }
   function iceServers() {
     try { if (process.env.ROOMS_ICE_SERVERS) return JSON.parse(process.env.ROOMS_ICE_SERVERS); } catch (_) {}
-    const s = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
-    if (process.env.TURN_URL) s.push({ urls: process.env.TURN_URL.split(','), username: process.env.TURN_USER || '', credential: process.env.TURN_PASS || '' });
+    const s = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
+    if (process.env.TURN_URL) {
+      const urls = process.env.TURN_URL.split(',').map((x) => x.trim()).filter(Boolean);
+      if (process.env.TURN_SECRET) { // coturn (use-auth-secret): بيانات دخول مؤقتة 12 ساعة
+        const user = String(Math.floor(Date.now() / 1000) + 43200);
+        s.push({ urls, username: user, credential: crypto.createHmac('sha1', process.env.TURN_SECRET).update(user).digest('base64') });
+      } else s.push({ urls, username: process.env.TURN_USER || '', credential: process.env.TURN_PASS || '' });
+    }
     return s;
   }
 
@@ -88,6 +131,12 @@ module.exports = (app, express, deps) => {
   function write(m, ev, data) {
     if (!m.res) return;
     try { m.res.write(`event: ${ev}\ndata: ${JSON.stringify(data)}\n\n`); } catch (_) {}
+  }
+  function deliver(m, payload) { // إن لم يتصل بث العضو بعد نحفظ الإشارة ونُسلّمها فور اتصاله (كانت تضيع فيصمت الصوت)
+    if (m.res) return write(m, 'sig', payload);
+    const q2 = m.sq || (m.sq = []);
+    if (q2.length > 150) q2.shift();
+    q2.push({ p: payload, t: Date.now() });
   }
   function bcast(L, ev, data, except) { L.members.forEach((m) => { if (m.email !== except) write(m, ev, data); }); }
   function snapshot(L) {
@@ -140,9 +189,9 @@ module.exports = (app, express, deps) => {
     if (!L.members.size) { live.delete(L.row.id); pend.delete(L.row.id); return; }
     push(L);
   }
-  function closeLive(id, msg) {
+  function closeLive(id, ev) {
     const L = live.get(id); if (!L) return;
-    [...L.members.values()].forEach((m) => dropMember(L, m, 'closed'));
+    [...L.members.values()].forEach((m) => dropMember(L, m, ev || 'closed'));
     live.delete(id);
   }
   setInterval(() => { // نبض حفظ الاتصال
@@ -178,7 +227,8 @@ module.exports = (app, express, deps) => {
       await cl.query(`UPDATE sync_accounts SET pts=pts-$2 WHERE LOWER(email)=$1`, [me.email, amount]);
       await cl.query(`UPDATE users SET pts=GREATEST(0, pts-$2) WHERE LOWER(email)=$1`, [me.email, amount]);
     }
-    await cl.query(`INSERT INTO room_sales(email,room_id,kind,pts) VALUES($1,$2,$3,$4)`, [me.email, roomId || null, kind, amount]);
+    const sid = (await cl.query(`INSERT INTO room_sales(email,room_id,kind,pts) VALUES($1,$2,$3,$4) RETURNING id`, [me.email, roomId || null, kind, amount])).rows[0].id;
+    await finIn(cl, 'rm:s:' + sid, me.email, kind === 'create' ? 'room_create' : 'room_mic', amount, kind === 'create' ? 'شراء روم' : 'رسوم مايك روم');
     return amount > 0 ? [await addCmd(cl, me.email, -amount, label, '')] : [];
   }
   const pubRoom = (r, c) => ({ id: r.id, name: r.name, emoji: r.emoji, theme: r.theme, descr: r.descr, welcome: r.welcome || '', mics: r.mics, locked: !!r.pin, openMic: r.open_mic, n: c, active: r.active });
@@ -288,7 +338,7 @@ module.exports = (app, express, deps) => {
     if (old) dropMember(L, old, 'moved');
     live.set(id, L);
     const av = Number((await q(`SELECT (EXTRACT(EPOCH FROM updated_at)*1000)::bigint AS v FROM avatars WHERE email=$1`, [me.email]).catch(() => ({ rows: [] }))).rows[0]?.v) || 0;
-    const m = { email: me.email, uid: me.uid, name: me.name, av, tok: crypto.randomBytes(18).toString('hex'), res: null, gone: null, joined: Date.now(), n: 0, w: 0 };
+    const m = { email: me.email, uid: me.uid, name: me.name, av, tok: crypto.randomBytes(18).toString('hex'), res: null, gone: null, joined: Date.now(), n: 0, w: 0, sq: [] };
     L.members.set(me.email, m); byTok.set(m.tok, { L, m }); uidOf.set(me.email, id);
     if (!old) sys(L, '👋 ' + me.name + ' دخل الروم');
     push(L);
@@ -299,12 +349,19 @@ module.exports = (app, express, deps) => {
     const ent = byTok.get(txt(req.query.tok, 80));
     if (!ent) return res.status(401).end();
     const { L, m } = ent;
+    try { req.socket.setNoDelay(true); req.socket.setKeepAlive(true, 10000); req.socket.setTimeout(0); } catch (_) {}
     res.set({ 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
     res.flushHeaders && res.flushHeaders();
     if (m.res) { try { m.res.end(); } catch (_) {} }
     clearTimeout(m.gone); m.res = res;
-    res.write('retry: 2000\n\n');
+    res.write('retry: 1000\n:' + ' '.repeat(2048) + '\n\n'); // الحشو يُجبر الوسطاء (البروكسي) على تمرير البث فوراً بلا تخزين مؤقت
     write(m, 'state', snapshot(L));
+    // سلّم الإشارات المحجوزة (عروض اتصال وصلت قبل ربط البث)
+    const held = m.sq.splice(0); held.forEach((x) => { if (Date.now() - x.t < 25000) write(m, 'sig', x.p); });
+    // أخبر المتحدثين الحاليين أن هذا العضو صار قابلاً للاستقبال ليبدؤوا الاتصال به فوراً
+    L.mics.forEach((s2) => { if (s2.email && s2.email !== m.email) { const sp = L.members.get(s2.email); if (sp) write(sp, 'peerup', { uid: m.uid, j: m.joined }); } });
+    // وإن كان هو متحدثاً (إعادة اتصال) فليُعد كل المستمعين بناء الاستقبال منه
+    if (L.mics.some((s2) => s2.email === m.email)) write(m, 'peerup', { all: 1 });
     res.on('close', () => { // (res وليس req: في Node الحديث يُطلق req 'close' فور اكتمال الطلب)
       if (m.res !== res) return;
       m.res = null;
@@ -328,7 +385,7 @@ module.exports = (app, express, deps) => {
     if (!ent) fail(401, 'انتهت جلسة الروم، ادخل من جديد');
     const { L, m } = ent, a = txt(b.a, 20), now = Date.now();
     if (now - m.w > 10000) { m.w = now; m.n = 0; m.sn = 0; }
-    if (a === 'sig') { if (++m.sn > 1500) return res.json({ ok: true }); } else if (++m.n > 60) fail(429, 'بطّئ قليلاً');
+    if (a === 'sig' || a === 'sigb') { if (++m.sn > 1500) return res.json({ ok: true }); } else if (++m.n > 60) fail(429, 'بطّئ قليلاً');
     const mod = isMod(L, m.email), owner = m.email === L.row.owner;
     const tgt = () => { const t = byUid(L, txt(b.uid, 64)); if (!t) fail(404, 'المستخدم ليس في الروم'); return t; };
     const guardMod = (t) => { if (t.email === L.row.owner) fail(403, 'لا يمكن التحكم بصاحب الروم'); if (!owner && roleOf(L, t.email) === 'admin') fail(403, 'لا يمكن التحكم بمشرف آخر'); };
@@ -414,7 +471,17 @@ module.exports = (app, express, deps) => {
       case 'sig': { // تمرير إشارات WebRTC بين عضوين في نفس الروم
         const t = byUid(L, txt(b.to, 64)); if (!t) break;
         const d = b.d; if (!d || JSON.stringify(d).length > 9000) break;
-        write(t, 'sig', { from: m.uid, d }); break;
+        deliver(t, { from: m.uid, d }); break;
+      }
+      case 'sigb': { // دفعة إشارات في طلب واحد (أسرع وأقل ضغطاً من إشارة لكل طلب)
+        const list = Array.isArray(b.list) ? b.list.slice(0, 80) : []; let size = 0;
+        for (const it of list) {
+          const t = byUid(L, txt(it && it.to, 64)); if (!t || !it.d) continue;
+          const len = JSON.stringify(it.d).length; if (len > 9000) continue;
+          size += len; if (size > 160000) break;
+          deliver(t, { from: m.uid, d: it.d });
+        }
+        break;
       }
       default: fail(400, 'أمر غير معروف');
     }
@@ -460,10 +527,12 @@ module.exports = (app, express, deps) => {
         await cl.query(`UPDATE users SET pts=pts+$2 WHERE LOWER(email)=ANY($1)`, [aud, per]);
         for (const em of aud) cmds.push(await addCmd(cl, em, per, 'نصيب من هدية روم', g.name + (qty > 1 ? ' ×' + qty : '') + ' من ' + m.name));
       }
-      await cl.query(`INSERT INTO room_gift_log(room_id,from_email,gift_id,name,emoji,price,qty,total,owner_cut,aud_cut,aud_n) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-        [L.row.id, m.email, g.id, g.name, g.emoji, price, qty, total, ownerCut, per * aud.length, aud.length]);
+      const glog = (await cl.query(`INSERT INTO room_gift_log(room_id,from_email,gift_id,name,emoji,price,qty,total,owner_cut,aud_cut,aud_n) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+        [L.row.id, m.email, g.id, g.name, g.emoji, price, qty, total, ownerCut, per * aud.length, aud.length])).rows[0].id;
+      const appCut = total - ownerCut - per * aud.length; // حصة صاحب التطبيق (الباقي بعد صاحب الروم والحاضرين)
+      await finIn(cl, 'rm:g:' + glog, m.email, 'room_gift', appCut, 'حصة التطبيق من هدية ' + g.name + ' في ' + L.row.name);
       await cl.query(`UPDATE rooms SET gifts_total=gifts_total+$2, owner_earn=owner_earn+$3, last_active=NOW() WHERE id=$1`, [L.row.id, total, ownerCut]);
-      return { g, price, total, ownerCut, per, audN: aud.length, cmds, bal: Number(row.pts) - total };
+      return { g, price, total, ownerCut, per, audN: aud.length, appCut, cmds, bal: Number(row.pts) - total };
     });
     fire(out.cmds);
     const ev = { id: ++L.cid, from: m.uid, fromName: m.name, emoji: out.g.emoji, name: out.g.name, qty, total: out.total, to: tgt ? tgt.uid : '', toName: tgt ? tgt.name : '', t: Date.now() };
@@ -474,15 +543,79 @@ module.exports = (app, express, deps) => {
 
   /* ======================= لوحة التحكم ======================= */
   app.get('/api/ctl/rooms', ...ctl, wrap(async (_req, res) => {
-    const c = await cfg();
-    const rooms = (await q(`SELECT r.id,r.name,r.emoji,r.owner_email,r.mics,r.active,r.gifts_total::float8 gt,r.owner_earn::float8 oe,r.created_at FROM rooms r ORDER BY r.id DESC LIMIT 100`)).rows
-      .map((r) => Object.assign(r, { n: live.get(r.id) ? live.get(r.id).members.size : 0 }));
-    const st = (await q(`SELECT (SELECT COUNT(*)::int FROM rooms WHERE active) rooms, COALESCE((SELECT SUM(pts) FROM room_sales),0)::float8 sales,
-      COALESCE((SELECT SUM(total) FROM room_gift_log),0)::float8 gifts, COALESCE((SELECT SUM(owner_cut) FROM room_gift_log),0)::float8 oc,
-      COALESCE((SELECT SUM(aud_cut) FROM room_gift_log),0)::float8 ac`)).rows[0];
+    const c = await cfg(), pr = await ptRate();
+    const rooms = (await q(`SELECT r.id,r.name,r.emoji,r.descr,r.owner_email,r.mics,r.active,r.open_mic,(r.pin<>'') AS locked,
+        r.gifts_total::float8 gt,r.owner_earn::float8 oe,r.created_at,r.last_active,a.name AS oname,
+        COALESCE((SELECT SUM(s.pts) FROM room_sales s WHERE s.room_id=r.id),0)::float8 paid,
+        COALESCE((SELECT SUM(g.total-g.owner_cut-g.aud_cut) FROM room_gift_log g WHERE g.room_id=r.id),0)::float8 app_cut
+      FROM rooms r LEFT JOIN sync_accounts a ON LOWER(a.email)=LOWER(r.owner_email) ORDER BY r.active DESC, r.id DESC LIMIT 200`)).rows
+      .map((r) => Object.assign(r, { n: live.get(r.id) ? live.get(r.id).members.size : 0, spk: live.get(r.id) ? live.get(r.id).mics.filter((x) => x.email).length : 0 }));
+    const st = (await q(`SELECT
+      (SELECT COUNT(*)::int FROM rooms WHERE active) rooms, (SELECT COUNT(*)::int FROM rooms) rooms_all,
+      COALESCE((SELECT SUM(pts) FROM room_sales WHERE kind='create'),0)::float8 create_pts, (SELECT COUNT(*)::int FROM room_sales WHERE kind='create' AND pts>0) create_n,
+      COALESCE((SELECT SUM(pts) FROM room_sales WHERE kind='mic'),0)::float8 mic_pts, (SELECT COUNT(*)::int FROM room_sales WHERE kind='mic' AND pts>0) mic_n,
+      COALESCE((SELECT SUM(pts) FROM room_sales),0)::float8 sales,
+      COALESCE((SELECT SUM(total) FROM room_gift_log),0)::float8 gifts, (SELECT COUNT(*)::int FROM room_gift_log) gift_n,
+      COALESCE((SELECT SUM(owner_cut) FROM room_gift_log),0)::float8 oc, COALESCE((SELECT SUM(aud_cut) FROM room_gift_log),0)::float8 ac`)).rows[0];
+    st.app_gift = st.gifts - st.oc - st.ac;
+    st.profit = st.sales + st.app_gift;
+    const per = (await q(`SELECT
+      COALESCE((SELECT SUM(pts) FROM room_sales WHERE created_at > NOW()-INTERVAL '1 day'),0)::float8 s1,
+      COALESCE((SELECT SUM(pts) FROM room_sales WHERE created_at > NOW()-INTERVAL '7 days'),0)::float8 s7,
+      COALESCE((SELECT SUM(pts) FROM room_sales WHERE created_at > NOW()-INTERVAL '30 days'),0)::float8 s30,
+      COALESCE((SELECT SUM(total-owner_cut-aud_cut) FROM room_gift_log WHERE created_at > NOW()-INTERVAL '1 day'),0)::float8 g1,
+      COALESCE((SELECT SUM(total-owner_cut-aud_cut) FROM room_gift_log WHERE created_at > NOW()-INTERVAL '7 days'),0)::float8 g7,
+      COALESCE((SELECT SUM(total-owner_cut-aud_cut) FROM room_gift_log WHERE created_at > NOW()-INTERVAL '30 days'),0)::float8 g30`)).rows[0];
+    st.d1 = per.s1 + per.g1; st.d7 = per.s7 + per.g7; st.d30 = per.s30 + per.g30;
+    st.pr = pr; // دينار لكل نقطة
     const music = (await q(`SELECT id,title,url,active,sort FROM room_music ORDER BY sort,id`)).rows;
-    const live_n = [...live.values()].reduce((s, L) => s + L.members.size, 0);
+    const live_n = [...live.values()].reduce((x, L) => x + L.members.size, 0);
     res.json({ ok: true, cfg: c, rooms, stats: Object.assign(st, { live: live_n }), music });
+  }));
+  app.get('/api/ctl/rooms/detail', ...ctl, wrap(async (req, res) => { // تفاصيل روم واحد للإدارة
+    const id = num(req.query.id, 0, 0, 1e9);
+    const r = (await q(`SELECT r.*, a.name AS oname, a.uid AS ouid FROM rooms r LEFT JOIN sync_accounts a ON LOWER(a.email)=LOWER(r.owner_email) WHERE r.id=$1`, [id])).rows[0];
+    if (!r) fail(404, 'الروم غير موجود');
+    const sales = (await q(`SELECT kind,COUNT(*)::int n,COALESCE(SUM(pts),0)::float8 pts FROM room_sales WHERE room_id=$1 GROUP BY kind`, [id])).rows;
+    const gs = (await q(`SELECT COUNT(*)::int n,COALESCE(SUM(total),0)::float8 total,COALESCE(SUM(owner_cut),0)::float8 oc,COALESCE(SUM(aud_cut),0)::float8 ac FROM room_gift_log WHERE room_id=$1`, [id])).rows[0];
+    const gifts = (await q(`SELECT g.name,g.emoji,g.qty,g.total::float8 total,g.owner_cut::float8 owner_cut,g.aud_cut::float8 aud_cut,g.aud_n,g.created_at,COALESCE(a.name,g.from_email) AS frm
+      FROM room_gift_log g LEFT JOIN sync_accounts a ON LOWER(a.email)=LOWER(g.from_email) WHERE g.room_id=$1 ORDER BY g.id DESC LIMIT 30`, [id])).rows;
+    const admins = (await q(`SELECT email FROM room_admins WHERE room_id=$1`, [id])).rows.map((x) => x.email);
+    const bans = (await q(`SELECT email FROM room_bans WHERE room_id=$1`, [id])).rows.map((x) => x.email);
+    const L = live.get(id);
+    const members = L ? [...L.members.values()].map((m) => ({ uid: m.uid, name: m.name, email: m.email, role: roleOf(L, m.email), mic: L.mics.findIndex((x) => x.email === m.email) })) : [];
+    res.json({ ok: true, room: { id: r.id, name: r.name, descr: r.descr, emoji: r.emoji, theme: r.theme, mics: r.mics, open_mic: r.open_mic, pin: r.pin, welcome: r.welcome,
+      active: r.active, owner_email: r.owner_email, oname: r.oname || '', ouid: r.ouid || '', created_at: r.created_at, last_active: r.last_active }, sales, gs, gifts, admins, bans, members });
+  }));
+  app.post('/api/ctl/rooms/update', ...ctl, jsonBody, wrap(async (req, res) => { // تعديل روم من لوحة التحكم
+    const b = req.body || {}, id = num(b.id, 0, 0, 1e9);
+    const r = (await q(`SELECT * FROM rooms WHERE id=$1`, [id])).rows[0]; if (!r) fail(404, 'الروم غير موجود');
+    const f = {
+      name: b.name != null ? clean(b.name, 40) : r.name, descr: b.descr != null ? clean(b.descr, 120) : r.descr,
+      welcome: b.welcome != null ? clean(b.welcome, 160) : r.welcome, mics: b.mics != null ? num(b.mics, r.mics, 1, 12) : r.mics,
+      open_mic: b.openMic != null ? !!b.openMic : r.open_mic, pin: b.clearPin ? '' : r.pin, active: b.active != null ? !!b.active : r.active,
+    };
+    if (f.name.length < 3) fail(400, 'اسم الروم قصير (3 أحرف على الأقل)');
+    await q(`UPDATE rooms SET name=$2,descr=$3,welcome=$4,mics=$5,open_mic=$6,pin=$7,active=$8 WHERE id=$1`, [id, f.name, f.descr, f.welcome, f.mics, f.open_mic, f.pin, f.active]);
+    if (b.unbanAll) { await q(`DELETE FROM room_bans WHERE room_id=$1`, [id]); const L0 = live.get(id); if (L0) L0.bans.clear(); }
+    const L = live.get(id);
+    if (!f.active) closeLive(id);
+    else if (b.eject) closeLive(id, 'kicked');
+    else if (L) {
+      Object.assign(L.row, { name: f.name, descr: f.descr, welcome: f.welcome, open_mic: f.open_mic, pin: f.pin }); L.row.mics = f.mics;
+      while (L.mics.length < f.mics) L.mics.push({ email: '', locked: false });
+      while (L.mics.length > f.mics) { const sl = L.mics.pop(); if (sl.email) { const t = L.members.get(sl.email); if (t) write(t, 'unseat', {}); } }
+      push(L);
+    }
+    res.json({ ok: true });
+  }));
+  app.post('/api/ctl/rooms/kick', ...ctl, jsonBody, wrap(async (req, res) => { // طرد/حظر متواجد من لوحة التحكم
+    const b = req.body || {}, id = num(b.id, 0, 0, 1e9), L = live.get(id);
+    const t = L && byUid(L, txt(b.uid, 64)); if (!t) fail(404, 'المستخدم ليس في الروم الآن');
+    if (b.ban) { L.bans.add(t.email); await q(`INSERT INTO room_bans(room_id,email) VALUES($1,$2) ON CONFLICT DO NOTHING`, [id, t.email]); }
+    sys(L, '🚫 ' + t.name + (b.ban ? ' تم حظره من الروم' : ' تم طرده من الروم'));
+    dropMember(L, t, b.ban ? 'banned' : 'kicked');
+    res.json({ ok: true });
   }));
   app.post('/api/ctl/rooms/config', ...ctl, jsonBody, wrap(async (req, res) => {
     const b = req.body || {};
