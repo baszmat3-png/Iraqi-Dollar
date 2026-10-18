@@ -75,7 +75,7 @@
 ${n.img ? `<img class="nw-img" loading="lazy" alt="" src="${E(n.img)}" onerror="this.remove()">` : ''}
 <div class="nw-d${openId[n.id] ? ' open' : ''}">${E(n.descr)}</div>
 ${long ? `<button class="nw-more" data-nw="more" data-id="${n.id}">${openId[n.id] ? 'عرض أقل' : 'قراءة المزيد'}</button>` : ''}
-<div class="nw-ft"><button class="nw-like${n.liked ? ' on' : ''}" data-nw="like" data-id="${n.id}" aria-label="إعجاب">${SVG_HEART}<span>${n.likes || 0}</span></button>${n.own ? `<button class="nw-del" data-nw="del" data-id="${n.id}">حذف خبري</button>` : `<button class="nw-del" data-nw="rep" data-id="${n.id}" style="color:inherit;opacity:.7">🚩 إبلاغ</button>`}</div>
+<div class="nw-ft"><button class="nw-like${n.liked ? ' on' : ''}" data-nw="like" data-id="${n.id}" aria-label="إعجاب">${SVG_HEART}<span>${n.likes || 0}</span></button>${n.own ? `<button class="nw-del" data-nw="del" data-id="${n.id}">حذف خبري</button>` : ''}</div>
 </article>`;
   };
   const inner = () => {
@@ -173,18 +173,27 @@ ${long ? `<button class="nw-more" data-nw="more" data-id="${n.id}">${openId[n.id
       sig = JSON.stringify(items); paint();
       return;
     }
-    if (a === 'rep') {
-      const m = me(); if (!m) return say('سجّل الدخول بحساب حقيقي للإبلاغ');
-      const why = prompt('سبب الإبلاغ عن هذا الخبر (محتوى مسيء، احتيال، إعلان مخالف...):');
-      if (why === null) return;
-      try { await J('/api/u/news/report', Object.assign({ id, reason: why }, m)); say('تم إرسال البلاغ، شكراً لك'); }
-      catch (x) { say(x.message); }
-      return;
-    }
     if (a === 'del') {
       const m = me(); if (!m || !confirm('حذف هذا الخبر؟')) return;
       try { await J('/api/u/news/delete', Object.assign({ id }, m)); items = items.filter((x) => x.id !== id); window._unews = items; sig = JSON.stringify(items); paint(); say('تم حذف الخبر'); }
       catch (x) { say(x.message); }
     }
   }, true);
+
+  /* ---------- تركيب ذاتي في الرئيسية (تحت «آخر الأخبار والعروض») إن لم يستدعِ index.html الدالة nwStrip() ---------- */
+  (function () {
+    function mount() {
+      try {
+        if (typeof S === 'undefined' || S.r !== 'home') return;
+        const a = document.getElementById('app'); if (!a || a.querySelector('.nw-sec')) return;
+        const an = a.querySelectorAll('button.ic[data-r="news"]'); let ref = an.length ? an[an.length - 1] : null;
+        if (!ref) { const g = a.querySelectorAll('.g2'); ref = g.length ? g[g.length - 1] : null; }
+        if (!ref) return;
+        ref.insertAdjacentHTML('afterend', window.nwStrip());
+      } catch (x) {}
+    }
+    const a = document.getElementById('app');
+    if (a) { let t = 0; new MutationObserver(() => { if (t) return; t = requestAnimationFrame(() => { t = 0; mount(); }); }).observe(a, { childList: true }); }
+    mount(); setTimeout(mount, 800);
+  })();
 })();
