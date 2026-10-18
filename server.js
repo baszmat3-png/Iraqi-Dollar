@@ -113,7 +113,7 @@ const CLOUD = require('./cloud-state-ext'); CLOUD.parsers(app, express); // مز
 require('./poke-ext')(app); // مزامنة فورية لكل الأقسام
 app.use(helmet({ contentSecurityPolicy: { useDefaults: false, directives: {
   // توجيهات آمنة لا تكسر السكربتات الحالية: منع التضمين في مواقع أخرى (clickjacking) ومنع الإضافات القديمة
-  'default-src': [helmet.contentSecurityPolicy.dangerouslyDisableDefaultSrc || "* data: blob: 'unsafe-inline' 'unsafe-eval'"],
+  'default-src': helmet.contentSecurityPolicy.dangerouslyDisableDefaultSrc || ["*", 'data:', 'blob:', "'unsafe-inline'", "'unsafe-eval'"],
   'frame-ancestors': ["'self'"], 'object-src': ["'none'"], 'base-uri': ["'self'"], 'form-action': ["'self'"],
 } } }));
 // نافذة Google المنبثقة تحتاج هذا (القيمة الافتراضية same-origin في helmet تمنع إرجاع نتيجة الدخول للصفحة)
