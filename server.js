@@ -275,14 +275,8 @@ const stateOf = (s) => ({
 });
 
 /* ---------- Dedicated OTP Routes (Fast, Unthrottled by CGNAT IP block) ---------- */
-app.post(['/api/otp/send-whatsapp', '/api/auth/send-whatsapp'], wrap(async (req, res) => {
-  const phone = normPhone(req.body.to || req.body.phone || '');
-  const code = String(req.body.code || '').trim();
-  const msg = req.body.message ? String(req.body.message) : undefined;
-  if (!code && !msg) fail(400, 'الرمز مطلوب');
-  await sendWhatsApp(phone, code, msg);
-  res.json({ ok: true });
-}));
+// أُغلق: كان يسمح لأي شخص بإرسال رسائل واتساب عبر حسابك. الرموز تُرسل الآن من /api/otp/wa/start
+app.post(['/api/otp/send-whatsapp', '/api/auth/send-whatsapp'], (_req, res) => res.status(410).json({ error: 'تم إيقاف هذا المسار' }));
 
 async function deliverOtpEmail(toEmail, code) {
   const html = `
@@ -417,28 +411,8 @@ async function deliverOtpEmail(toEmail, code) {
   throw new Error('خدمة إرسال البريد غير مفعلة، يرجى ضبط بريد الإرسال أو مفتاح API في Render');
 }
 
-app.post('/api/otp/send-email', wrap(async (req, res) => {
-  const email = String(req.body.email || '').trim().toLowerCase();
-  const code = String(req.body.code || '').trim();
-  if (!email || !EM.test(email)) fail(400, 'بريد إلكتروني غير صحيح');
-  if (!code) fail(400, 'الرمز مطلوب');
-
-  try {
-    const r = await deliverOtpEmail(email, code);
-    res.json({
-      ok: true,
-      emailSent: true,
-      provider: r.provider,
-      notice: 'تم إرسال رمز التحقق إلى بريدك الإلكتروني (' + email + ') بنجاح ✓'
-    });
-  } catch (e) {
-    console.error('Email delivery error:', e.message);
-    const msg = e.message.includes('timeout')
-      ? 'تعذر الاتصال بخادم البريد (خطة Render المجانية تحظر منافذ SMTP، استخدم واتساب أو اربط Brevo/Resend API)'
-      : ('تعذر إرسال البريد الإلكتروني: ' + e.message);
-    res.status(500).json({ ok: false, error: msg, can_fallback_wa: true });
-  }
-}));
+// أُغلق: كان يسمح لأي شخص بإرسال بريد برمز من اختياره عبر حسابك. استخدم /api/otp/email/start
+app.post('/api/otp/send-email', (_req, res) => res.status(410).json({ error: 'تم إيقاف هذا المسار' }));
 
 /* ---------- Multi-device Account Sync & Login Routes ---------- */
 app.post('/api/sync/account-register', wrap(async (req, res) => {
@@ -454,9 +428,9 @@ app.post('/api/sync/account-register', wrap(async (req, res) => {
     `INSERT INTO sync_accounts(email, name, phone, pass_hash, pts, gems, usd, vml, vph, last_seen)
      VALUES($1, $2, $3, $4, 0, 0, 0, FALSE, TRUE, NOW())
      ON CONFLICT (email) DO UPDATE SET
-       name=EXCLUDED.name,
-       phone=EXCLUDED.phone,
-       pass_hash=COALESCE(EXCLUDED.pass_hash, sync_accounts.pass_hash),
+       name=CASE WHEN COALESCE(sync_accounts.pass_hash,'')='' OR sync_accounts.pass_hash=EXCLUDED.pass_hash THEN EXCLUDED.name ELSE sync_accounts.name END,
+       phone=CASE WHEN COALESCE(sync_accounts.pass_hash,'')='' OR sync_accounts.pass_hash=EXCLUDED.pass_hash THEN EXCLUDED.phone ELSE sync_accounts.phone END,
+       pass_hash=CASE WHEN COALESCE(sync_accounts.pass_hash,'')='' THEN NULLIF(EXCLUDED.pass_hash,'') ELSE sync_accounts.pass_hash END,
        last_seen=NOW()`,
     [email, name, phone, pass_hash]
   );
@@ -541,8 +515,7 @@ app.post('/api/sync/otp-login-request', wrap(async (req, res) => {
     const ru = await pool.query(`SELECT * FROM users WHERE LOWER(email)=LOWER($1) OR phone=$1 OR phone=$2 LIMIT 1`, [ident, cleanPh]);
     acc = ru.rows[0];
   }
-  if (!acc) fail(404, 'لم يتم العثور على حساب مسجل بهذه البيانات');
-  if (acc.blk || acc.banned) fail(403, 'هذا الحساب محظور');
+  if (!acc || acc.blk || acc.banned) return res.json({ ok: true }); // لا نكشف وجود الحساب
 
   const code = String(crypto.randomInt(100000, 999999));
   const targetPhone = acc.phone || cleanPh;
@@ -554,7 +527,7 @@ app.post('/api/sync/otp-login-request', wrap(async (req, res) => {
   );
 
   await sendWhatsApp(targetPhone, code, `رمز تسجيل الدخول الخاص بك هو: ${code}\nصالح لمدة 5 دقائق، لا تشاركه مع أي شخص.`);
-  res.json({ ok: true, phone: targetPhone, email: acc.email });
+  res.json({ ok: true });
 }));
 
 app.post('/api/sync/otp-login-verify', wrap(async (req, res) => {
@@ -1152,15 +1125,15 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
       await pool.query(
         `UPDATE sync_accounts SET
           name=CASE WHEN COALESCE(name,'')='' THEN $2 WHEN $13::boolean THEN $2 ELSE name END,
-          phone=COALESCE($3, phone),
-          pass_hash=COALESCE($4, pass_hash),
-          vml=CASE WHEN $5 THEN TRUE ELSE vml END,
-          vph=CASE WHEN $6 THEN TRUE ELSE vph END,
+          phone=CASE WHEN $14::boolean THEN COALESCE($3, phone) ELSE phone END,
+          pass_hash=CASE WHEN $14::boolean AND COALESCE(pass_hash,'')='' THEN $4 ELSE pass_hash END,
+          vml=CASE WHEN $5 AND $14::boolean THEN TRUE ELSE vml END,
+          vph=CASE WHEN $6 AND $14::boolean THEN TRUE ELSE vph END,
           pts=CASE WHEN $12::boolean THEN $7 ELSE pts END, gems=CASE WHEN $12::boolean THEN $8 ELSE gems END, usd=CASE WHEN $12::boolean THEN $9 ELSE usd END,
-          demo=$10, kyc=(kyc OR $11::boolean),
+          demo=CASE WHEN $14::boolean THEN $10 ELSE demo END, kyc=kyc, /* التوثيق (KYC) يحدده السيرفر/الإدارة فقط، لا العميل */
           last_seen=NOW()
          WHERE LOWER(email)=LOWER($1)`,
-        [email, ncOK ? ncName : String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), passHash, vml, vph, pn, gn, un, isDemo, isKyc, wb, ncOK]
+        [email, ncOK ? ncName : String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), passHash, vml, vph, pn, gn, un, isDemo, isKyc, wb, ncOK, own]
       );
       let bp = null;
       if (nm) { try { bp = await CLOUD.mergeBal(pool, email, String(req.body.cid || 'x').slice(0, 40), a.l, a.k); } catch (e3) { console.error('mergeBal', e3.message); } }
@@ -1200,7 +1173,7 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
         `INSERT INTO sync_accounts(email,name,phone,demo,pts,gems,usd,blk,kyc,pass_hash,vml,vph,last_seen)
          VALUES($1,$2,$3,$4,$9,$10,$11,FALSE,$5,$6,$7,$8,NOW())`,
         [email, String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), isDemo,
-         isKyc, passHash, vml, vph, pn, gn, un]
+         false, passHash, vml, vph, pn, gn, un]
       );
       returnedAccounts.push({
         e: email,
@@ -1461,7 +1434,7 @@ AX.routes(app, { pool, wrap, ctl }); // المرحلة 1ب: الإدارة
 require('./pricing-ext').migrate(pool); // المرحلة 5: توحيد التسعيرة المنشورة
 MXT.routes(app, { pool, wrap, ctl }); // المرحلة 2: التجار + الصور الشخصية
 EXT5.routes(app, { pool, wrap, ctl, SYNC }); // المرحلة 5: شراء رموز الإحالة + حملات التبرع
-require('./email-otp-ext')(app, { pool, wrap, fail, sha, EM, deliver: deliverOtpEmail }); // رمز تحقق البريد عند إنشاء الحساب
+require('./email-otp-ext')(app, { pool, wrap, fail, sha, EM, deliver: deliverOtpEmail, wa: sendWhatsApp, normPhone }); // رمز تحقق البريد عند إنشاء الحساب
 NEWSX.routes(app, { pool, wrap, ctl }); // أخبار المستخدمين
 require('./live-bal')(app, { pool, wrap, ctl }); // بثّ فوري لأرصدة كل المستخدمين للوحة التحكم
 SOC.routes(app, { pool, wrap, ctl }); // المرحلة 4: الأصدقاء + الرسائل + الإشعارات الفورية
