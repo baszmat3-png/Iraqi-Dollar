@@ -241,7 +241,7 @@ ${o.status !== 'disputed' ? '<button class="b pu" style="margin-top:8px;width:10
 (function () {
   if (window.__stfGate) return; window.__stfGate = 1;
   const st = document.createElement('style');
-  st.textContent = 'body:not(.stf-in) #axb,body:not(.stf-in) #axo,body:not(.stf-in) #pab,body:not(.stf-in) #pao,body:not(.stf-in) #paz{display:none!important}';
+  st.textContent = 'body:not(.stf-in) #axb,body:not(.stf-in) #axo,body:not(.stf-in) #pab,body:not(.stf-in) #pao,body:not(.stf-in) #paz,body:not(.stf-in) #nwb,body:not(.stf-in) #nwo{display:none!important}';
   document.head.appendChild(st);
   const chk = () => { document.body.classList.toggle('stf-in', !!document.querySelector('[data-a="stfout"]')); };
   let q = 0;
