@@ -113,6 +113,8 @@ const CLOUD = require('./cloud-state-ext'); CLOUD.parsers(app, express); // مز
 require('./poke-ext')(app); // مزامنة فورية لكل الأقسام
 app.use(helmet({ contentSecurityPolicy: { useDefaults: false, directives: {
   // توجيهات آمنة لا تكسر السكربتات الحالية: منع التضمين في مواقع أخرى (clickjacking) ومنع الإضافات القديمة
+  // إصلاح: كانت القيمة تعتمد على helmet.contentSecurityPolicy.dangerouslyDisableDefaultSrc (رمز Symbol غير مدعوم في هذه النسخة) فيفشل الإقلاع. القائمة الصريحة تعمل في كل النسخ.
+  'default-src': ["*", 'data:', 'blob:', "'unsafe-inline'", "'unsafe-eval'"],
   'frame-ancestors': ["'self'"], 'object-src': ["'none'"], 'base-uri': ["'self'"], 'form-action': ["'self'"],
 } } }));
 // نافذة Google المنبثقة تحتاج هذا (القيمة الافتراضية same-origin في helmet تمنع إرجاع نتيجة الدخول للصفحة)
@@ -1138,10 +1140,7 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
           `SELECT 1 FROM sync_cmds WHERE id>$1 AND body->>'t' IN ('adj','set','rz','rc') AND (body->>'e' IS NULL OR LOWER(body->>'e')=LOWER($2)) LIMIT 1`, [cv, email])).rows.length > 0;
       }
       const nm = own && !isDemo && Array.isArray(a.l) && a.l.length === 3; // عميل جديد: دمج الأرصدة بالفروقات
-      // الكتابة المطلقة للرصيد من الأجهزة معطّلة: كانت تسمح لجهاز/صفحة قديمة بمسح الشحن أو مضاعفته فيختلف رقم اللوحة عن رقم المستخدم.
-      // الرصيد المرجعي على السيرفر؛ والأجهزة تُرسل فروقاً فقط (/api/bal/push) أو الدمج بالفروقات (l/k) للإصدارات الأقدم.
-      const ownWrite = own && !pending && !nm && !a.ro; // يملك صلاحية تحديث بيانات العدادات
-      const wb = process.env.SYNC_LEGACY_ABS === '1' && ownWrite;
+      const wb = own && !pending && !nm && !a.ro;
       // تغيير الاسم من إعدادات المستخدم: يُقبل من جهاز صاحب الحساب فقط وما دام الحساب غير موثّق (بعد التوثيق يُقفل الاسم نهائياً)
       const ncName = String(a.n || '').trim().replace(/\s+/g, ' ').slice(0, 80);
       const ncOK = own && !!a.nc && !cur.rows[0].kyc && ncName.length >= 3;
@@ -1159,8 +1158,9 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
         [email, ncOK ? ncName : String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), passHash, vml, vph, pn, gn, un, isDemo, isKyc, wb, ncOK, own]
       );
       let bp = null;
+      if (!own && !isDemo && !a.ro) bp = [Number(cur.rows[0].pts) || 0, Number(cur.rows[0].gems) || 0, Number(cur.rows[0].usd) || 0]; // جهاز غير موثَّق: يقرأ رصيد السيرفر فقط
       if (nm) { try { bp = await CLOUD.mergeBal(pool, email, String(req.body.cid || 'x').slice(0, 40), a.l, a.k); } catch (e3) { console.error('mergeBal', e3.message); } }
-      if ((ownWrite || nm) && a.ncl != null && (await colsReady)) {
+      if ((wb || nm) && a.ncl != null && (await colsReady)) {
         const nc = Math.max(0, Math.min(100000, Math.floor(Number(a.ncl)) || 0));
         await pool.query(`UPDATE sync_accounts SET ncl=$2, nrun=$3 WHERE LOWER(email)=LOWER($1)`, [email, nc, a.nrun ? 1 : 0]).catch(() => {});
       }
@@ -1370,7 +1370,6 @@ app.post('/api/ctl/cmd', ...ctl, wrap(async (req, res) => {
   await pool.query('DELETE FROM sync_cmds WHERE id < (SELECT MAX(id) FROM sync_cmds) - 5000');
   // بث فوري (SSE) للأجهزة المتصلة بعد أن طُبّق التعديل على قاعدة البيانات
   const delivered = app.locals.broadcastCmd ? app.locals.broadcastCmd(r.rows[0].id, body) : 0;
-  try { if (app.locals.liveBalKick) app.locals.liveBalKick(); } catch (e) { /* اختياري */ } // بثّ الأرصدة الجديدة للوحة وللأجهزة فوراً
   res.json({ ok: true, id: r.rows[0].id, delivered });
 }));
 
@@ -1466,7 +1465,6 @@ require('./security-ext').routes(app, { pool, wrap, sendWhatsApp, normPhone }); 
 require('./fin-ext').routes(app, { pool, wrap, ctl, SYNC, GAME }); // المرحلة 1ج: المالية
 EXCL.routes(app, { pool, wrap, ctl, GAME }); // المرحلة 14: المستثنون + الأعلى مالياً
 require('./instant-sync')(app, express, { pool, wrap, ctl, fail }); // بث فوري SSE + البحث بكود الإحالة
-require('./bal-sync')(app, express, { pool, wrap, fail }); // الرصيد المرجعي على السيرفر + مزامنة لحظية بالفروقات لكل الأجهزة
 require('./security-server')(app, express, { pool, wrap, ctl, fail }); // الحماية: بصمة الجهاز + VPN + تلاعب الوقت
 require('./gifts-ext')(app, express, { pool, wrap, ctl, fail });
 require('./rooms-ext')(app, express, { pool, wrap, ctl, fail }); // الرومات الصوتية (+ مكتبة الموسيقى + خلفية الروم)
