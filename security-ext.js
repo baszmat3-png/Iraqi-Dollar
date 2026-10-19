@@ -104,7 +104,7 @@ exports.routes = (app, { pool, wrap, sendWhatsApp, normPhone }) => {
     const sid = await openSession(req, acc, did);
     res.json({
       ok: true, sid, tfa: !!acc.tfa,
-      account: { e: acc.email, n: acc.name, p: acc.phone, h: acc.pass_hash, b: [Number(acc.pts) || 0, Number(acc.gems) || 0, Number(acc.usd) || 0], kyc: !!acc.kyc, vml: !!acc.vml, cr: new Date(acc.created_at).getTime() },
+      account: { e: acc.email, n: acc.name, p: acc.phone, h: req._h0 || acc.pass_hash, b: [Number(acc.pts) || 0, Number(acc.gems) || 0, Number(acc.usd) || 0], kyc: !!acc.kyc, vml: !!acc.vml, cr: new Date(acc.created_at).getTime() },
     });
   }));
 

@@ -15,6 +15,7 @@ module.exports = (app, { pool, wrap, fail }) => {
   const q = (s, p) => pool.query(s, p);
 
   const gh = (sub) => 'g' + crypto.createHmac('sha256', SECRET).update('google:' + sub).digest('hex');
+  const PP = app.locals.pepper || { enabled: false, map: (x) => x };
 
   async function getJson(url, headers) {
     const r = await fetch(url, { headers, signal: AbortSignal.timeout(8000) });
@@ -67,8 +68,16 @@ module.exports = (app, { pool, wrap, fail }) => {
       if (row.blk) fail(403, 'هذا الحساب محظور، تواصل مع الدعم');
       // حساب قديم بلا بصمة (نادر): نعطيه بصمة Google حتى يعمل الدخول
       if (!row.pass_hash) {
-        await q(`UPDATE sync_accounts SET pass_hash=$2 WHERE LOWER(email)=$1 AND pass_hash IS NULL`, [email, gh(sub)]);
+        await q(`UPDATE sync_accounts SET pass_hash=$2 WHERE LOWER(email)=$1 AND (pass_hash IS NULL OR pass_hash='')`, [email, PP.map(gh(sub))]);
         row = (await q(`SELECT ${cols} FROM sync_accounts WHERE LOWER(email)=$1`, [email])).rows[0];
+      }
+      if (PP.enabled) {
+        // PASS_PEPPER مفعّل: المخزَّن HMAC لا البصمة نفسها، فلا يمكن إرجاعه للعميل. حساب Google يُعاد اشتقاق بصمته من الخادم.
+        if (row.pass_hash === gh(sub)) {            // حساب Google قديم (قبل التفعيل): رحِّله
+          await q(`UPDATE sync_accounts SET pass_hash_old=COALESCE(pass_hash_old, pass_hash), pass_hash=$2 WHERE LOWER(email)=$1 AND pass_hash=$3`, [email, PP.map(gh(sub)), gh(sub)]);
+          row.pass_hash = PP.map(gh(sub));
+        }
+        if (row.pass_hash !== PP.map(gh(sub))) fail(409, 'هذا الحساب مسجَّل بكلمة مرور؛ سجّل الدخول بالبريد وكلمة المرور (أو استعد كلمة المرور بالرمز)');
       }
       // البريد موثَّق من Google
       if (!row.vml) await q(`UPDATE sync_accounts SET vml=TRUE, last_seen=NOW() WHERE LOWER(email)=$1`, [email]);
@@ -79,7 +88,7 @@ module.exports = (app, { pool, wrap, fail }) => {
       await q(
         `INSERT INTO sync_accounts(email,name,phone,pass_hash,pts,gems,usd,vml,vph,last_seen)
          VALUES($1,$2,'',$3,0,0,0,TRUE,FALSE,NOW()) ON CONFLICT (email) DO NOTHING`,
-        [email, name, gh(sub)]
+        [email, name, PP.map(gh(sub))]
       );
       row = (await q(`SELECT ${cols} FROM sync_accounts WHERE LOWER(email)=$1`, [email])).rows[0];
     }
@@ -88,7 +97,7 @@ module.exports = (app, { pool, wrap, fail }) => {
       ok: true,
       isNew,
       account: {
-        e: row.email, n: row.name || name, p: row.phone || '', h: row.pass_hash,
+        e: row.email, n: row.name || name, p: row.phone || '', h: PP.enabled ? gh(sub) : row.pass_hash,
         b: [Number(row.pts) || 0, Number(row.gems) || 0, Number(row.usd) || 0],
         kyc: !!row.kyc, vml: true, cr: new Date(row.created_at).getTime(),
       },

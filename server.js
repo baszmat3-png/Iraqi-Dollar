@@ -142,6 +142,8 @@ app.use((_req, res, next) => { res.setHeader('Cross-Origin-Opener-Policy', 'same
 app.use('/api/ctl/config', express.json({ limit: '8mb' }));
 app.use(express.json({ limit: '50kb' }));
 app.use('/api', require('./auth-guard')()); // تحديد تخمين بصمة كلمة المرور
+const PEPPER = require('./pass-pepper')(pool); app.locals.pepper = PEPPER; // PASS_PEPPER: تخزين البصمة كـHMAC (اختياري)
+app.use('/api', PEPPER.middleware);
 if (CORS_ORIGIN) app.use('/api', cors({ origin: CORS_ORIGIN.split(',') }));
 
 const wrap = (fn) => (req, res) => fn(req, res).catch((e) => {
@@ -537,7 +539,7 @@ app.post('/api/sync/account-login', wrap(async (req, res) => {
       e: acc.email,
       n: acc.name,
       p: acc.phone,
-      h: acc.pass_hash,
+      h: req._h0 || (PEPPER.enabled ? '' : acc.pass_hash),
       b: [Number(acc.pts) || 0, Number(acc.gems) || 0, Number(acc.usd) || 0],
       blk: !!acc.blk,
       kyc: acc.kyc ? 2 : 0,
@@ -611,7 +613,7 @@ app.post('/api/sync/otp-login-verify', otpLoginLim, wrap(async (req, res) => {
       e: acc.email,
       n: acc.name,
       p: acc.phone,
-      h: acc.pass_hash,
+      h: req._h0 || (PEPPER.enabled ? '' : acc.pass_hash),
       b: [Number(acc.pts) || 0, Number(acc.gems) || 0, Number(acc.usd) || 0],
       blk: !!acc.blk,
       kyc: acc.kyc ? 2 : 0,
