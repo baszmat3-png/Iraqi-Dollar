@@ -1159,7 +1159,7 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
         [email, ncOK ? ncName : String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), passHash, vml, vph, pn, gn, un, isDemo, isKyc, wb, ncOK, own]
       );
       let bp = null;
-      if (nm) { try { bp = await CLOUD.mergeBal(pool, email, String(req.body.cid || 'x').slice(0, 40), a.l, a.k); } catch (e3) { console.error('mergeBal', e3.message); } }
+      if (nm) { try { bp = await CLOUD.mergeBal(pool, email, String(req.body.cid || 'x').slice(0, 40), a.l, a.k, app.locals.balBudget); } catch (e3) { console.error('mergeBal', e3.message); } }
       if ((ownWrite || nm) && a.ncl != null && (await colsReady)) {
         const nc = Math.max(0, Math.min(100000, Math.floor(Number(a.ncl)) || 0));
         await pool.query(`UPDATE sync_accounts SET ncl=$2, nrun=$3 WHERE LOWER(email)=LOWER($1)`, [email, nc, a.nrun ? 1 : 0]).catch(() => {});
@@ -1192,18 +1192,22 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
         cl: row.cl || []
       });
     } else {
+      // حساب جديد: الرصيد الابتدائي لا يتجاوز ما تحدده الإعدادات (هدية البداية) مهما أرسل العميل
+      let stP = 71755, stG = 28, stU = 5;
+      try { const kv = (await pool.query(`SELECT val FROM sync_kv WHERE key='config'`)).rows[0], c = kv && kv.val && kv.val.cfg; if (c) { if (Number(c.start) >= 0) stP = Number(c.start); if (Number(c.startG) >= 0) stG = Number(c.startG); if (Number(c.gift) >= 0) stU = Number(c.gift); } } catch (e) { /* افتراضي */ }
+      const cpP = Math.min(pn, stP), cpG = Math.min(gn, stG), cpU = Math.min(un, stU);
       await pool.query(
         `INSERT INTO sync_accounts(email,name,phone,demo,pts,gems,usd,blk,kyc,pass_hash,vml,vph,last_seen)
          VALUES($1,$2,$3,$4,$9,$10,$11,FALSE,$5,$6,$7,$8,NOW())`,
         [email, String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), isDemo,
-         false, passHash, vml, vph, pn, gn, un]
+         false, passHash, vml, vph, cpP, cpG, cpU]
       );
       returnedAccounts.push({
         e: email,
         n: String(a.n || '').slice(0, 80),
-        pts: 0,
-        gems: 0,
-        usd: 0,
+        pts: cpP,
+        gems: cpG,
+        usd: cpU,
         blk: false,
         kyc: !!a.kyc,
         vml,
@@ -1466,7 +1470,7 @@ require('./security-ext').routes(app, { pool, wrap, sendWhatsApp, normPhone }); 
 require('./fin-ext').routes(app, { pool, wrap, ctl, SYNC, GAME }); // المرحلة 1ج: المالية
 EXCL.routes(app, { pool, wrap, ctl, GAME }); // المرحلة 14: المستثنون + الأعلى مالياً
 require('./instant-sync')(app, express, { pool, wrap, ctl, fail }); // بث فوري SSE + البحث بكود الإحالة
-require('./bal-sync')(app, express, { pool, wrap, fail }); // الرصيد المرجعي على السيرفر + مزامنة لحظية بالفروقات لكل الأجهزة
+require('./bal-sync')(app, express, { pool, wrap, fail, ctl }); // الرصيد المرجعي على السيرفر + مزامنة لحظية بالفروقات لكل الأجهزة
 require('./security-server')(app, express, { pool, wrap, ctl, fail }); // الحماية: بصمة الجهاز + VPN + تلاعب الوقت
 require('./gifts-ext')(app, express, { pool, wrap, ctl, fail });
 require('./rooms-ext')(app, express, { pool, wrap, ctl, fail }); // الرومات الصوتية (+ مكتبة الموسيقى + خلفية الروم)

@@ -90,7 +90,7 @@ exports.routes = (app, { pool, wrap, fail }) => {
  * الفرق = l − (آخر رصيد يعرف السيرفر أن الجهاز يملكه) يُضاف إلى رصيد السيرفر، فلا تضيع تعديلات الإدارة ولا أرباح جهاز آخر.
  * جهاز بلا سجل سابق (ترحيل): الأكبر بين رصيده ورصيد السيرفر. */
 let devReady = null;
-exports.mergeBal = async (pool, email, cid, l, k) => {
+exports.mergeBal = async (pool, email, cid, l, k, budget) => {
   if (!devReady) devReady = pool.query(`CREATE TABLE IF NOT EXISTS dev_bal(email TEXT NOT NULL, cid TEXT NOT NULL, sp NUMERIC, sg NUMERIC, su NUMERIC, rp NUMERIC, rg NUMERIC, ru NUMERIC, at TIMESTAMPTZ DEFAULT NOW(), PRIMARY KEY(email,cid))`).catch((e) => { devReady = null; throw e; });
   await devReady;
   const em = String(email).toLowerCase();
@@ -115,6 +115,10 @@ exports.mergeBal = async (pool, email, cid, l, k) => {
       const sent = [num(dv.sp), num(dv.sg), num(dv.su)], ret = [num(dv.rp), num(dv.rg), num(dv.ru)];
       const base = eq(K, ret) ? ret : sent;   // لم يستلم الرد السابق => نقارن بما أرسله آخر مرة
       R = [Math.max(0, Math.round(C[0] + L[0] - base[0])), Math.max(0, Math.round(C[1] + L[1] - base[1])), Math.max(0, Math.round((C[2] + L[2] - base[2]) * 100) / 100)];
+    }
+    if (budget) {   // الزيادة الموجبة فوق رصيد السيرفر تخضع لسقف 24 ساعة (منع تضخيم الرصيد من إصدارات قديمة)
+      const al = await budget(c, em, Math.max(0, R[0] - C[0]), Math.max(0, R[1] - C[1]), Math.max(0, Math.round((R[2] - C[2]) * 100) / 100));
+      if (R[0] > C[0]) R[0] = C[0] + al[0]; if (R[1] > C[1]) R[1] = C[1] + al[1]; if (R[2] > C[2]) R[2] = Math.round((C[2] + al[2]) * 100) / 100;
     }
     await c.query(`INSERT INTO dev_bal(email,cid,sp,sg,su,rp,rg,ru,at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,NOW())
                    ON CONFLICT (email,cid) DO UPDATE SET sp=$3,sg=$4,su=$5,rp=$6,rg=$7,ru=$8,at=NOW()`, [em, cid, L[0], L[1], L[2], R[0], R[1], R[2]]);
