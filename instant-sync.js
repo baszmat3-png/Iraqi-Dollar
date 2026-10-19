@@ -38,6 +38,7 @@ module.exports = (app, express, deps) => {
     const email = verified; // بريد غير موثَّق = لا يستلم أوامر الآخرين الشخصية
     const client = { res, email };
     clients.add(client);
+    if (email) { try { if (app.locals.liveBalKick) app.locals.liveBalKick(); } catch (e) { /* اختياري */ } }
 
     pool.query('SELECT COALESCE(MAX(id),0) AS m FROM sync_cmds')
       .then((r) => {
@@ -80,6 +81,21 @@ module.exports = (app, express, deps) => {
     clients.forEach((c) => { try { c.res.write('event: cfg\ndata: {}\n\n'); } catch (e) { clients.delete(c); } });
   };
 
+  // رصيد حساب تغيّر على السيرفر: أبلِغ كل أجهزة صاحبه المتصلة (تطبيق + متصفح...) ليسحب كل جهاز رصيده الجديد فوراً
+  app.locals.pushBal = (email, bal) => {
+    const target = String(email || '').toLowerCase();
+    if (!target) return 0;
+    const msg = 'event: bal\ndata: ' + JSON.stringify(bal || {}) + '\n\n';
+    let n = 0;
+    clients.forEach((c) => {
+      if (c.email !== target) return;
+      try { c.res.write(msg); n++; } catch (e) { clients.delete(c); }
+    });
+    return n;
+  };
+  // بريد كل من له اتصال موثَّق الآن (يستخدمه بثّ الأرصدة لمراقبة حساباتهم فقط)
+  app.locals.sseEmails = () => { const o = new Set(); clients.forEach((c) => { if (c.email) o.add(c.email); }); return [...o]; };
+
   // دفع فوري لأحداث المتجر: k='stock' (المخزون الجديد لبطاقة) / k='order' (تغيّر طلب مستخدم). email اختياري لاستهداف حساب واحد
   app.locals.broadcastStore = (payload, email) => {
     const msg = 'event: store\ndata: ' + JSON.stringify(payload || {}) + '\n\n';
@@ -109,26 +125,6 @@ module.exports = (app, express, deps) => {
       }
     } catch (e) { /* يعاود المحاولة بعد ثانية */ }
     busy = false;
-  }, 1000);
-
-  /* ---------- دفع فوري لتغيّر الرصيد: أي تغيير في pts/gems/usd لحساب له جهاز متصل (من الإدارة أو من جهاز آخر) يصل لكل أجهزته خلال ثانية ---------- */
-  const lastBal = new Map();
-  let balBusy = false;
-  setInterval(async () => {
-    if (balBusy || !clients.size) { if (!clients.size) lastBal.clear(); return; }
-    balBusy = true;
-    try {
-      const em = [...new Set([...clients].map((c) => c.email).filter(Boolean))].slice(0, 2000);
-      if (em.length) {
-        const r = await pool.query('SELECT LOWER(email) e, pts, gems, usd FROM sync_accounts WHERE LOWER(email)=ANY($1::text[])', [em]);
-        r.rows.forEach((x) => {
-          const sig = String(x.pts) + '|' + String(x.gems) + '|' + String(x.usd), old = lastBal.get(x.e);
-          lastBal.set(x.e, sig);
-          if (old !== undefined && old !== sig) app.locals.broadcastStore({ k: 'bal' }, x.e);
-        });
-      }
-    } catch (e) { /* يعاود */ }
-    balBusy = false;
   }, 1000);
 
   /* ---------- البحث بكود الإحالة أو البريد (للإدارة) ---------- */

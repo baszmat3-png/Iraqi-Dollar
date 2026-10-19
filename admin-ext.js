@@ -141,8 +141,6 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     await q(`INSERT INTO sync_cmds(body) VALUES($1)`, [JSON.stringify(cmd)]);
     await q(`INSERT INTO bal_log(email,op,pts,gems,usd,b_pts,b_gems,b_usd,a_pts,a_gems,a_usd,note) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
       [em, op, after.pts - before.pts, after.gems - before.gems, after.usd - before.usd, before.pts, before.gems, before.usd, after.pts, after.gems, after.usd, txt(b.note, 200)]).catch(() => {});
-    // علامة «لهذا الحساب مرجع إداري»: الأجهزة الجديدة/القديمة بلا سجل تأخذ رصيد السيرفر ولا تعيد رصيدها القديم
-    await q(`INSERT INTO dev_bal(email,cid,sp,sg,su,rp,rg,ru) VALUES($1,'_adm',0,0,0,0,0,0) ON CONFLICT DO NOTHING`, [em]).catch(() => {});
     try { if (app.locals.liveBalKick) app.locals.liveBalKick(); } catch (e) { /* اختياري */ }
     return { before, after };
   }
@@ -242,7 +240,7 @@ exports.routes = (app, { pool, wrap, ctl }) => {
 
   /* ===== نظرة عامة ===== */
   app.get('/api/ctl/overview', ...ctl, wrap(async (_req, res) => {
-    const one = async (sql, p) => { try { return (await q(sql, p)).rows[0] || {}; } catch (e) { return {}; } };
+    const one = async (sql, p) => { try { return (await q(sql, p)).rows[0] || {}; } catch (e) { console.error('overview:', e.message); return {}; } };
     const u = await one(`SELECT COUNT(*) FILTER (WHERE NOT demo)::int AS real, COUNT(*) FILTER (WHERE demo)::int AS demo, COUNT(*) FILTER (WHERE blk)::int AS blk,
        COUNT(*) FILTER (WHERE kyc AND NOT demo)::int AS kyc,
        COUNT(*) FILTER (WHERE last_seen > NOW() - INTERVAL '5 minutes' AND NOT demo)::int AS online,
@@ -250,18 +248,18 @@ exports.routes = (app, { pool, wrap, ctl }) => {
        COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours' AND NOT demo)::int AS new_day,
        COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days' AND NOT demo)::int AS new_week,
        COALESCE(SUM(pts) FILTER (WHERE NOT demo AND NOT (LOWER(email)=ANY($1::text[]))),0)::float8 AS pts, COALESCE(SUM(gems) FILTER (WHERE NOT demo AND NOT (LOWER(email)=ANY($1::text[]))),0)::float8 AS gems, COALESCE(SUM(usd) FILTER (WHERE NOT demo AND NOT (LOWER(email)=ANY($1::text[]))),0)::float8 AS usd FROM sync_accounts`, [require('./excl-ext').list()]);
-    const rp = await one(`SELECT COUNT(*) FILTER (WHERE status='open')::int open, COUNT(*)::int total FROM reports`);
-    const sp = await one(`SELECT COUNT(*) FILTER (WHERE NOT from_admin AND NOT read_by_admin AND body NOT LIKE '🚩%' AND body NOT LIKE 'بلاغ%')::int unread, COUNT(DISTINCT LOWER(email))::int threads FROM support_msgs`);
-    const mc = await one(`SELECT COUNT(*) FILTER (WHERE status='pending')::int pending, COUNT(*) FILTER (WHERE status='active')::int active, COALESCE(SUM(received),0)::float8 received FROM merchants`);
-    const fr = await one(`SELECT COUNT(*) FILTER (WHERE status='pending')::int pending, COUNT(*) FILTER (WHERE status='accepted')::int accepted FROM soc_friends`);
-    const ms = await one(`SELECT COUNT(*)::int total, COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours')::int day FROM soc_msgs`);
-    const wd = await one(`SELECT COUNT(*) FILTER (WHERE status='pending')::int pending FROM withdrawals`);
+    const rp = await one(`SELECT COUNT(*) FILTER (WHERE status='open')::int AS open, COUNT(*)::int AS total FROM reports`);
+    const sp = await one(`SELECT COUNT(*) FILTER (WHERE NOT from_admin AND NOT read_by_admin AND body NOT LIKE '🚩%' AND body NOT LIKE 'بلاغ%')::int AS unread, COUNT(DISTINCT LOWER(email))::int AS threads FROM support_msgs`);
+    const mc = await one(`SELECT COUNT(*) FILTER (WHERE status='pending')::int AS pending, COUNT(*) FILTER (WHERE status='active')::int AS active, COALESCE(SUM(received),0)::float8 AS received FROM merchants`);
+    const fr = await one(`SELECT COUNT(*) FILTER (WHERE status='pending')::int AS pending, COUNT(*) FILTER (WHERE status='accepted')::int AS accepted FROM soc_friends`);
+    const ms = await one(`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours')::int AS day FROM soc_msgs`);
+    const wd = await one(`SELECT COUNT(*) FILTER (WHERE status='pending')::int AS pending FROM withdrawals`);
     let top = [], recent = [], joined = [];
     try { top = (await q(`SELECT email,name,pts,gems,usd,(SELECT (EXTRACT(EPOCH FROM v.updated_at)*1000)::bigint FROM avatars v WHERE v.email=LOWER(a.email)) av FROM sync_accounts a WHERE demo=FALSE AND NOT (LOWER(a.email)=ANY($1::text[])) ORDER BY pts DESC LIMIT 5`, [require('./excl-ext').list()])).rows.map((x) => ({ ...x, pts: Number(x.pts), gems: Number(x.gems), usd: Number(x.usd), av: x.av ? Number(x.av) : 0 })); } catch (e) {}
     try { recent = (await q(`SELECT email,op,pts,gems,usd,created_at FROM bal_log ORDER BY id DESC LIMIT 8`)).rows.map((x) => ({ ...x, pts: Number(x.pts), gems: Number(x.gems), usd: Number(x.usd) })); } catch (e) {}
     try { joined = (await q(`SELECT email,name,created_at,(SELECT (EXTRACT(EPOCH FROM v.updated_at)*1000)::bigint FROM avatars v WHERE v.email=LOWER(a.email)) av FROM sync_accounts a WHERE demo=FALSE ORDER BY created_at DESC LIMIT 5`)).rows.map((x) => ({ ...x, av: x.av ? Number(x.av) : 0 })); } catch (e) {}
-    const ab = await one(`SELECT COUNT(*) FILTER (WHERE status='pending')::int pending FROM agent_buys`);
-    const pq = await one(`SELECT COUNT(*) FILTER (WHERE status='pending')::int pending FROM pts_requests`);
+    const ab = await one(`SELECT COUNT(*) FILTER (WHERE status='pending')::int AS pending FROM agent_buys`);
+    const pq = await one(`SELECT COUNT(*) FILTER (WHERE status='pending')::int AS pending FROM pts_requests`);
     res.json({ users: u, reports: rp, support: sp, merchants: mc, friends: fr, msgs: ms, withdrawals: wd, agbuys: ab, ptsreq: pq, top, recent, joined });
   }));
 
