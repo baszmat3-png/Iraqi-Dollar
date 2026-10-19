@@ -16,7 +16,7 @@
     return j;
   }
   const LV = { bronze: ['برونزي', '#e0925a'], silver: ['فضي', '#d5dde5'], gold: ['ذهبي', '#ffd34d'], trusted: ['موثوق', '#2bcfe2'] };
-  const ST = { awaiting_payment: 'بانتظار الدفع', proof_submitted: 'بانتظار التدقيق', completed: 'مكتمل', rejected: 'مرفوض', cancelled: 'ملغى', expired: 'منتهي', disputed: 'قيد التحقيق' };
+  const ST = { awaiting_payment: 'بانتظار الدفع', proof_submitted: 'بانتظار تحرير البائع', completed: 'مكتمل', rejected: 'مرفوض', cancelled: 'ملغى', expired: 'منتهي', disputed: 'قيد التحقيق' };
   const SC = { awaiting_payment: '#ffb300', proof_submitted: '#2bcfe2', completed: '#3ad98f', rejected: '#ff7a77', cancelled: '#ff7a77', expired: '#ff7a77', disputed: '#c79bff', pending: '#ffb300', approved: '#3ad98f', suspended: '#ff7a77' };
   const SS = { pending: 'بانتظار الاعتماد', approved: 'معتمد', rejected: 'مرفوض', suspended: 'موقوف' };
   const pill = (t, c) => `<span class="pa-p" style="color:${c};background:${c}22">${esc(t)}</span>`;
@@ -64,27 +64,29 @@
   const zoom = document.createElement('div'); zoom.id = 'paz'; zoom.onclick = () => zoom.classList.remove('on'); document.body.appendChild(zoom);
 
   const A = { tab: 'review', ov: null, ofilt: 'review', sfilt: '', od: null, busy: 0 };
-  const TABS = [['review', 'التدقيق'], ['orders', 'كل الطلبات'], ['sellers', 'البائعون'], ['reviews', 'التقييمات'], ['ads', 'الإعلانات'], ['counters', 'العدادات'], ['cfg', 'الإعدادات']];
+  const TABS = [['review', 'النزاعات'], ['orders', 'كل الطلبات'], ['sellers', 'البائعون'], ['reviews', 'التقييمات'], ['ads', 'الإعلانات'], ['counters', 'العدادات'], ['cfg', 'الإعدادات']];
   const M = $('#pam'), N = $('#pan');
 
   function nav() {
     const c = (A.ov && A.ov.counts) || {}, sp = (A.ov && A.ov.sellers) || {};
-    const bd = { review: (c.proof || 0) + (c.disputed || 0), sellers: sp.pending || 0 };
+    const bd = { review: (c.disputed || 0), sellers: sp.pending || 0 };
     N.innerHTML = TABS.map(([k, l]) => `<button data-t="${k}" class="${A.tab === k ? 'on' : ''}">${l}${bd[k] ? `<i>${bd[k]}</i>` : ''}</button>`).join('');
   }
   async function refreshOv() {
-    try { A.ov = await api('overview'); const n = (A.ov.counts.proof || 0) + (A.ov.counts.disputed || 0) + (A.ov.sellers.pending || 0); btn.innerHTML = '⇄ P2P' + (n ? ` <i>${n}</i>` : ''); nav(); } catch (e) { /* مفتاح غير محفوظ */ }
+    try { A.ov = await api('overview'); const n = (A.ov.counts.disputed || 0) + (A.ov.sellers.pending || 0); btn.innerHTML = '⇄ P2P' + (n ? ` <i>${n}</i>` : ''); nav(); } catch (e) { /* مفتاح غير محفوظ */ }
   }
   async function show(tab) {
     if (tab) A.tab = tab; A.od = null; nav(); M.innerHTML = '<div class="em">جارٍ التحميل...</div>';
     try { await refreshOv(); await VIEW[A.tab](); } catch (e) { M.innerHTML = `<div class="em">${esc(e.message)}</div>`; }
   }
 
-  const kpis = () => { const c = A.ov.counts; return `<div class="k"><div><b style="color:#2bcfe2">${c.proof}</b><span>بانتظار التدقيق</span></div><div><b style="color:#c79bff">${c.disputed}</b><span>اعتراضات</span></div><div><b>${c.awaiting}</b><span>بانتظار الدفع</span></div><div><b style="color:#3ad98f">${c.done}</b><span>صفقات مكتملة</span></div><div><b>${NF(c.vol)}</b><span>نقاط مُباعة</span></div><div><b>${NF(c.iqd)}</b><span>د.ع تداول</span></div></div>`; };
+  const kpis = () => { const c = A.ov.counts; return `<div class="k"><div><b style="color:#2bcfe2">${c.proof}</b><span>بانتظار تحرير البائع</span></div><div><b style="color:#c79bff">${c.disputed}</b><span>اعتراضات</span></div><div><b>${c.awaiting}</b><span>بانتظار الدفع</span></div><div><b style="color:#3ad98f">${c.done}</b><span>صفقات مكتملة</span></div><div><b>${NF(c.vol)}</b><span>نقاط مُباعة</span></div><div><b>${NF(c.iqd)}</b><span>د.ع تداول</span></div></div>`; };
 
+const DR = { paid_not_released: 'دفعت ولم يتم التحرير', not_received: 'لم يصلني المبلغ', wrong_amount: 'المبلغ المستلم غير صحيح', other: 'سبب آخر', seller_not_received: 'البائع: لم يصل المبلغ' };
+  const dspBox = (o) => o.dReason ? `<div class="al" style="margin:8px 0 0">⚖️ نزاع من ${o.dBy === 'seller' ? 'البائع' : 'المشتري'}: <b>${esc(DR[o.dReason] || o.dReason)}</b>${o.dNote ? ' — ' + esc(o.dNote) : ''}</div>` : '';
   const orderRow = (o) => `<div class="c" style="cursor:pointer;${o.flag === 'dispute' || o.status === 'disputed' ? 'border-color:#c79bff' : ''}" data-oid="${o.id}"><div class="r"><b class="g">#${o.id} · ${esc(o.buyer)} ← ${esc(o.seller)}</b>${pill(ST[o.status], SC[o.status])}</div>
 <div class="r" style="margin-top:6px"><span class="g"><b style="color:var(--ac)">${NF(o.pts)}</b> نقطة · <b>${NF(o.iqd)}</b> د.ع · ${esc((o.method || {}).label || '')}</span><span class="mu">${dtf(o.proofAt || o.t)}</span></div>
-${o.flag === 'dispute' ? `<div class="al" style="margin:8px 0 0">⚠️ اعتراض البائع: ${esc(o.flagNote)}</div>` : o.flag === 'received' ? '<div class="mu" style="margin-top:6px;color:#3ad98f">✓ البائع أكّد استلام المبلغ</div>' : ''}
+${dspBox(o)}
 ${o.hasProof ? '<div class="mu" style="margin-top:4px">📎 صورة التحويل مرفقة</div>' : ''}</div>`;
 
   const VIEW = {
@@ -107,7 +109,7 @@ ${o.hasProof ? '<div class="mu" style="margin-top:4px">📎 صورة التحو�
     },
     async orders() {
       const j = await api('orders?status=' + A.ofilt);
-      const f = [['review', 'التدقيق'], ['awaiting_payment', 'بانتظار الدفع'], ['completed', 'المكتملة'], ['rejected', 'المرفوضة'], ['expired', 'المنتهية'], ['cancelled', 'الملغاة'], ['all', 'الكل']];
+      const f = [['review', 'النزاعات'], ['awaiting_payment', 'بانتظار الدفع'], ['completed', 'المكتملة'], ['rejected', 'المرفوضة'], ['expired', 'المنتهية'], ['cancelled', 'الملغاة'], ['all', 'الكل']];
       M.innerHTML = `<div class="r" style="margin-bottom:10px">${f.map(([k, l]) => `<button class="b ${A.ofilt === k ? '' : 'o'}" data-of="${k}">${l}</button>`).join('')}</div>` + (j.orders.map(orderRow).join('') || '<div class="em">لا توجد طلبات</div>');
     },
 
@@ -176,7 +178,7 @@ ${o.hasProof ? '<div class="mu" style="margin-top:4px">📎 صورة التحو�
 <div class="c"><div class="r"><b class="g" style="font-size:1.1rem">طلب #${o.id}</b>${pill(ST[o.status], SC[o.status])}</div>
 <div class="k" style="margin:12px 0 0"><div><b style="color:var(--ac)">${NF(o.pts)}</b><span>نقطة</span></div><div><b>${NF(o.iqd)}</b><span>د.ع المطلوب</span></div><div><b>${N2(o.price)}</b><span>سعر/1000</span></div>${o.fee ? `<div><b>${NF(o.fee)}</b><span>عمولة</span></div>` : ''}</div>
 <div class="mu" style="margin-top:8px">أُنشئ ${dtf(o.t)} · رُفعت الصورة ${dtf(o.proofAt)}${o.decidedAt ? ' · القرار ' + dtf(o.decidedAt) : ''}</div>
-${o.flag === 'dispute' ? `<div class="al" style="margin-top:10px">⚠️ اعتراض البائع: لم يصل المبلغ — ${esc(o.flagNote)}</div>` : o.flag === 'received' ? '<div class="mu" style="margin-top:10px;color:#3ad98f">✓ البائع أكّد استلام المبلغ</div>' : '<div class="mu" style="margin-top:10px">البائع لم يؤكد الاستلام بعد</div>'}
+${dspBox(o) || '<div class="mu" style="margin-top:10px">لا يوجد نزاع — البائع هو من يحرّر النقاط</div>'}
 ${o.note ? `<div class="mu" style="margin-top:8px">ملاحظة الإدارة: ${esc(o.note)}</div>` : ''}</div>
 <div class="two"><div class="c"><h4 style="margin:0 0 8px;color:#2bcfe2">👤 المشتري</h4><div class="kv"><span>الاسم</span><b>${esc(b.name)}</b></div><div class="kv"><span>البريد</span><b dir="ltr">${esc(b.email)}</b></div><div class="kv"><span>الهاتف</span><b dir="ltr">${esc(b.phone)}</b></div>
 <div class="kv"><span>KYC</span><b>${b.kyc ? '✓' : '—'}</b></div><div class="kv"><span>الرصيد</span><b>${NF(b.pts)}</b></div><div class="kv"><span>عضو منذ</span><b>${dtf(b.since)}</b></div><div class="kv"><span>صفقاته</span><b>${hist(b.hist)}</b></div>${b.blk ? '<div class="al">الحساب محظور</div>' : ''}</div>
@@ -189,8 +191,11 @@ ${usedIdx < 0 ? `<div class="mt ac"><b>${esc(mm.label)}</b> (نسخة وقت ا�
 ${review ? `<div style="margin-top:12px"><div class="mu">قائمة المطابقة (للتدقيق فقط)</div><label class="ck"><input type="checkbox" class="chk"> المبلغ في الصورة = ${NF(o.iqd)} د.ع</label><label class="ck"><input type="checkbox" class="chk"> رقم/اسم المستلم = حساب البائع الأخضر أعلاه</label><label class="ck"><input type="checkbox" class="chk"> التاريخ والوقت حديث وبعد إنشاء الطلب</label><label class="ck"><input type="checkbox" class="chk"> الصورة غير مكررة في طلب آخر وغير معدّلة</label></div>` : ''}</div>
 <div class="c"><h4 style="margin:0 0 8px">💬 دردشة الطرفين</h4>${j.msgs.map((m) => `<div class="msg ${m.from === '*' ? 's' : m.from}">${esc(m.x)}${m.img ? `<img src="${SAFE_SRC(m.img)}" data-zoom="1">` : ''}</div>`).join('') || '<div class="mu">لا توجد رسائل</div>'}</div>
 ${review ? `<div class="c"><label style="margin-top:0">ملاحظة / سبب القرار (إلزامية عند الرفض وتظهر للطرفين)<textarea id="dn" rows="2" maxlength="300"></textarea></label>
-<div class="r" style="margin-top:12px"><button class="b g2 g" data-dec="approve">✅ موافقة وإضافة النقاط للمشتري</button><button class="b rd g" data-dec="reject">❌ رفض وإعادة النقاط للإعلان</button></div>
-${o.status !== 'disputed' ? '<button class="b pu" style="margin-top:8px;width:100%" data-dec="dispute">⚖️ وضع قيد التحقيق</button>' : ''}</div>` : ''}`;
+<label class="ck"><input type="checkbox" id="dban"> حظر البائع وإيقاف إعلاناته (عند الرفض)</label>
+<div class="r" style="margin-top:12px"><button class="b g2 g" data-dec="approve">✅ لصالح المشتري: إضافة النقاط له</button><button class="b rd g" data-dec="reject">❌ لصالح البائع: رفض وإعادة النقاط للإعلان</button></div>
+${o.status !== 'disputed' ? '<button class="b pu" style="margin-top:8px;width:100%" data-dec="dispute">⚖️ وضع قيد التحقيق</button>' : ''}
+<div class="mu" style="margin-top:14px">مراسلة الأطراف (إشعار + رسالة في غرفة الطلب)</div><textarea id="dmsg" rows="2" maxlength="400" placeholder="اكتب رسالة للبائع أو المشتري..."></textarea>
+<div class="r" style="margin-top:8px"><button class="b o g" data-nt="seller">مراسلة البائع</button><button class="b o g" data-nt="buyer">مراسلة المشتري</button><button class="b o g" data-nt="both">الاثنان</button></div></div>` : ''}`;
   }
 
   async function decide(act, btnEl) {
@@ -199,7 +204,7 @@ ${o.status !== 'disputed' ? '<button class="b pu" style="margin-top:8px;width:10
     if (act === 'approve') { const un = [...document.querySelectorAll('.chk')].filter((x) => !x.checked).length; if (un && !confirm(`${un} من بنود المطابقة غير مؤشّرة. هل تريد الموافقة رغم ذلك؟`)) return; }
     if (!confirm(act === 'approve' ? `تأكيد الموافقة؟ ستُضاف ${NF(o.pts - o.fee)} نقطة لرصيد المشتري.` : act === 'reject' ? 'تأكيد الرفض؟' : 'وضع الطلب قيد التحقيق؟')) return;
     A.busy = 1; btnEl.disabled = true;
-    try { await api('order/decide', { id: o.id, act, note }); say('تم تنفيذ القرار'); await show('review'); } catch (e) { say(e.message); btnEl.disabled = false; } finally { A.busy = 0; }
+    try { await api('order/decide', { id: o.id, act, note, ban: !!(($('#dban') || {}).checked) }); say('تم تنفيذ القرار'); await show('review'); } catch (e) { say(e.message); btnEl.disabled = false; } finally { A.busy = 0; }
   }
 
   async function sellerDecide(body) {
@@ -214,6 +219,7 @@ ${o.status !== 'disputed' ? '<button class="b pu" style="margin-top:8px;width:10
     if ((x = g('data-back'))) return show(A.tab);
     if (t.dataset && t.dataset.zoom) { zoom.innerHTML = `<img src="${t.src}">`; return zoom.classList.add('on'); }
     if ((x = g('data-dec'))) return decide(x.dataset.dec, x);
+    if ((x = g('data-nt'))) { const m = ($('#dmsg') || {}).value || ''; if (m.trim().length < 2) return say('اكتب الرسالة'); try { await api('order/notify', { id: A.od.order.id, to: x.dataset.nt, msg: m }); say('أُرسلت الرسالة ✓'); $('#dmsg').value = ''; } catch (er) { say(er.message); } return; }
     if ((x = g('data-oid'))) return openOrder(x.dataset.oid).catch((er) => say(er.message));
     if ((x = g('data-of'))) { A.ofilt = x.dataset.of; return show('orders'); }
     if ((x = g('data-sf'))) { A.sfilt = x.dataset.sf; return show('sellers'); }

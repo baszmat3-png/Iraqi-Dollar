@@ -273,8 +273,8 @@
   const listV = () => {
     const code = (() => { try { return ucode(S.acc); } catch (e) { return ''; } })(), inc = SO.incoming;
     return hd('المستخدمون', 'users', { back: 'home', acts: bellBtn() + chatBtn() }) +
-      `<div class="u2"><div class="u2-me"><div class="sp"><small>رمز الإحالة الخاص بك</small><b dir="ltr">${esc(code)}</b></div><button class="u2-ghost" data-a="ucopy" data-v="${esc(code)}" aria-label="نسخ الرمز">${X(IC.copy, 20)}</button><button class="u2-ghost" data-a="ushare" data-v="${esc(code)}" aria-label="مشاركة الرمز">${X(IC.share, 20)}</button></div>` +
       (window.stStrip ? window.stStrip() : '') +
+      `<div class="u2"><div class="u2-me"><div class="sp"><small>رمز الإحالة الخاص بك</small><b dir="ltr">${esc(code)}</b></div><button class="u2-ghost" data-a="ucopy" data-v="${esc(code)}" aria-label="نسخ الرمز">${X(IC.copy, 20)}</button><button class="u2-ghost" data-a="ushare" data-v="${esc(code)}" aria-label="مشاركة الرمز">${X(IC.share, 20)}</button></div>` +
       (inc.length ? `<div class="sc-sec"><span>طلبات الصداقة</span><i>${inc.length}</i></div>${inc.map(card).join('')}` : '') +
       `<div class="u2-sb">${ic('search')}<input id="scq" dir="auto" autocomplete="off" spellcheck="false" maxlength="30" value="${esc(SO.q)}" placeholder="ابحث بالاسم..."><button type="button" id="scc" data-a="scclr" aria-label="مسح" ${SO.q ? '' : 'hidden'}>${ic('x')}</button></div><div id="scr">${list()}</div></div>`;
   };

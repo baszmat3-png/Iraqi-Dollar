@@ -38,13 +38,15 @@
 /* ---------- الستوري ---------- */
 .st-row{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 10px;margin:10px 0 2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .st-row::-webkit-scrollbar{display:none}
-.st-it{flex:none;width:68px;display:grid;justify-items:center;gap:6px;background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:0}
-.st-ring{position:relative;width:64px;height:64px;border-radius:50%;padding:3px;display:grid;place-items:center;background:var(--line,#ffffff33)}
-.st-ring.new{background:conic-gradient(from 200deg,var(--cy,#22d3ee),#7c3aed,#db2777,var(--cy,#22d3ee))}
-.st-ring.mine.has{background:conic-gradient(from 200deg,#22c55e,var(--cy,#22d3ee),#22c55e)}
+.st-it{flex:none;width:84px;display:grid;justify-items:center;gap:6px;background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:0}
+.st-ring{position:relative;width:76px;height:76px;border-radius:50%;padding:3px;display:grid;place-items:center;background:var(--line,#ffffff33)}
+.st-ring.new{background:#3ee04a}.st-ring.seen{background:#4b5563}
+.st-ring.mine:not(.has){background:none;border:2.5px dashed var(--cy,#4fb3b0);padding:0}.st-ring.mine:not(.has) .st-av{background:#16222b;border:0;color:var(--cy,#4fb3b0);font-size:1.8rem}
+.st-nm{display:inline-flex;align-items:center;gap:5px;justify-content:center}.st-ct{min-width:22px;height:22px;border-radius:11px;background:#0b1117;color:#a7e36c;font-weight:800;font-size:.78rem;display:inline-grid;place-items:center;padding:0 5px}
+.st-ring.mine.has{background:#3ee04a}
 .st-av{width:100%;height:100%;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:1.3rem;color:#fff;background:hsl(var(--hu,200) 55% 38%) center/cover;border:3px solid var(--bg,#0e1621);box-sizing:border-box}
 .st-plus{position:absolute;bottom:-2px;inset-inline-end:-2px;width:24px;height:24px;border-radius:50%;background:var(--cy,#22d3ee);color:#05242a;display:grid;place-items:center;font-weight:900;font-size:1.05rem;line-height:1;border:2.5px solid var(--bg,#0e1621)}
-.st-nm{font-size:.72rem;max-width:68px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.9}
+.st-nm{font-size:.8rem;max-width:84px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.9}
 .st-empty{font-size:.78rem;opacity:.6;align-self:center;padding:0 6px}
 
 #stv,#stc{position:fixed;inset:0;z-index:100050;background:#000;color:#fff;display:flex;flex-direction:column;direction:rtl;font-family:inherit;touch-action:manipulation}
@@ -133,9 +135,9 @@
   const strip = () => {
     const me = idn(); if (!me) return '';
     const mineAv = (() => { try { return S.av ? `background-image:url('${SAFE_SRC(S.av)}');color:transparent;--hu:200` : `--hu:200`; } catch (e) { return '--hu:200'; } })();
-    const mine = `<div class="st-it" data-st="mine"><span class="st-ring mine ${ST.mine.n ? 'has' : ''}"><span class="st-av" style="${mineAv}">${ini(S.name)}</span><span class="st-plus" data-st="add" aria-label="إضافة ستوري">+</span></span><span class="st-nm">قصتي</span></div>`;
-    const others = ST.items.map((p) => `<button class="st-it" data-st="view" data-uid="${esc(p.uid)}"><span class="st-ring ${p.unseen ? 'new' : ''}"><span class="st-av" style="${avStyle(p)}">${ini(p.name)}</span></span><span class="st-nm">${esc(p.name)}</span></button>`).join('');
-    return `<div class="st-row" id="stbox">${mine}${others || (ST.loaded ? '<span class="st-empty">لا توجد قصص من أصدقائك الآن</span>' : '')}</div>`;
+    const mine = `<div class="st-it" data-st="mine"><span class="st-ring mine ${ST.mine.n ? 'has' : ''}"><span class="st-av" style="${mineAv}">${ST.mine.n ? ini(S.name) : '+'}</span>${ST.mine.n ? '<span class="st-plus" data-st="add" aria-label="إضافة قصة">+</span>' : ''}</span><span class="st-nm">قصتي</span></div>`;
+    const others = ST.items.map((p) => `<button class="st-it" data-st="view" data-uid="${esc(p.uid)}"><span class="st-ring ${p.unseen ? 'new' : 'seen'}"><span class="st-av" style="${avStyle(p)}">${ini(p.name)}</span></span><span class="st-nm"><b class="st-ct">${+p.n || 1}</b><span style="overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</span></span></button>`).join('');
+    return `<div class="st-row" id="stbox">${mine}${others || (ST.loaded ? '<span class="st-empty">لا توجد قصص الآن — انشر قصتك لتظهر لأصدقائك</span>' : '')}</div>`;
   };
   window.stStrip = () => { if (!ST.loaded || ST.who !== (idn() || {}).e) setTimeout(() => stLoad(true), 0); return strip(); };
   const stPaint = () => { const b = document.getElementById('stbox'); if (b && S.r === 'users') b.outerHTML = strip(); };

@@ -3,7 +3,8 @@
  *
  * الفكرة: البائع يعرض نقاطه (تُحجز عند النشر = ضمان Escrow) بسعر لا يقل عن السعر الرسمي
  * ولا يزيد عنه أكثر من 10٪ (قابلة للتعديل). المشتري يدفع للبائع خارج التطبيق، يرفق صورة التحويل،
- * فتذهب الصورة للوحة التحكم، وعند موافقة الإدارة تُحرَّر النقاط للمشتري.
+ * ويضغط «تم الدفع»؛ فيحرّر البائع النقاط بنفسه بعد التأكد (/order/release) دون موافقة الإدارة.
+ * الإدارة تتدخل فقط في النزاعات (/order/dispute من المشتري أو /order/flag من البائع).
  *
  * مستخدم (X: e,h = بريد + pass_hash مثل باقي النظام):
  *  POST /api/p2p/home            السوق + حالة المستخدم
@@ -82,6 +83,10 @@ module.exports = (app, express, deps) => {
        expires_at TIMESTAMPTZ NOT NULL, proof_at TIMESTAMPTZ, decided_at TIMESTAMPTZ, admin_note TEXT,
        seller_flag TEXT, seller_flag_note TEXT, rated BOOLEAN NOT NULL DEFAULT FALSE,
        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
+    `ALTER TABLE p2p_orders ADD COLUMN IF NOT EXISTS dispute_reason TEXT`,
+    `ALTER TABLE p2p_orders ADD COLUMN IF NOT EXISTS dispute_note TEXT`,
+    `ALTER TABLE p2p_orders ADD COLUMN IF NOT EXISTS disputed_by TEXT`,
+    `ALTER TABLE p2p_orders ADD COLUMN IF NOT EXISTS disputed_at TIMESTAMPTZ`,
     `CREATE INDEX IF NOT EXISTS p2p_orders_b ON p2p_orders(buyer_email, created_at DESC)`,
     `CREATE INDEX IF NOT EXISTS p2p_orders_s ON p2p_orders(seller_email, created_at DESC)`,
     `CREATE INDEX IF NOT EXISTS p2p_orders_st ON p2p_orders(status)`,
@@ -261,11 +266,11 @@ module.exports = (app, express, deps) => {
   /* ---------------- عرض الإعلانات ---------------- */
   async function sellerBrief(emails) {
     if (!emails.length) return {};
-    const rows = (await q(`SELECT s.email,s.level,s.status,s.waive,a.name,a.uid,a.cl,
+    const rows = (await q(`SELECT s.email,s.level,s.status,s.waive,s.methods,a.name,a.uid,a.cl,
         (SELECT (EXTRACT(EPOCH FROM v.updated_at)*1000)::bigint FROM avatars v WHERE v.email=LOWER(a.email)) av
       FROM p2p_sellers s JOIN sync_accounts a ON LOWER(a.email)=s.email WHERE s.email=ANY($1)`, [emails]).catch(() => ({ rows: [] }))).rows;
     const st = await statsFor(emails), m = {};
-    rows.forEach((r) => { m[r.email] = { uid: r.uid, name: r.name || r.email.split('@')[0], level: r.level, status: r.status, waive: r.waive, cl: r.cl, av: r.av ? Number(r.av) : 0, stats: pubStats(st[r.email]) }; });
+    rows.forEach((r) => { m[r.email] = { uid: r.uid, name: r.name || r.email.split('@')[0], level: r.level, status: r.status, waive: r.waive, methods: Array.isArray(r.methods) ? r.methods : [], cl: r.cl, av: r.av ? Number(r.av) : 0, stats: pubStats(st[r.email]) }; });
     return m;
   }
 
@@ -322,7 +327,8 @@ module.exports = (app, express, deps) => {
       const s = sb[a.seller_email];
       if (!s || s.status !== 'approved' || a.seller_email === me.email) continue;
       if (!(s.waive || hasCounter({ cl: s.cl }, cfg.reqCounterIdx))) continue;
-      const mt = (Array.isArray(a.methods) ? a.methods : []).map(pubMethod);
+      const mt = (Array.isArray(a.methods) ? a.methods : []).map((i) => Object.assign({ i }, pubMethod((s.methods || [])[i] || {}))).filter((m) => m.type);
+      if (!mt.length) continue;
       out.push({ id: a.id, avail: a.avail, price: a.price, min: Math.max(a.mn, cfg.minOrderPts), max: a.mx > 0 ? Math.min(a.mx, a.avail) : a.avail, methods: mt, terms: a.terms || '',
         seller: { uid: s.uid, name: s.name, level: s.level, av: s.av, stats: s.stats } });
     }
@@ -504,7 +510,7 @@ module.exports = (app, express, deps) => {
     const buyer = o.buyer_email === me.email;
     return Object.assign({ id: o.id, role: buyer ? 'buyer' : 'seller', status: o.status, pts: Number(o.pts), fee: Number(o.fee), price: Number(o.price), iqd: Number(o.total_iqd),
       exp: new Date(o.expires_at).getTime(), created: new Date(o.created_at).getTime(), proofAt: o.proof_at ? new Date(o.proof_at).getTime() : 0,
-      note: o.admin_note || '', flag: o.seller_flag || '', flagNote: o.seller_flag_note || '', rated: o.rated,
+      note: o.admin_note || '', dReason: o.dispute_reason || '', dNote: o.dispute_note || '', dBy: o.disputed_by || '', flag: o.seller_flag || '', flagNote: o.seller_flag_note || '', rated: o.rated,
       // أرقام الحساب تظهر للمشتري (للدفع) وللبائع (حسابه) فقط وفي الطلب نفسه
       method: o.method }, extra || {});
   };
@@ -538,8 +544,8 @@ module.exports = (app, express, deps) => {
       if (!IMG_RE.test(img) || img.length > 2.6e6) fail(400, 'صورة التحويل غير صالحة (JPG/PNG حتى 2MB)');
       await cl.query(`INSERT INTO p2p_proofs(order_id,img) VALUES($1,$2) ON CONFLICT (order_id) DO UPDATE SET img=$2, created_at=NOW()`, [o.id, img]);
       await cl.query(`UPDATE p2p_orders SET status='proof_submitted', proof_at=NOW(), seller_flag=NULL WHERE id=$1`, [o.id]);
-      await sys(cl, o.buyer_email, o.seller_email, o.id, `✅ رفع المشتري صورة التحويل للطلب #${o.id} — بانتظار تدقيق الإدارة`);
-      await note(cl, o.seller_email, 'تم رفع إثبات الدفع', `المشتري أرسل صورة التحويل للطلب #${o.id}. تحقق من وصول المبلغ إلى حسابك.`);
+      await sys(cl, o.buyer_email, o.seller_email, o.id, `✅ تم تأكيد الدفع للطلب #${o.id} — بانتظار تحرير البائع`);
+      await note(cl, o.seller_email, 'تم رفع إثبات الدفع', `المشتري أكّد الدفع وأرفق صورة التحويل للطلب #${o.id}. تحقق من وصول المبلغ ثم حرّر النقاط للمشتري.`);
       await cl.query('COMMIT');
     } catch (e) { try { await cl.query('ROLLBACK'); } catch (_) {} throw e; } finally { cl.release(); }
     res.json({ ok: true });
@@ -562,15 +568,15 @@ module.exports = (app, express, deps) => {
   }));
 
   // البائع: «استلمت المبلغ» أو «لم يصل المبلغ» — إشارة للإدارة فقط (القرار النهائي للإدارة)
+  // البائع: «لم يصل المبلغ» → نزاع تراجعه الإدارة (التحرير يتم عبر /order/release)
   app.post('/api/p2p/order/flag', J, wrap(async (req, res) => {
     const b = req.body || {}; const me = await getAcc(pool, b); const o = await loadOrder(pool, b, me);
     if (o.seller_email !== me.email) fail(403, 'فقط البائع');
-    if (!['proof_submitted', 'awaiting_payment'].includes(o.status)) fail(409, 'لا يمكن تعديل حالة هذا الطلب');
-    const k = b.flag === 'received' ? 'received' : b.flag === 'dispute' ? 'dispute' : '';
-    if (!k) fail(400, 'اختيار غير صحيح');
-    if (k === 'dispute' && txt(b.note, 200).length < 5) fail(400, 'اكتب سبب الاعتراض');
-    await q(`UPDATE p2p_orders SET seller_flag=$2, seller_flag_note=$3 WHERE id=$1`, [o.id, k, txt(b.note, 200)]);
-    await q(`INSERT INTO p2p_msgs(room,f,t,body,order_id) VALUES($1,'*','*',$2,$3)`, [room(o.buyer_email, o.seller_email), k === 'received' ? `✅ البائع أكّد استلام المبلغ للطلب #${o.id}` : `⚠️ البائع اعترض على الطلب #${o.id}: لم يصل المبلغ`, o.id]);
+    if (o.status !== 'proof_submitted') fail(409, 'لا يمكن تعديل حالة هذا الطلب');
+    if (b.flag !== 'dispute') fail(400, 'اختيار غير صحيح');
+    const nt = txt(b.note, 200); if (nt.length < 5) fail(400, 'اكتب سبب الاعتراض');
+    await q(`UPDATE p2p_orders SET seller_flag='dispute', seller_flag_note=$2, status='disputed', dispute_reason='seller_not_received', dispute_note=$2, disputed_by='seller', disputed_at=NOW() WHERE id=$1 AND status='proof_submitted'`, [o.id, nt]);
+    await q(`INSERT INTO p2p_msgs(room,f,t,body,order_id) VALUES($1,'*','*',$2,$3)`, [room(o.buyer_email, o.seller_email), `⚠️ البائع أبلغ أن المبلغ لم يصل للطلب #${o.id}: ${nt} — الطلب عند الإدارة`, o.id]);
     res.json({ ok: true });
   }));
 
@@ -663,13 +669,13 @@ module.exports = (app, express, deps) => {
 
   app.get('/api/ctl/p2p/orders', ...ctl, wrap(async (req, res) => {
     const st = txt(req.query.status, 20);
-    const where = st === 'review' ? `o.status IN ('proof_submitted','disputed')` : st === 'all' ? 'TRUE' : st ? `o.status=$1` : `o.status IN ('proof_submitted','disputed')`;
-    const rows = (await q(`SELECT o.id,o.status,o.pts::float8 pts,o.fee::float8 fee,o.price::float8 price,o.total_iqd::float8 iqd,o.method,o.proof_at,o.created_at,o.seller_flag,o.seller_flag_note,o.admin_note,
+    const where = st === 'review' ? `o.status='disputed'` : st === 'all' ? 'TRUE' : st ? `o.status=$1` : `o.status='disputed'`;
+    const rows = (await q(`SELECT o.id,o.status,o.pts::float8 pts,o.fee::float8 fee,o.price::float8 price,o.total_iqd::float8 iqd,o.method,o.proof_at,o.created_at,o.seller_flag,o.seller_flag_note,o.admin_note,o.dispute_reason,o.dispute_note,o.disputed_by,
         b.name bname,b.email bemail,s.name sname,s.email semail,EXISTS(SELECT 1 FROM p2p_proofs p WHERE p.order_id=o.id) hasproof
       FROM p2p_orders o LEFT JOIN sync_accounts b ON LOWER(b.email)=o.buyer_email LEFT JOIN sync_accounts s ON LOWER(s.email)=o.seller_email
       WHERE ${where} ORDER BY (o.status='disputed') DESC, o.id DESC LIMIT 150`, ['all', 'review', ''].includes(st) || !st ? [] : [st])).rows;
     res.json({ ok: true, orders: rows.map((o) => ({ id: o.id, status: o.status, pts: o.pts, fee: o.fee, price: o.price, iqd: o.iqd, method: o.method, proofAt: o.proof_at ? new Date(o.proof_at).getTime() : 0,
-      t: new Date(o.created_at).getTime(), flag: o.seller_flag || '', flagNote: o.seller_flag_note || '', note: o.admin_note || '', buyer: o.bname || o.bemail, buyerEmail: o.bemail, seller: o.sname || o.semail, sellerEmail: o.semail, hasProof: o.hasproof })) });
+      t: new Date(o.created_at).getTime(), flag: o.seller_flag || '', flagNote: o.seller_flag_note || '', note: o.admin_note || '', dReason: o.dispute_reason || '', dNote: o.dispute_note || '', dBy: o.disputed_by || '', buyer: o.bname || o.bemail, buyerEmail: o.bemail, seller: o.sname || o.semail, sellerEmail: o.semail, hasProof: o.hasproof })) });
   }));
 
   app.get('/api/ctl/p2p/order/:id', ...ctl, wrap(async (req, res) => {
@@ -683,11 +689,60 @@ module.exports = (app, express, deps) => {
     const msgs = (await q(`SELECT id,f,body,img,order_id,created_at FROM p2p_msgs WHERE room=$1 ORDER BY id DESC LIMIT 80`, [room(o.buyer_email, o.seller_email)])).rows.reverse()
       .map((m) => ({ id: Number(m.id), from: m.f === '*' ? '*' : m.f === o.buyer_email ? 'buyer' : 'seller', x: m.body || '', img: m.img || null, t: new Date(m.created_at).getTime() }));
     const ad = (await q(`SELECT id,price::float8 price,status FROM p2p_ads WHERE id=$1`, [o.ad_id])).rows[0];
-    res.json({ ok: true, order: { id: o.id, status: o.status, pts: Number(o.pts), fee: Number(o.fee), price: Number(o.price), iqd: Number(o.total_iqd), method: o.method, flag: o.seller_flag || '', flagNote: o.seller_flag_note || '',
+    res.json({ ok: true, order: { id: o.id, status: o.status, pts: Number(o.pts), fee: Number(o.fee), price: Number(o.price), iqd: Number(o.total_iqd), method: o.method, flag: o.seller_flag || '', flagNote: o.seller_flag_note || '', dReason: o.dispute_reason || '', dNote: o.dispute_note || '', dBy: o.disputed_by || '',
         note: o.admin_note || '', t: new Date(o.created_at).getTime(), proofAt: o.proof_at ? new Date(o.proof_at).getTime() : 0, decidedAt: o.decided_at ? new Date(o.decided_at).getTime() : 0 },
       buyer: Object.assign(buyer || {}, { hist: await hist('buyer_email', o.buyer_email) }),
       seller: Object.assign(seller || {}, { level: sp.level, sstatus: sp.status, fullName: sp.full_name, sphone: sp.phone, bio: sp.bio, methods: sp.methods || [], hist: await hist('seller_email', o.seller_email) }),
       ad, proof: proof ? proof.img : null, msgs });
+  }));
+
+  async function completeOrder(cl, cmds, o, ad, who, msg) {
+    const pts = Number(o.pts), give = pts - Number(o.fee);
+    await cl.query(`UPDATE p2p_orders SET status='completed', decided_at=NOW(), admin_note=COALESCE($2,admin_note) WHERE id=$1`, [o.id, msg || null]);
+    if (ad) {
+      await cl.query(`UPDATE p2p_ads SET total_pts=GREATEST(0,total_pts-$2) WHERE id=$1`, [ad.id, pts]);
+      await cl.query(`UPDATE p2p_ads SET status='closed' WHERE id=$1 AND total_pts=0`, [ad.id]);
+    }
+    await move(cl, cmds, o.buyer_email, give, 'شراء نقاط P2P', `طلب #${o.id}${Number(o.fee) ? ' (بعد خصم العمولة)' : ''}`);
+    await sys(cl, o.buyer_email, o.seller_email, o.id, `🎉 ${who} الطلب #${o.id} وأُضيفت ${give.toLocaleString('en')} نقطة لرصيد المشتري`);
+    await note(cl, o.buyer_email, 'وصلتك النقاط', `أُضيفت ${give.toLocaleString('en')} نقطة إلى رصيدك (طلب #${o.id}). لا تنسَ تقييم البائع.`);
+    await note(cl, o.seller_email, 'اكتملت الصفقة', `الطلب #${o.id} (${pts.toLocaleString('en')} نقطة) اكتمل.`);
+    return give;
+  }
+  const DREASON = { paid_not_released: 'دفعت ولم يتم التحرير', not_received: 'لم يصلني المبلغ', wrong_amount: 'المبلغ المستلم غير صحيح', other: 'سبب آخر', seller_not_received: 'البائع: لم يصل المبلغ' };
+
+  // البائع يحرّر النقاط للمشتري بنفسه بعد التأكد من وصول المبلغ — لا حاجة لموافقة الإدارة
+  app.post('/api/p2p/order/release', J, wrap(async (req, res) => {
+    const b = req.body || {}; const cl = await pool.connect(); const cmds = []; let give = 0;
+    try {
+      await cl.query('BEGIN');
+      const me = await getAcc(cl, b); const o = await loadOrder(cl, b, me, true);
+      if (o.seller_email !== me.email) fail(403, 'فقط البائع يحرّر النقاط');
+      if (o.status !== 'proof_submitted') fail(409, o.status === 'completed' ? 'تم تحرير هذا الطلب مسبقاً' : 'لا يمكن التحرير قبل أن يؤكد المشتري الدفع');
+      const ad = (await cl.query(`SELECT * FROM p2p_ads WHERE id=$1 FOR UPDATE`, [o.ad_id])).rows[0];
+      give = await completeOrder(cl, cmds, o, ad, 'حرّر البائع', null);
+      await cl.query('COMMIT');
+    } catch (e) { try { await cl.query('ROLLBACK'); } catch (_) {} throw e; } finally { cl.release(); }
+    flush(cmds); res.json({ ok: true, give });
+  }));
+
+  // المشتري يفتح نزاعاً بعد التحويل (لا يُحرَّر الطلب) — تتدخل الإدارة وحدها هنا
+  app.post('/api/p2p/order/dispute', J, wrap(async (req, res) => {
+    const b = req.body || {}; const cl = await pool.connect();
+    try {
+      await cl.query('BEGIN');
+      const me = await getAcc(cl, b); throttle('dp:' + me.email, 6, 600000); const o = await loadOrder(cl, b, me, true);
+      if (o.buyer_email !== me.email) fail(403, 'فقط المشتري يفتح النزاع من هنا');
+      if (o.status !== 'proof_submitted') fail(409, 'يمكن فتح النزاع بعد تأكيد الدفع وقبل التحرير فقط');
+      const why = txt(b.reason, 24); if (!DREASON[why] || why === 'seller_not_received') fail(400, 'اختر سبب النزاع');
+      const nt = txt(b.note, 300); if (why === 'other' && nt.length < 5) fail(400, 'اكتب السبب');
+      if (!(await cl.query(`SELECT 1 FROM p2p_proofs WHERE order_id=$1`, [o.id])).rows[0]) fail(400, 'أرفق صورة التحويل أولاً');
+      await cl.query(`UPDATE p2p_orders SET status='disputed', dispute_reason=$2, dispute_note=$3, disputed_by='buyer', disputed_at=NOW() WHERE id=$1`, [o.id, why, nt]);
+      await sys(cl, o.buyer_email, o.seller_email, o.id, `⚖️ فتح المشتري نزاعاً على الطلب #${o.id}: ${DREASON[why]}${nt ? ' — ' + nt : ''}. الإدارة ستراجع الإثبات وتقرر.`);
+      await note(cl, o.seller_email, 'نزاع على طلب P2P', `فتح المشتري نزاعاً على الطلب #${o.id} (${DREASON[why]}). ستراجع الإدارة صورة التحويل وبياناتك.`);
+      await cl.query('COMMIT');
+    } catch (e) { try { await cl.query('ROLLBACK'); } catch (_) {} throw e; } finally { cl.release(); }
+    res.json({ ok: true });
   }));
 
   app.post('/api/ctl/p2p/order/decide', ...ctl, J, wrap(async (req, res) => {
@@ -703,16 +758,7 @@ module.exports = (app, express, deps) => {
       const ad = (await cl.query(`SELECT * FROM p2p_ads WHERE id=$1 FOR UPDATE`, [o.ad_id])).rows[0];
       const pts = Number(o.pts);
       if (act === 'approve') {
-        const give = pts - Number(o.fee);
-        await cl.query(`UPDATE p2p_orders SET status='completed', decided_at=NOW(), admin_note=$2 WHERE id=$1`, [o.id, note]);
-        if (ad) {
-          await cl.query(`UPDATE p2p_ads SET total_pts=GREATEST(0,total_pts-$2) WHERE id=$1`, [ad.id, pts]);
-          await cl.query(`UPDATE p2p_ads SET status='closed' WHERE id=$1 AND total_pts=0`, [ad.id]);
-        }
-        await move(cl, cmds, o.buyer_email, give, 'شراء نقاط P2P', `طلب #${o.id}${Number(o.fee) ? ' (بعد خصم العمولة)' : ''}`);
-        await sys(cl, o.buyer_email, o.seller_email, o.id, `🎉 اعتمدت الإدارة الطلب #${o.id} وأُضيفت ${give.toLocaleString('en')} نقطة لرصيد المشتري`);
-        await note_(cl, o.buyer_email, 'تمت الموافقة على طلبك', `أُضيفت ${give.toLocaleString('en')} نقطة إلى رصيدك. لا تنسَ تقييم البائع.`);
-        await note_(cl, o.seller_email, 'اكتملت الصفقة', `اعتمدت الإدارة الطلب #${o.id} (${pts.toLocaleString('en')} نقطة).`);
+        await completeOrder(cl, cmds, o, ad, 'اعتمدت الإدارة', note);
       } else if (act === 'reject') {
         await cl.query(`UPDATE p2p_orders SET status='rejected', decided_at=NOW(), admin_note=$2 WHERE id=$1`, [o.id, note]);
         if (ad) await giveBack(cl, cmds, ad, pts);
@@ -723,9 +769,29 @@ module.exports = (app, express, deps) => {
         await cl.query(`UPDATE p2p_orders SET status='disputed', admin_note=$2 WHERE id=$1`, [o.id, note]);
         await sys(cl, o.buyer_email, o.seller_email, o.id, `⚖️ الطلب #${o.id} قيد التحقيق من الإدارة${note ? ': ' + note : ''}`);
       }
+      if (b.ban && act !== 'approve') {
+        await cl.query(`UPDATE p2p_sellers SET status='suspended', admin_note=$2 WHERE email=$1`, [o.seller_email, ('حظر بسبب نزاع #' + o.id + (note ? ': ' + note : '')).slice(0, 300)]);
+        await cl.query(`UPDATE p2p_ads SET status='paused' WHERE seller_email=$1 AND status='active'`, [o.seller_email]);
+        await note_(cl, o.seller_email, 'تم إيقاف حساب البائع', `أوقفت الإدارة حسابك كبائع بعد مراجعة النزاع #${o.id}. تواصل مع الدعم.`);
+      }
       await cl.query('COMMIT');
     } catch (e) { try { await cl.query('ROLLBACK'); } catch (_) {} throw e; } finally { cl.release(); }
     flush(cmds); res.json({ ok: true });
+  }));
+  // الإدارة تراسل البائع و/أو المشتري من شاشة النزاع (إشعار + رسالة نظام في غرفة الطلب)
+  app.post('/api/ctl/p2p/order/notify', ...ctl, J, wrap(async (req, res) => {
+    const b = req.body || {}; const msg = txt(b.msg, 400); if (msg.length < 2) fail(400, 'اكتب الرسالة');
+    const to = ['seller', 'buyer', 'both'].includes(b.to) ? b.to : 'seller';
+    const cl = await pool.connect();
+    try {
+      await cl.query('BEGIN');
+      const o = (await cl.query(`SELECT * FROM p2p_orders WHERE id=$1`, [parseInt(b.id, 10) || 0])).rows[0]; if (!o) fail(404, 'الطلب غير موجود');
+      if (to !== 'buyer') await note_(cl, o.seller_email, 'رسالة من الإدارة بخصوص الطلب #' + o.id, msg);
+      if (to !== 'seller') await note_(cl, o.buyer_email, 'رسالة من الإدارة بخصوص الطلب #' + o.id, msg);
+      await sys(cl, o.buyer_email, o.seller_email, o.id, `📢 الإدارة: ${msg}`);
+      await cl.query('COMMIT');
+    } catch (e) { try { await cl.query('ROLLBACK'); } catch (_) {} throw e; } finally { cl.release(); }
+    res.json({ ok: true });
   }));
   const note_ = (c, e, t, bd) => note(c, e, t, bd);
 
