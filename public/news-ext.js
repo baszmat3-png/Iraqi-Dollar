@@ -90,7 +90,7 @@ ${long ? `<button class="nw-more" data-nw="more" data-id="${n.id}">${openId[n.id
     if (fetching) return; fetching = 1;
     try {
       const m = me();
-      const j = await J('/api/news/list' + (m ? '?e=' + encodeURIComponent(m.e) : ''));
+      const j = m ? await J('/api/news/list', { e: m.e, h: m.h }) : await J('/api/news/list'); /* POST: السيرفر يتحقق من هوية المشاهد لتطبيق خصوصية المنشورات */
       if (!Array.isArray(j.items)) return;
       const s = JSON.stringify(j.items);
       if (!force && s === sig) return;

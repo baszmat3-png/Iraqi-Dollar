@@ -41,7 +41,7 @@ ADMIN_PASSWORD=your-admin-password
 # وضع التطوير
 PORT=3000
 NODE_ENV=development
-OTP_DEBUG=true   # عند التفعيل يطبع رموز OTP في الطرفية لتسهيل الاختبار المحلي
+OTP_DEBUG=false   # يبقى false دائماً؛ لا تطبع رموز التحقق
 ```
 
 ### 3. إنشاء الجداول وتطبيق الهجرة:

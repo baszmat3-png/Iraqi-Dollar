@@ -58,7 +58,7 @@
   const X = (d, z) => `<svg class="i" ${z ? `style="width:${z}px;height:${z}px"` : ''} viewBox="0 0 24 24"><path d="${d}"/></svg>`;
   const IC = { copy: 'M9 9h11v12H9zM5 15H4V3h11v1', share: 'M12 15V3M7 8l5-5 5 5M5 13v8h14v-8' };
   const hue = (s) => { let h = 7; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
-  const seen = (p) => (p.on ? 'متصل الآن' : p.ls ? 'آخر ظهور ' + ago(p.ls) : 'غير متصل');
+  const seen = (p) => (p.hid ? 'الحالة مخفية' : p.on ? 'متصل الآن' : p.ls ? 'آخر ظهور ' + ago(p.ls) : 'غير متصل');
   const tm = (t) => new Date(t).toLocaleTimeString('ar-u-nu-latn', { hour: 'numeric', minute: '2-digit' });
   const dayL = (t) => { const d = new Date(t), n = new Date(), s = (x) => x.toDateString(); if (s(d) === s(n)) return 'اليوم'; if (s(d) === s(new Date(n - 864e5))) return 'أمس'; return d.toLocaleDateString('ar-u-nu-latn', { day: 'numeric', month: 'long' }); };
   const avatar = (p, z) => {
@@ -183,7 +183,7 @@
   }
 
   /* ---------- العرض ---------- */
-  const sigOf = () => JSON.stringify([SO.people.map((p) => [p.uid, p.rel, p.on, p.av, p.name]), SO.incoming.map((p) => p.uid), SO.sent.map((p) => p.uid), SO.friends.map((p) => p.uid), SO.convos.map((c) => [c.uid, c.lt, c.unread]), SO.unread, SO.uv, SO.hist.map((h) => h.id)]);
+  const sigOf = () => JSON.stringify([SO.people.map((p) => [p.uid, p.rel, p.on, p.av, p.name, p.hid, p.cf, p.cm]), SO.incoming.map((p) => p.uid), SO.sent.map((p) => p.uid), SO.friends.map((p) => p.uid), SO.convos.map((c) => [c.uid, c.lt, c.unread]), SO.unread, SO.uv, SO.hist.map((h) => h.id)]);
 
   /* ---------- تثبيت الواجهة: لا إعادة رسم كاملة ولا قفز ---------- */
   const keepScroll = (fn) => { const y = window.scrollY, c = document.querySelector('#scm'), cy = c ? c.scrollTop : null; fn(); window.scrollTo(0, y); if (c && cy != null) { const n = document.querySelector('#scm'); if (n) n.scrollTop = cy; } };
@@ -201,7 +201,7 @@
   function patchBar(uid) {
     const p = find(uid); if (!p || SO.uv !== 'dm') return;
     const old = document.querySelector('.cs .sc-bar'); const hd = document.querySelector('.cs .u2-hdn');
-    const html = p.rel === 'none' ? `<div class="sc-bar"><span>لستما أصدقاء بعد، لكن يمكنك مراسلته.</span><button data-a="scadd" data-v="${esc(p.uid)}">إضافة صديق</button></div>` : p.rel === 'sent' ? `<div class="sc-bar"><span>تم إرسال طلب الصداقة وبانتظار القبول</span></div>` : p.rel === 'recv' ? `<div class="sc-bar"><span>أرسل لك طلب صداقة</span><button data-a="scacc" data-v="${esc(p.uid)}">قبول</button></div>` : '';
+    const html = p.rel === 'none' ? `<div class="sc-bar"><span>${p.cm === false ? 'المراسلة مغلقة حسب خصوصية هذا المستخدم.' : 'لستما أصدقاء بعد، لكن يمكنك مراسلته.'}</span>${p.cf === false ? '' : `<button data-a="scadd" data-v="${esc(p.uid)}">إضافة صديق</button>`}</div>` : p.rel === 'sent' ? `<div class="sc-bar"><span>تم إرسال طلب الصداقة وبانتظار القبول</span></div>` : p.rel === 'recv' ? `<div class="sc-bar"><span>أرسل لك طلب صداقة</span><button data-a="scacc" data-v="${esc(p.uid)}">قبول</button></div>` : '';
     const t = document.createElement('div'); t.innerHTML = html;
     if (old) { if (t.firstElementChild) old.replaceWith(t.firstElementChild); else old.remove(); }
     else if (t.firstElementChild && hd) hd.after(t.firstElementChild);
@@ -239,10 +239,11 @@
     if (p.rel === 'friend') { tag = '<span class="u2-tag">صديق</span>'; }
     else if (p.rel === 'sent') { tag = '<span class="u2-tag w">بانتظار القبول</span>'; act = `<button class="u2-btn w" data-a="sccan" data-v="${u}">${ic('hour')} إلغاء الطلب</button>`; }
     else if (p.rel === 'recv') { tag = '<span class="u2-tag b">أرسل لك طلباً</span>'; act = `<button class="u2-btn g" data-a="scacc" data-v="${u}">${ic('chk')} قبول</button><button class="u2-btn x" data-a="scdec" data-v="${u}">رفض</button>`; }
+    else if (p.cf === false) act = `<button class="u2-btn w" disabled style="opacity:.55;cursor:not-allowed">${ic('lock')} لا يستقبل طلبات</button>`;
     else act = `<button class="u2-btn" data-a="scadd" data-v="${u}">${ic('add')} إضافة صديق</button>`;
     const un = p.unread ? `<b class="cnt" style="position:static;display:inline-grid">${p.unread > 9 ? '9+' : p.unread}</b>` : '';
     return `<div class="u2-c" data-uid="${u}"><div class="u2-r1">${avatar(p)}<div class="sp"><div class="sc-nm">${esc(p.name)}</div><div class="sc-st">${tag}<span class="${p.on ? 'u2-on' : 'mu'}" style="font-size:.8rem">${seen(p)}</span></div></div></div>
-<div class="u2-r2">${act}<button class="u2-btn ${p.rel === 'friend' ? '' : 'w'}" style="${p.rel === 'friend' ? '' : 'background:#1c2a36;border-color:var(--line);color:var(--cy);box-shadow:none;flex:.8'}" data-a="scdm" data-v="${u}">${ic('chat')} مراسلة ${un}</button><button class="u2-ib" data-a="screp" data-v="${u}" aria-label="إبلاغ">${ic('warn')}</button></div></div>`;
+<div class="u2-r2">${act}${p.cm === false ? `<button class="u2-btn w" disabled style="opacity:.55;cursor:not-allowed;flex:.8">${ic('lock')} المراسلة مغلقة</button>` : `<button class="u2-btn ${p.rel === 'friend' ? '' : 'w'}" style="${p.rel === 'friend' ? '' : 'background:#1c2a36;border-color:var(--line);color:var(--cy);box-shadow:none;flex:.8'}" data-a="scdm" data-v="${u}">${ic('chat')} مراسلة ${un}</button>`}<button class="u2-ib" data-a="screp" data-v="${u}" aria-label="إبلاغ">${ic('warn')}</button></div></div>`;
   }
   const list = () => {
     const q = SO.q.trim().toLowerCase();
@@ -273,6 +274,7 @@
     const code = (() => { try { return ucode(S.acc); } catch (e) { return ''; } })(), inc = SO.incoming;
     return hd('المستخدمون', 'users', { back: 'home', acts: bellBtn() + chatBtn() }) +
       `<div class="u2"><div class="u2-me"><div class="sp"><small>رمز الإحالة الخاص بك</small><b dir="ltr">${esc(code)}</b></div><button class="u2-ghost" data-a="ucopy" data-v="${esc(code)}" aria-label="نسخ الرمز">${X(IC.copy, 20)}</button><button class="u2-ghost" data-a="ushare" data-v="${esc(code)}" aria-label="مشاركة الرمز">${X(IC.share, 20)}</button></div>` +
+      (window.stStrip ? window.stStrip() : '') +
       (inc.length ? `<div class="sc-sec"><span>طلبات الصداقة</span><i>${inc.length}</i></div>${inc.map(card).join('')}` : '') +
       `<div class="u2-sb">${ic('search')}<input id="scq" dir="auto" autocomplete="off" spellcheck="false" maxlength="30" value="${esc(SO.q)}" placeholder="ابحث بالاسم..."><button type="button" id="scc" data-a="scclr" aria-label="مسح" ${SO.q ? '' : 'hidden'}>${ic('x')}</button></div><div id="scr">${list()}</div></div>`;
   };
@@ -294,8 +296,8 @@
   const dmV = () => {
     const p = find(SO.up) || SO.peer || { uid: SO.up, name: '...', on: false, av: 0, rel: 'none' };
     return `<div class="cs"><div class="u2-hdn"><button class="ib" data-a="scback" aria-label="رجوع">${ic('back')}</button>${avatar(p, 44)}<div class="sp"><b>${esc(p.name)}</b><small class="${p.on ? 'u2-on' : 'mu'}">${seen(p)}</small></div><button class="ib s r" data-a="screp" data-v="${esc(p.uid)}" aria-label="إبلاغ">${ic('warn')}</button></div>` +
-      (p.rel === 'none' ? `<div class="sc-bar"><span>لستما أصدقاء بعد، لكن يمكنك مراسلته.</span><button data-a="scadd" data-v="${esc(p.uid)}">إضافة صديق</button></div>` : p.rel === 'sent' ? `<div class="sc-bar"><span>تم إرسال طلب الصداقة وبانتظار القبول</span></div>` : p.rel === 'recv' ? `<div class="sc-bar"><span>أرسل لك طلب صداقة</span><button data-a="scacc" data-v="${esc(p.uid)}">قبول</button></div>` : '') +
-      `<div class="u2-ms cs-m" id="scm">${bubbles()}</div><div class="u2-in"><button class="u2-gf" data-a="scgift" aria-label="إرسال هدية">🎁</button><textarea id="sci" rows="1" maxlength="500" name="dm-note-${Date.now() % 99999}" ${window.CHAT_NOFILL || 'autocomplete="off"'} placeholder="اكتب رسالتك...">${esc(SO.dr)}</textarea><button class="u2-snd" data-a="scsend" aria-label="إرسال">${ic('send')}</button></div></div>`;
+      (p.rel === 'none' ? `<div class="sc-bar"><span>${p.cm === false ? 'المراسلة مغلقة حسب خصوصية هذا المستخدم.' : 'لستما أصدقاء بعد، لكن يمكنك مراسلته.'}</span>${p.cf === false ? '' : `<button data-a="scadd" data-v="${esc(p.uid)}">إضافة صديق</button>`}</div>` : p.rel === 'sent' ? `<div class="sc-bar"><span>تم إرسال طلب الصداقة وبانتظار القبول</span></div>` : p.rel === 'recv' ? `<div class="sc-bar"><span>أرسل لك طلب صداقة</span><button data-a="scacc" data-v="${esc(p.uid)}">قبول</button></div>` : '') +
+      `<div class="u2-ms cs-m" id="scm">${bubbles()}</div>${p.cm === false ? `<div class="u2-in" style="justify-content:center;padding:14px"><span class="mu">${ic('lock')} لا يمكنك مراسلة هذا المستخدم</span></div>` : `<div class="u2-in"><button class="u2-gf" data-a="scgift" aria-label="إرسال هدية">🎁</button><textarea id="sci" rows="1" maxlength="500" name="dm-note-${Date.now() % 99999}" ${window.CHAT_NOFILL || 'autocomplete="off"'} placeholder="اكتب رسالتك...">${esc(SO.dr)}</textarea><button class="u2-snd" data-a="scsend" aria-label="إرسال">${ic('send')}</button></div>`}</div>`;
   };
   const toEnd = (force) => { try { window.csEnd(force !== false); } catch (e) {} };
   function paintDm(sc) { const c = document.querySelector('#scm'); if (!c) return; const near = c.scrollHeight - c.scrollTop - c.clientHeight < 160; c.innerHTML = bubbles(); if (sc) toEnd(near); }

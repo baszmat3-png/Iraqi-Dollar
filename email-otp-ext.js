@@ -2,6 +2,20 @@
 const crypto = require('crypto');
 module.exports = function (app, { pool, wrap, fail, sha, EM, deliver, wa, normPhone }) {
   const PURPOSE = { signup: 'signup_email', reset: 'reset_email', verify: 'verify_email' };
+  // إثبات ملكية البريد: يُصدر بعد نجاح رمز التسجيل/التوثيق ويُشترط عند إنشاء حساب أو المطالبة بحساب بلا كلمة مرور
+  const PK = crypto.createHmac('sha256', String(process.env.JWT_SECRET || '')).update('otp-proof-key').digest();
+  const PROOF_TTL = 24 * 3600 * 1000;
+  const proofSig = (email, exp) => crypto.createHmac('sha256', PK).update('otpproof|' + email + '|' + exp).digest('hex').slice(0, 40);
+  const issueProof = (email) => { const exp = Date.now() + PROOF_TTL; return 'v1.' + exp + '.' + proofSig(email, exp); };
+  const proofOk = (email, tok) => {
+    try {
+      const m = /^v1\.(\d{10,15})\.([0-9a-f]{40})$/.exec(String(tok || '')); if (!m) return false;
+      const exp = Number(m[1]); if (exp < Date.now() || exp > Date.now() + PROOF_TTL + 60000) return false;
+      const e = String(email || '').trim().toLowerCase(), a = Buffer.from(proofSig(e, exp)), b = Buffer.from(m[2]);
+      return a.length === b.length && crypto.timingSafeEqual(a, b);
+    } catch (x) { return false; }
+  };
+  app.locals.otpProofOk = proofOk;
   const hits = new Map();
   const limit = (ip) => { const n = Date.now(), a = (hits.get(ip) || []).filter((t) => n - t < 6e5); a.push(n); hits.set(ip, a); if (a.length > 15) fail(429, 'محاولات كثيرة، انتظر قليلاً'); };
   const norm = (v) => String(v || '').trim().toLowerCase();
@@ -43,7 +57,9 @@ module.exports = function (app, { pool, wrap, fail, sha, EM, deliver, wa, normPh
     limit(req.ip);
     const email = norm(req.body.email), P = pur(req.body.purpose);
     await verify(email, P, req.body.code, !(P === PURPOSE.reset && req.body.peek));
-    res.json({ ok: true });
+    const out = { ok: true };
+    if (P === PURPOSE.signup || P === PURPOSE.verify) out.proof = issueProof(email);
+    res.json(out);
   }));
 
   /* توثيق رقم الهاتف عبر واتساب (الرمز يُولَّد ويُفحص في السيرفر) */

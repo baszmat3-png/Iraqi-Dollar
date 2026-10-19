@@ -260,7 +260,7 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     try { joined = (await q(`SELECT email,name,created_at,(SELECT (EXTRACT(EPOCH FROM v.updated_at)*1000)::bigint FROM avatars v WHERE v.email=LOWER(a.email)) av FROM sync_accounts a WHERE demo=FALSE ORDER BY created_at DESC LIMIT 5`)).rows.map((x) => ({ ...x, av: x.av ? Number(x.av) : 0 })); } catch (e) {}
     const ab = await one(`SELECT COUNT(*) FILTER (WHERE status='pending')::int AS pending FROM agent_buys`);
     const pq = await one(`SELECT COUNT(*) FILTER (WHERE status='pending')::int AS pending FROM pts_requests`);
-    const bf = await one(`SELECT COUNT(*)::int AS n FROM bal_flags WHERE at > NOW() - INTERVAL '24 hours'`);
+    const bf = await one(`SELECT COUNT(*)::int AS n FROM bal_audit WHERE kind='clip' AND at > NOW() - INTERVAL '24 hours'`);
     res.json({ users: u, reports: rp, support: sp, merchants: mc, friends: fr, msgs: ms, withdrawals: wd, agbuys: ab, ptsreq: pq, balflags: bf.n || 0, top, recent, joined });
   }));
 

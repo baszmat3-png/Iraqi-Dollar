@@ -78,6 +78,10 @@ const WHEEL = ['3600', 'x', '200', 'x', '500', '100', 'gem', '50'];
 
 /* ---------- Helpers ---------- */
 const app = express();
+const BALGUARD = require('./balance-guard')(pool, { CT }); // حارس حفظ القيمة للأرصدة المرفوعة من الأجهزة
+app.locals.balGuard = BALGUARD;
+app.locals.pool = pool;
+BALGUARD.init().catch((e) => console.error('balGuard init', e.message));
 const SYNC = require('./sync-ext')(app, express);
 const EXCL = require('./excl-ext'); // المرحلة 14: حسابات مستثناة من المالية والأرباح
 EXCL.init(pool);
@@ -111,17 +115,33 @@ P2PX.parsers(app, express); // صور إثبات التحويل ورسائل P2P
 app.set('trust proxy', 1);
 const CLOUD = require('./cloud-state-ext'); CLOUD.parsers(app, express); // مزامنة حالة الحساب (حد أكبر لهذا المسار)
 require('./poke-ext')(app); // مزامنة فورية لكل الأقسام
-app.use(helmet({ contentSecurityPolicy: { useDefaults: false, directives: {
-  // توجيهات آمنة لا تكسر السكربتات الحالية: منع التضمين في مواقع أخرى (clickjacking) ومنع الإضافات القديمة
-  // إصلاح: كانت القيمة تعتمد على helmet.contentSecurityPolicy.dangerouslyDisableDefaultSrc (رمز Symbol غير مدعوم في هذه النسخة) فيفشل الإقلاع. القائمة الصريحة تعمل في كل النسخ.
-  'default-src': ["*", 'data:', 'blob:', "'unsafe-inline'", "'unsafe-eval'"],
+// سياسة CSP: السكربتات المضمّنة ما زالت مطلوبة (الواجهة مبنية عليها)، لكن الاتصال/الإطارات/الأشياء المضمّنة محصورة بالموقع نفسه
+// وبخدمات Google اللازمة لتسجيل الدخول؛ فلا يستطيع سكربت مزروع إرسال مفتاح الإدارة أو البيانات إلى موقع المهاجم عبر fetch/XHR.
+// للتجربة دون حجب: CSP_REPORT_ONLY=1 (يظهر أي خرق في كونسول المتصفح فقط)
+const CSP_DIRECTIVES = {
+  'default-src': ["'self'"],
+  'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://accounts.google.com', 'https://ssl.gstatic.com'],
+  'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://accounts.google.com'],
+  'font-src': ["'self'", 'data:', 'https://fonts.gstatic.com'],
+  'img-src': ["'self'", 'data:', 'blob:', 'https:'],
+  'media-src': ["'self'", 'data:', 'blob:', 'https:'],
+  'connect-src': ["'self'", 'https://accounts.google.com', 'https://api.emailjs.com'],
+  'frame-src': ["'self'", 'https://accounts.google.com'],
+  'worker-src': ["'self'", 'blob:'],
+  'manifest-src': ["'self'"],
   'frame-ancestors': ["'self'"], 'object-src': ["'none'"], 'base-uri': ["'self'"], 'form-action': ["'self'"],
-} } }));
+};
+// صفحة الإدارة أشد: لا صور/وسائط من مواقع خارجية، فلا يمكن تسريب مفتاح الإدارة حتى عبر طلب صورة
+const ADMIN_CSP = Object.assign({}, CSP_DIRECTIVES, { 'img-src': ["'self'", 'data:', 'blob:'], 'media-src': ["'self'", 'data:', 'blob:'], 'connect-src': ["'self'"], 'frame-src': ["'none'"], 'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'"], 'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'] });
+const mkHelmet = (d) => helmet({ contentSecurityPolicy: { useDefaults: false, reportOnly: process.env.CSP_REPORT_ONLY === '1', directives: d } });
+const helmetApp = mkHelmet(CSP_DIRECTIVES), helmetAdmin = mkHelmet(ADMIN_CSP);
+app.use((req, res, next) => (/^\/admin(\.html)?\/?$/.test(req.path) ? helmetAdmin : helmetApp)(req, res, next));
 // نافذة Google المنبثقة تحتاج هذا (القيمة الافتراضية same-origin في helmet تمنع إرجاع نتيجة الدخول للصفحة)
 app.use((_req, res, next) => { res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups'); next(); });
 // الإعدادات المنشورة قد تحتوي صوراً، لذلك حد أكبر لهذا المسار فقط
 app.use('/api/ctl/config', express.json({ limit: '8mb' }));
 app.use(express.json({ limit: '50kb' }));
+app.use('/api', require('./auth-guard')()); // تحديد تخمين بصمة كلمة المرور
 if (CORS_ORIGIN) app.use('/api', cors({ origin: CORS_ORIGIN.split(',') }));
 
 const wrap = (fn) => (req, res) => fn(req, res).catch((e) => {
@@ -149,14 +169,14 @@ async function tx(fn) {
 const EM = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const PH = /^\+\d{9,15}$/;
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
-const sign = (u) => jwt.sign({ uid: u.id }, JWT_SECRET, { expiresIn: '30d' });
+const sign = (u) => jwt.sign({ uid: u.id }, JWT_SECRET, { expiresIn: '7d', algorithm: 'HS256' });
 
 const ADMINS = (process.env.ADMIN_EMAILS || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
 
 async function auth(req, _res, next) {
   const h = req.headers.authorization || '';
   let uid;
-  try { uid = jwt.verify(h.replace(/^Bearer /, ''), JWT_SECRET).uid; }
+  try { uid = jwt.verify(h.replace(/^Bearer /, ''), JWT_SECRET, { algorithms: ['HS256'] }).uid; }
   catch { return next(Object.assign(new Error('غير مصرح، سجّل الدخول'), { http: 401 })); }
   try {
     const r = await pool.query(`SELECT email, banned FROM users WHERE id=$1`, [uid]);
@@ -424,6 +444,15 @@ async function deliverOtpEmail(toEmail, code) {
 app.post('/api/otp/send-email', (_req, res) => res.status(410).json({ error: 'تم إيقاف هذا المسار' }));
 
 /* ---------- Multi-device Account Sync & Login Routes ---------- */
+// إثبات ملكية البريد (يصدره email-otp-ext بعد نجاح الرمز): x-proof = JSON {بريد: توكن} أو توكن مفرد
+const proofFor = (req, email) => {
+  const ok = app.locals.otpProofOk; if (!ok) return false;
+  const raw = req.get('x-proof') || (req.body && req.body.proof) || '';
+  try {
+    if (typeof raw === 'string' && raw[0] === '{') { const m = JSON.parse(raw); return ok(email, m[email] || m[email.toLowerCase()]); }
+    return ok(email, raw);
+  } catch (e) { return false; }
+};
 app.post('/api/sync/account-register', wrap(async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   const name = String(req.body.name || '').trim();
@@ -433,6 +462,8 @@ app.post('/api/sync/account-register', wrap(async (req, res) => {
   const gems = Number(req.body.gems) || 0;
   const usd = Number(req.body.usd) || 0;
   if (!email || !EM.test(email)) fail(400, 'بريد إلكتروني غير صحيح');
+  const exR = await pool.query(`SELECT pass_hash FROM sync_accounts WHERE LOWER(email)=$1`, [email]);
+  if ((!exR.rowCount || !exR.rows[0].pass_hash) && !proofFor(req, email)) fail(403, 'يجب توثيق البريد برمز التحقق أولاً');
   await pool.query(
     `INSERT INTO sync_accounts(email, name, phone, pass_hash, pts, gems, usd, vml, vph, last_seen)
      VALUES($1, $2, $3, $4, 0, 0, 0, FALSE, TRUE, NOW())
@@ -516,7 +547,8 @@ app.post('/api/sync/account-login', wrap(async (req, res) => {
   });
 }));
 
-app.post('/api/sync/otp-login-request', wrap(async (req, res) => {
+const otpLoginLim = rateLimit({ windowMs: 10 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'محاولات كثيرة، انتظر قليلاً' } });
+app.post('/api/sync/otp-login-request', otpLoginLim, wrap(async (req, res) => {
   const ident = String(req.body.identifier || req.body.email || req.body.phone || '').trim().toLowerCase();
   if (!ident) fail(400, 'أدخل البريد أو رقم الهاتف المسجل');
   const cleanPh = normPhone(ident);
@@ -531,7 +563,9 @@ app.post('/api/sync/otp-login-request', wrap(async (req, res) => {
   }
   if (!acc || acc.blk || acc.banned) return res.json({ ok: true }); // لا نكشف وجود الحساب
 
-  const code = String(crypto.randomInt(100000, 999999));
+  const recent = await pool.query(`SELECT 1 FROM otps WHERE email=$1 AND purpose='login' AND created_at > NOW() - INTERVAL '60 seconds'`, [acc.email]);
+  if (recent.rowCount) return res.json({ ok: true }); // مهلة 60 ثانية بين الرموز (يمنع إغراق واتساب)
+  const code = String(crypto.randomInt(100000, 1000000));
   const targetPhone = acc.phone || cleanPh;
   await pool.query(`DELETE FROM otps WHERE (phone=$1 OR email=$2) AND purpose='login'`, [targetPhone, acc.email]);
   await pool.query(
@@ -544,7 +578,7 @@ app.post('/api/sync/otp-login-request', wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
-app.post('/api/sync/otp-login-verify', wrap(async (req, res) => {
+app.post('/api/sync/otp-login-verify', otpLoginLim, wrap(async (req, res) => {
   const ident = String(req.body.identifier || req.body.email || req.body.phone || '').trim().toLowerCase();
   const code = String(req.body.code || '').trim();
   if (!ident || !code) fail(400, 'بيانات غير مكتملة');
@@ -587,7 +621,8 @@ app.post('/api/sync/otp-login-verify', wrap(async (req, res) => {
   });
 }));
 
-// (محذوف) verify-email-success: التوثيق يتم داخل مسار التحقق من OTP فقط
+// أُغلق: كان يسمح لأي شخص بتعليم أي بريد كـ«موثَّق» دون إثبات ملكيته (والواجهة لا تستخدمه). التوثيق يتم فقط عبر /api/otp/email/check
+app.post('/api/sync/verify-email-success', (_req, res) => res.status(410).json({ error: 'تم إيقاف هذا المسار' }));
 
 
 /* ---------- Auth (Standard Password) ---------- */
@@ -953,6 +988,7 @@ app.get('/api/admin/ledger', ...adm, wrap(async (req, res) => {
 
 /* ---------- Central sync: settings + commands + account registry ---------- */
 const ADMIN_KEY = process.env.ADMIN_KEY || '';
+if (ADMIN_KEY && ADMIN_KEY.length < 24) console.warn('⚠️ ADMIN_KEY قصير (أقل من 24 حرفاً): استبدله بقيمة عشوائية طويلة في إعدادات Render');
 const keyEq = (a, b) => crypto.timingSafeEqual(
   crypto.createHash('sha256').update(String(a)).digest(), crypto.createHash('sha256').update(String(b)).digest());
 const ctlFails = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, skipSuccessfulRequests: true, standardHeaders: true, legacyHeaders: false });
@@ -965,6 +1001,34 @@ function ctlAuth(req, _res, next) {
   next();
 }
 const ctl = [ctlFails, ctlAuth];
+
+/* ---------- دخول المالك (يُتحقق منه في الخادم فقط) ----------
+ * كان الهاش مكتوباً داخل admin.html العام والتحقق يتم في المتصفح، وجلسة المالك مجرد مفتاح في localStorage يمكن تزويره.
+ * الآن: OWNER_USER + OWNER_HASH في متغيرات البيئة، والخادم يصدر توكناً موقّعاً بمدة صلاحية، ويُتحقق منه من الخادم عند كل فتح للوحة. */
+const OWNER_USER = String(process.env.OWNER_USER || '').trim().toLowerCase();
+const OWNER_HASH = String(process.env.OWNER_HASH || '');
+const OWNER_TTL = 7 * 24 * 3600 * 1000;
+const ownerMac = (exp) => crypto.createHmac('sha256', crypto.createHash('sha256').update('owner-key|' + JWT_SECRET).digest()).update('owner|' + exp).digest('hex');
+const ownerToken = () => { const exp = Date.now() + OWNER_TTL; return exp + '.' + ownerMac(exp); };
+const ownerTokenOk = (t) => {
+  const m = /^(\d{10,15})\.([0-9a-f]{64})$/.exec(String(t || '')); if (!m) return false;
+  const exp = Number(m[1]); if (exp < Date.now() || exp > Date.now() + OWNER_TTL + 60000) return false;
+  const a = Buffer.from(ownerMac(exp)), b = Buffer.from(m[2]);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+};
+const ownerFails = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, skipSuccessfulRequests: true, standardHeaders: true, legacyHeaders: false, message: { error: 'محاولات كثيرة، حاول بعد 15 دقيقة' } });
+app.post('/api/ctl/owner-login', ownerFails, wrap(async (req, res) => {
+  if (!OWNER_USER || !OWNER_HASH) fail(503, 'OWNER_USER / OWNER_HASH غير مضبوطين في إعدادات الخادم');
+  const u = String((req.body && req.body.u) || '').trim().toLowerCase().slice(0, 60), h = String((req.body && req.body.h) || '').slice(0, 200);
+  const okU = keyEq(u, OWNER_USER), okH = keyEq(h, OWNER_HASH); // لا short-circuit: نفحص الاثنين دائماً
+  if (!(okU && okH)) fail(401, 'بيانات الدخول غير صحيحة');
+  res.set('Cache-Control', 'no-store'); res.json({ ok: true, token: ownerToken() });
+}));
+app.get('/api/ctl/owner-check', wrap(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (!ownerTokenOk(req.get('x-owner-token'))) fail(401, 'انتهت جلسة المالك');
+  res.json({ ok: true });
+}));
 const SYNC_NUM = (v, max) => { v = Number(v); return Number.isFinite(v) ? Math.min(Math.max(v, 0), max) : 0; };
 
 app.get('/api/sync', syncLimiter, wrap(async (req, res) => {
@@ -976,7 +1040,7 @@ app.get('/api/sync', syncLimiter, wrap(async (req, res) => {
     const since = Math.max(0, parseInt(req.query.since, 10) || 0);
     if (since < max) cmds = (await pool.query('SELECT id, body FROM sync_cmds WHERE id>$1 ORDER BY id LIMIT 200', [since])).rows;
     // أوامر الأرصدة/العدادات الشخصية لا تُسلَّم إلا لصاحبها المُوثَّق (بصمة كلمة المرور)؛ البقية تصلهم إشارة فارغة
-    const qe = req.get('x-e') ? decodeURIComponent(req.get('x-e')) : req.query.e, qh = req.get('x-h') || req.query.h;
+    const qe = req.get('x-e') ? decodeURIComponent(req.get('x-e')) : req.query.e, qh = req.get('x-h');
     const me = (qe && qh) ? await (app.locals.authEmail || (async () => ''))(qe, qh) : '';
     cmds = cmds.map((c) => {
       const b = c.body;
@@ -992,7 +1056,7 @@ app.get('/api/sync/account-state', wrap(async (req, res) => {
   const email = String(req.query.email || req.query.ident || '').trim().toLowerCase();
   if (!email) fail(400, 'البريد مطلوب');
   // بيانات الحساب (الرصيد/الهاتف/التوثيق) لصاحبها فقط: بريد + بصمة كلمة المرور
-  const okAuth = await (app.locals.authEmail || (async () => ''))(email, req.get('x-h') || req.query.h);
+  const okAuth = await (app.locals.authEmail || (async () => ''))(email, req.get('x-h'));
   if (!okAuth) fail(401, 'سجّل الدخول لعرض بيانات الحساب');
   const cleanPh = normPhone(email);
   let r = await pool.query(
@@ -1130,14 +1194,16 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
     if (cur.rows.length) {
       // الرصيد المرسل يُقبل فقط من جهاز صاحب الحساب نفسه (بصمة كلمة المرور) وبعد أن يكون قد طبّق كل أوامر الإدارة؛
       // وإلا فقد كانت تقارير لوحة الإدارة أو أجهزة لم تتزامن بعد تمسح الشحن/التصفير بالرصيد القديم.
-      const stored = cur.rows[0].pass_hash, own = !!passHash && (!stored || stored === passHash);
+      const stored = cur.rows[0].pass_hash, own = !!passHash && (stored ? stored === passHash : proofFor(req, email));
       let pending = false;
       const cv = parseInt(req.body.cv, 10) || 0;
       if (own && cv > 0) {
         pending = (await pool.query(
           `SELECT 1 FROM sync_cmds WHERE id>$1 AND body->>'t' IN ('adj','set','rz','rc') AND (body->>'e' IS NULL OR LOWER(body->>'e')=LOWER($2)) LIMIT 1`, [cv, email])).rows.length > 0;
       }
-      const nm = own && !isDemo && Array.isArray(a.l) && a.l.length === 3; // عميل جديد: دمج الأرصدة بالفروقات
+      // دمج الأرصدة بالفروقات (l/k) أُغلق: كان يقبل رصيداً محلياً بلا أي سقف (طلب واحد يولّد نقاطاً/دولارات من العدم)،
+      // والعميل الحالي لا يرسله أصلاً (الرصيد عبر /api/bal/push الخاضع لحارس حفظ القيمة). يمكن إعادته مؤقتاً لعملاء قدماء بـ SYNC_LEGACY_MERGE=1 (غير آمن).
+      const nm = process.env.SYNC_LEGACY_MERGE === '1' && own && !isDemo && Array.isArray(a.l) && a.l.length === 3;
       // الكتابة المطلقة للرصيد من الأجهزة معطّلة: كانت تسمح لجهاز/صفحة قديمة بمسح الشحن أو مضاعفته فيختلف رقم اللوحة عن رقم المستخدم.
       // الرصيد المرجعي على السيرفر؛ والأجهزة تُرسل فروقاً فقط (/api/bal/push) أو الدمج بالفروقات (l/k) للإصدارات الأقدم.
       const ownWrite = own && !pending && !nm && !a.ro; // يملك صلاحية تحديث بيانات العدادات
@@ -1159,7 +1225,7 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
         [email, ncOK ? ncName : String(a.n || '').slice(0, 80), String(a.p || '').slice(0, 20), passHash, vml, vph, pn, gn, un, isDemo, isKyc, wb, ncOK, own]
       );
       let bp = null;
-      if (nm) { try { bp = await CLOUD.mergeBal(pool, email, String(req.body.cid || 'x').slice(0, 40), a.l, a.k, app.locals.balBudget); } catch (e3) { console.error('mergeBal', e3.message); } }
+      if (nm) { try { bp = await CLOUD.mergeBal(pool, email, String(req.body.cid || 'x').slice(0, 40), a.l, a.k); } catch (e3) { console.error('mergeBal', e3.message); } }
       if ((ownWrite || nm) && a.ncl != null && (await colsReady)) {
         const nc = Math.max(0, Math.min(100000, Math.floor(Number(a.ncl)) || 0));
         await pool.query(`UPDATE sync_accounts SET ncl=$2, nrun=$3 WHERE LOWER(email)=LOWER($1)`, [email, nc, a.nrun ? 1 : 0]).catch(() => {});
@@ -1196,6 +1262,7 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
       let stP = 71755, stG = 28, stU = 5;
       try { const kv = (await pool.query(`SELECT val FROM sync_kv WHERE key='config'`)).rows[0], c = kv && kv.val && kv.val.cfg; if (c) { if (Number(c.start) >= 0) stP = Number(c.start); if (Number(c.startG) >= 0) stG = Number(c.startG); if (Number(c.gift) >= 0) stU = Number(c.gift); } } catch (e) { /* افتراضي */ }
       const cpP = Math.min(pn, stP), cpG = Math.min(gn, stG), cpU = Math.min(un, stU);
+      if (!passHash || !proofFor(req, email)) { returnedAccounts.push({ e: email, needVerify: true }); continue; } // لا إنشاء حساب بلا إثبات ملكية البريد
       await pool.query(
         `INSERT INTO sync_accounts(email,name,phone,demo,pts,gems,usd,blk,kyc,pass_hash,vml,vph,last_seen)
          VALUES($1,$2,$3,$4,$9,$10,$11,FALSE,$5,$6,$7,$8,NOW())`,
@@ -1463,14 +1530,14 @@ require('./pricing-ext').migrate(pool); // المرحلة 5: توحيد التس
 MXT.routes(app, { pool, wrap, ctl }); // المرحلة 2: التجار + الصور الشخصية
 EXT5.routes(app, { pool, wrap, ctl, SYNC }); // المرحلة 5: شراء رموز الإحالة + حملات التبرع
 require('./email-otp-ext')(app, { pool, wrap, fail, sha, EM, deliver: deliverOtpEmail, wa: sendWhatsApp, normPhone }); // رمز تحقق البريد عند إنشاء الحساب
-NEWSX.routes(app, { pool, wrap, ctl }); // أخبار المستخدمين
+NEWSX.routes(app, { pool, wrap, ctl, express }); // أخبار المستخدمين
 require('./live-bal')(app, { pool, wrap, ctl }); // بثّ فوري لأرصدة كل المستخدمين للوحة التحكم
 SOC.routes(app, { pool, wrap, ctl }); // المرحلة 4: الأصدقاء + الرسائل + الإشعارات الفورية
 require('./security-ext').routes(app, { pool, wrap, sendWhatsApp, normPhone }); // المرحلة 3: الجلسات + رمز واتساب + المصادقة الثنائية
 require('./fin-ext').routes(app, { pool, wrap, ctl, SYNC, GAME }); // المرحلة 1ج: المالية
 EXCL.routes(app, { pool, wrap, ctl, GAME }); // المرحلة 14: المستثنون + الأعلى مالياً
 require('./instant-sync')(app, express, { pool, wrap, ctl, fail }); // بث فوري SSE + البحث بكود الإحالة
-require('./bal-sync')(app, express, { pool, wrap, fail, ctl }); // الرصيد المرجعي على السيرفر + مزامنة لحظية بالفروقات لكل الأجهزة
+require('./bal-sync')(app, express, { pool, wrap, fail }); // الرصيد المرجعي على السيرفر + مزامنة لحظية بالفروقات لكل الأجهزة
 require('./security-server')(app, express, { pool, wrap, ctl, fail }); // الحماية: بصمة الجهاز + VPN + تلاعب الوقت
 require('./gifts-ext')(app, express, { pool, wrap, ctl, fail });
 require('./rooms-ext')(app, express, { pool, wrap, ctl, fail }); // الرومات الصوتية (+ مكتبة الموسيقى + خلفية الروم)

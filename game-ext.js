@@ -297,6 +297,12 @@ module.exports = function mountGame(app, opts) {
   R.get('/credits', (req, res) => {
     const a = who(req, res); if (!a) return;
     const t = now(), l = (db.credits[a.e] || []).filter(c => c.at <= t);
+    // جوائز يسلّمها الخادم: تُسجَّل كسماح في حارس الأرصدة (مرة واحدة لكل جائزة) كي لا تُقصّ عند رفعها كفرق من الجهاز
+    try {
+      const G = app.locals.balGuard; let any = false;
+      l.forEach(c => { if (!c.al) { c.al = 1; any = true; if (G) G.allow(a.e, c.p || 0, c.g || 0, 0); } });
+      if (any) save();
+    } catch (e) { /* اختياري */ }
     res.json({ list: l.map(c => ({ id: c.id, k: c.k, p: c.p || 0, g: c.g || 0, r: c.r, x: c.x })) });
   });
 

@@ -170,7 +170,7 @@
   function heroHtml() {
     const v = vals(), o = v.o, code = (typeof AGC === 'function' && AGC()[o[0]]) || '—';
     const first = String(o[0] || S.name || '?').trim().charAt(0).toUpperCase();
-    const av = S.av && /^data:image\//.test(S.av) ? `style="background-image:url('${S.av}')"` : '';
+    const av = S.av && /^data:image\//.test(S.av) ? `style="background-image:url('${SAFE_SRC(S.av)}')"` : '';
     return `<div class="hero"><div class="hrow">
       <div class="av" ${av}>${av ? '' : E(first)}</div>
       <div class="hn"><b>${E(o[0] || S.name || 'الوكيل')}</b>
@@ -224,7 +224,7 @@
   const faceHtml = (it) => {
     const m = KIND[it.k] || ['', 'in', 'user'];
     if (m[2] === 'sys') return `<span class="av sys">${I('shield', 20)}</span>`;
-    if (m[2] === 'me') return S.av && /^data:image\//.test(S.av) ? `<span class="av me" style="background-image:url('${S.av}')"></span>` : `<span class="av me">${I('wallet', 20)}</span>`;
+    if (m[2] === 'me') return S.av && /^data:image\//.test(S.av) ? `<span class="av me" style="background-image:url('${SAFE_SRC(S.av)}')"></span>` : `<span class="av me">${I('wallet', 20)}</span>`;
     const nm = (it.name || it.email || '?').trim().charAt(0).toUpperCase();
     if (it.uid && it.av) return `<span class="av" style="background-image:url('/api/soc/avatar/${E(it.uid)}?v=${it.av}');color:transparent">${E(nm)}</span>`;
     if (it.email && window.MX && MX.av && MX.av[String(it.email).toLowerCase()]) return `<span class="av" style="background-image:url('/api/m/avatar?e=${encodeURIComponent(String(it.email).toLowerCase())}&v=${MX.av[String(it.email).toLowerCase()]}');color:transparent">${E(nm)}</span>`;

@@ -4,8 +4,16 @@ const rateLimit = require('express-rate-limit');
 
 const txt = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
 const ONLINE_MS = 5 * 60 * 1000;
+const STORY_MS = 24 * 60 * 60 * 1000;
+const isImg = (v) => typeof v === 'string' && /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/.test(v) && v.length <= 1.4e6;
+/* الخصوصية: all = الجميع · friends = الأصدقاء · me = أنا فقط (لا أحد) */
+const PV_OPTS = { online: ['all', 'friends', 'me'], friend_req: ['all', 'me'], dm: ['all', 'friends', 'me'], posts: ['all', 'friends', 'me'], stories: ['all', 'friends', 'me'] };
+const PV_DEF = { online: 'all', friend_req: 'all', dm: 'all', posts: 'all', stories: 'friends' };
+const allow = (lvl, isFriend) => lvl === 'all' || (lvl === 'friends' && !!isFriend);
+const BGS = ['#0f766e', '#1d4ed8', '#7c3aed', '#be185d', '#b45309', '#15803d', '#334155', '#9f1239'];
 
 exports.parsers = (app, express) => {
+  app.use('/api/soc/story/add', express.json({ limit: '2mb' })); // صورة الستوري (يجب أن يسبق المحلل العام)
   app.use('/api/soc', express.json({ limit: '100kb' }));
 };
 
@@ -37,6 +45,17 @@ exports.routes = (app, { pool, wrap, ctl }) => {
        id BIGSERIAL PRIMARY KEY, email TEXT NOT NULL, kind TEXT NOT NULL DEFAULT '', title TEXT NOT NULL, body TEXT NOT NULL DEFAULT '',
        delivered BOOLEAN NOT NULL DEFAULT FALSE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
     `CREATE INDEX IF NOT EXISTS soc_notes_idx ON soc_notes(email, delivered)`,
+    `CREATE TABLE IF NOT EXISTS user_privacy(
+       email TEXT PRIMARY KEY, online TEXT NOT NULL DEFAULT 'all', friend_req TEXT NOT NULL DEFAULT 'all', dm TEXT NOT NULL DEFAULT 'all',
+       posts TEXT NOT NULL DEFAULT 'all', stories TEXT NOT NULL DEFAULT 'friends', updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
+    `CREATE TABLE IF NOT EXISTS soc_stories(
+       id BIGSERIAL PRIMARY KEY, email TEXT NOT NULL, img TEXT, body TEXT NOT NULL DEFAULT '', bg TEXT NOT NULL DEFAULT '',
+       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
+    `CREATE INDEX IF NOT EXISTS soc_stories_idx ON soc_stories(email, id)`,
+    `CREATE INDEX IF NOT EXISTS soc_stories_time_idx ON soc_stories(created_at)`,
+    `CREATE TABLE IF NOT EXISTS soc_story_views(
+       story_id BIGINT NOT NULL REFERENCES soc_stories(id) ON DELETE CASCADE, viewer TEXT NOT NULL,
+       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY(story_id, viewer))`,
   ];
   // قد يعمل هذا قبل أن ينشئ db.js جدول sync_accounts في أول تشغيل، لذلك نعيد المحاولة
   const ready = (async () => {
@@ -65,6 +84,23 @@ exports.routes = (app, { pool, wrap, ctl }) => {
   const note = (email, kind, title, body) =>
     q(`INSERT INTO soc_notes(email,kind,title,body) VALUES($1,$2,$3,$4)`, [email, kind, title, body]);
   const pair = (me, o) => [me, o];
+
+  /* ---------------- مساعدات الخصوصية ---------------- */
+  async function privMap(emails) {
+    const m = {}; const list = [...new Set(emails.map((e) => String(e).toLowerCase()))];
+    if (!list.length) return m;
+    (await q(`SELECT email,online,friend_req,dm,posts,stories FROM user_privacy WHERE email=ANY($1)`, [list])).rows.forEach((r) => { m[r.email] = r; });
+    return m;
+  }
+  const pvOf = (m, e) => Object.assign({}, PV_DEF, (m && m[String(e).toLowerCase()]) || {});
+  async function isFriend(a, b) {
+    return !!(await q(`SELECT 1 FROM soc_friends WHERE status='accepted' AND ((a=$1 AND b=$2) OR (a=$2 AND b=$1)) LIMIT 1`, [a, b])).rows[0];
+  }
+  async function friendSet(email) {
+    const r = (await q(`SELECT a,b FROM soc_friends WHERE status='accepted' AND (a=$1 OR b=$1)`, [email])).rows;
+    return new Set(r.map((x) => (x.a === email ? x.b : x.a)));
+  }
+  setInterval(() => { q(`DELETE FROM soc_stories WHERE created_at < NOW() - INTERVAL '25 hours'`).catch(() => {}); }, 30 * 60 * 1000).unref();
 
   /* ---------------- الحالة الكاملة: اقتراحات + أصدقاء + طلبات + محادثات + رسائل + إشعارات ---------------- */
   app.post('/api/soc/state', lim, wrap(async (req, res) => {
@@ -114,9 +150,15 @@ exports.routes = (app, { pool, wrap, ctl }) => {
        FROM sync_accounts a WHERE LOWER(a.email)=ANY($1) AND a.demo=FALSE AND COALESCE(a.blk,FALSE)=FALSE`, [extra])).rows : [];
 
     const now = Date.now(), byEmail = {};
+    const pvm = await privMap(sug.concat(more).map((r) => String(r.email).toLowerCase()));
+    // يطبّق خصوصية الطرف الآخر: حالة الاتصال + إمكانية الصداقة + إمكانية المراسلة
+    const flags = (em, rel, ls) => {
+      const pv = pvOf(pvm, em), fr = rel === 'friend', show = allow(pv.online, fr);
+      return { ls: show ? ls : 0, on: show && now - ls < ONLINE_MS, hid: show ? 0 : 1, cf: pv.friend_req === 'all' || rel !== 'none', cm: allow(pv.dm, fr) };
+    };
     const card = (r) => {
-      const em = String(r.email).toLowerCase(), ls = r.last_seen ? new Date(r.last_seen).getTime() : 0;
-      return { uid: r.uid, name: r.name || em.split('@')[0], av: r.av ? Number(r.av) : 0, ls, on: now - ls < ONLINE_MS, rel: (relOf[em] || { k: 'none' }).k, unread: unread[em] || 0, _e: em };
+      const em = String(r.email).toLowerCase(), ls = r.last_seen ? new Date(r.last_seen).getTime() : 0, rel = (relOf[em] || { k: 'none' }).k;
+      return { uid: r.uid, name: r.name || em.split('@')[0], av: r.av ? Number(r.av) : 0, ...flags(em, rel, ls), rel, unread: unread[em] || 0, _e: em };
     };
     sug.concat(more).forEach((r) => { byEmail[String(r.email).toLowerCase()] = card(r); });
     const strip = (c) => { const { _e, ...x } = c; return x; };
@@ -136,7 +178,12 @@ exports.routes = (app, { pool, wrap, ctl }) => {
       const ms = (await q(
         `SELECT id,f,body,created_at FROM soc_msgs WHERE id>$3 AND ((f=$1 AND t=$2) OR (f=$2 AND t=$1)) ORDER BY id DESC LIMIT 200`, [u.email, p.email, after])).rows.reverse();
       out.msgs = ms.map((m) => ({ id: Number(m.id), mine: m.f === u.email, x: m.body, t: new Date(m.created_at).getTime() }));
-      out.peer = byEmail[p.email] ? strip(byEmail[p.email]) : { uid: p.uid, name: p.name, av: 0, ls: 0, on: false, rel: (relOf[p.email] || { k: 'none' }).k };
+      if (byEmail[p.email]) out.peer = strip(byEmail[p.email]);
+      else {
+        const rl = (relOf[p.email] || { k: 'none' }).k, pm = await privMap([p.email]), ls0 = (await q(`SELECT last_seen FROM sync_accounts WHERE LOWER(email)=$1`, [p.email])).rows[0];
+        const l0 = ls0 && ls0.last_seen ? new Date(ls0.last_seen).getTime() : 0, pv = pvOf(pm, p.email), fr = rl === 'friend', sh = allow(pv.online, fr);
+        out.peer = { uid: p.uid, name: p.name, av: 0, ls: sh ? l0 : 0, on: sh && now - l0 < ONLINE_MS, hid: sh ? 0 : 1, cf: pv.friend_req === 'all' || rl !== 'none', cm: allow(pv.dm, fr), rel: rl };
+      }
     }
     res.json(out);
   }));
@@ -147,6 +194,7 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     if (u.demo) fail(403, 'الحساب التجريبي لا يمكنه إضافة أصدقاء');
     if (p.email === u.email) fail(400, 'لا يمكنك إضافة نفسك');
     const ex = (await q(`SELECT id,a,status FROM soc_friends WHERE (a=$1 AND b=$2) OR (a=$2 AND b=$1)`, [u.email, p.email])).rows[0];
+    if (!ex && pvOf(await privMap([p.email]), p.email).friend_req !== 'all') fail(403, 'هذا المستخدم لا يستقبل طلبات الصداقة');
     if (ex) {
       if (ex.status === 'accepted') return res.json({ ok: true, rel: 'friend' });
       if (ex.a === u.email) return res.json({ ok: true, rel: 'sent' });
@@ -192,6 +240,10 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     const u = await who(req.body), p = await peer(req.body.to);
     if (u.demo) fail(403, 'الحساب التجريبي لا يمكنه المراسلة');
     if (p.email === u.email) fail(400, 'لا يمكنك مراسلة نفسك');
+    {
+      const pv = pvOf(await privMap([p.email]), p.email);
+      if (pv.dm !== 'all' && !allow(pv.dm, await isFriend(u.email, p.email))) fail(403, pv.dm === 'me' ? 'هذا المستخدم لا يستقبل الرسائل' : 'هذا المستخدم يستقبل الرسائل من أصدقائه فقط');
+    }
     const body = txt(req.body.body, 500);
     if (!body) fail(400, 'الرسالة فارغة');
     const burst = Number((await q(`SELECT COUNT(*)::int n FROM soc_msgs WHERE f=$1 AND created_at > NOW() - INTERVAL '1 minute'`, [u.email])).rows[0].n);
@@ -201,6 +253,84 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     // إشعار واحد فقط ما دام الطرف الآخر لم يقرأ رسائلك السابقة
     if (!pend) await note(p.email, 'dm', 'رسالة جديدة 💬', u.name + ': ' + (body.length > 60 ? body.slice(0, 60) + '…' : body));
     res.json({ ok: true, msg: { id: Number(ins.id), mine: true, x: body, t: new Date(ins.created_at).getTime() } });
+  }));
+
+  /* ---------------- إعدادات الخصوصية ---------------- */
+  app.post('/api/soc/privacy/get', lim, wrap(async (req, res) => {
+    const u = await who(req.body);
+    res.set('Cache-Control', 'no-store');
+    res.json({ ok: true, priv: pvOf(await privMap([u.email]), u.email), opts: PV_OPTS });
+  }));
+  app.post('/api/soc/privacy/set', lim, wrap(async (req, res) => {
+    const u = await who(req.body), key = txt(req.body.key, 20), val = txt(req.body.val, 10);
+    if (!PV_OPTS[key] || !PV_OPTS[key].includes(val)) fail(400, 'قيمة غير صالحة');
+    await q(`INSERT INTO user_privacy(email,${key}) VALUES($1,$2) ON CONFLICT (email) DO UPDATE SET ${key}=$2, updated_at=NOW()`, [u.email, val]);
+    res.json({ ok: true, priv: pvOf(await privMap([u.email]), u.email) });
+  }));
+
+  /* ---------------- الستوري (Stories): تختفي بعد 24 ساعة، وتظهر حسب خصوصية صاحبها ---------------- */
+  const live = `s.created_at > NOW() - INTERVAL '24 hours'`;
+  app.post('/api/soc/story/add', lim, wrap(async (req, res) => {
+    const u = await who(req.body); if (u.demo) fail(403, 'الحساب التجريبي لا يمكنه نشر ستوري');
+    const img = req.body.img ? String(req.body.img) : null, body = txt(req.body.body, 280);
+    if (img && !isImg(img)) fail(400, 'الصورة غير صالحة أو كبيرة');
+    if (!img && !body) fail(400, 'أضف صورة أو نصاً');
+    const bg = BGS.includes(req.body.bg) ? req.body.bg : BGS[0];
+    const n = Number((await q(`SELECT COUNT(*)::int n FROM soc_stories s WHERE s.email=$1 AND ${live}`, [u.email])).rows[0].n);
+    if (n >= 20) fail(400, 'وصلت للحد الأقصى (20 ستوري خلال 24 ساعة)');
+    const r = (await q(`INSERT INTO soc_stories(email,img,body,bg) VALUES($1,$2,$3,$4) RETURNING id`, [u.email, img, body, bg])).rows[0];
+    res.json({ ok: true, id: Number(r.id) });
+  }));
+
+  app.post('/api/soc/story/list', lim, wrap(async (req, res) => {
+    const u = await who(req.body); res.set('Cache-Control', 'no-store');
+    const rows = (await q(
+      `SELECT s.email, COUNT(*)::int n, (EXTRACT(EPOCH FROM MAX(s.created_at))*1000)::bigint ts,
+              COUNT(*) FILTER (WHERE NOT EXISTS (SELECT 1 FROM soc_story_views v WHERE v.story_id=s.id AND v.viewer=$1))::int unseen
+         FROM soc_stories s WHERE ${live} GROUP BY s.email`, [u.email])).rows;
+    const mine = rows.find((r) => r.email === u.email);
+    const others = rows.filter((r) => r.email !== u.email);
+    const out = { mine: { n: mine ? mine.n : 0, ts: mine ? Number(mine.ts) : 0 }, items: [] };
+    if (others.length) {
+      const em = others.map((r) => r.email), pvm = await privMap(em), fs = await friendSet(u.email);
+      const vis = others.filter((r) => allow(pvOf(pvm, r.email).stories, fs.has(r.email)));
+      if (vis.length) {
+        const acc = (await q(
+          `SELECT LOWER(a.email) e,a.name,a.uid,(SELECT (EXTRACT(EPOCH FROM v.updated_at)*1000)::bigint FROM avatars v WHERE v.email=LOWER(a.email)) av
+             FROM sync_accounts a WHERE LOWER(a.email)=ANY($1) AND a.demo=FALSE AND COALESCE(a.blk,FALSE)=FALSE`, [vis.map((r) => r.email)])).rows;
+        const am = {}; acc.forEach((a) => { am[a.e] = a; });
+        out.items = vis.filter((r) => am[r.email]).map((r) => ({
+          uid: am[r.email].uid, name: am[r.email].name || r.email.split('@')[0], av: am[r.email].av ? Number(am[r.email].av) : 0,
+          n: r.n, unseen: r.unseen, ts: Number(r.ts), friend: fs.has(r.email),
+        })).sort((a, b) => (b.unseen > 0) - (a.unseen > 0) || b.ts - a.ts);
+      }
+    }
+    res.json({ ok: true, ...out });
+  }));
+
+  app.post('/api/soc/story/view', lim, wrap(async (req, res) => {
+    const u = await who(req.body); res.set('Cache-Control', 'no-store');
+    const own = !req.body.uid || req.body.uid === u.uid;
+    const p = own ? u : await peer(req.body.uid);
+    if (!own) {
+      const pv = pvOf(await privMap([p.email]), p.email);
+      if (!allow(pv.stories, await isFriend(u.email, p.email))) fail(403, 'هذا الستوري غير متاح لك');
+    }
+    const rows = (await q(
+      `SELECT s.id,s.img,s.body,s.bg,(EXTRACT(EPOCH FROM s.created_at)*1000)::bigint ts,
+              (SELECT COUNT(*)::int FROM soc_story_views v WHERE v.story_id=s.id) views
+         FROM soc_stories s WHERE s.email=$1 AND ${live} ORDER BY s.id ASC`, [p.email])).rows;
+    if (!own && rows.length) {
+      await q(`INSERT INTO soc_story_views(story_id,viewer) SELECT x,$2::text FROM unnest($1::bigint[]) x ON CONFLICT DO NOTHING`, [rows.map((r) => r.id), u.email]);
+    }
+    res.json({ ok: true, own, name: p.name, uid: p.uid, stories: rows.map((r) => ({ id: Number(r.id), img: r.img || '', x: r.body, bg: r.bg, t: Number(r.ts), ...(own ? { views: r.views } : {}) })) });
+  }));
+
+  app.post('/api/soc/story/delete', lim, wrap(async (req, res) => {
+    const u = await who(req.body);
+    const r = await q(`DELETE FROM soc_stories WHERE id=$1 AND email=$2`, [parseInt(req.body.id, 10) || 0, u.email]);
+    if (!r.rowCount) fail(404, 'الستوري غير موجود');
+    res.json({ ok: true });
   }));
 
   /* ---------------- الإبلاغ عن مستخدم: يصل إلى «الإدارة المتقدمة ← البلاغات» وليس الدعم ---------------- */

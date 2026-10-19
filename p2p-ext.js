@@ -27,15 +27,27 @@ const r2 = (v) => Math.round(v * 100) / 100;
 const IMG_RE = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
 
 const LEVELS = { bronze: 'برونزي', silver: 'فضي', gold: 'ذهبي', trusted: 'موثوق' };
-const MTYPES = {
-  zaincash: 'زين كاش', asiacell: 'آسياسيل / آسيا حوالة', qicard: 'كي كارد', fib: 'FIB',
-  bank: 'حساب مصرفي', mastercard: 'ماستر كارد', cash: 'نقداً / يداً بيد', other: 'أخرى',
+/* طرق الدفع المتاحة للبائعين: سوبر كي (خدمات كي) · آسيا حوالة · زين كاش · المصارف العراقية
+   المفاتيح القديمة (asiacell, qicard, fib, mastercard, cash, other) تبقى للتحقق من بيانات البائعين السابقين فقط ولا تظهر في الاختيار. */
+const SEL_MTYPES = {
+  superqi: 'سوبر كي (خدمات كي)', asiahawala: 'آسيا حوالة', zaincash: 'زين كاش', bank: 'مصارف عراقية',
 };
+const MTYPES = Object.assign({}, SEL_MTYPES, {
+  asiacell: 'آسياسيل / آسيا حوالة', qicard: 'كي كارد', fib: 'FIB', mastercard: 'ماستر كارد', cash: 'نقداً / يداً بيد', other: 'أخرى',
+});
+const IQ_BANKS = [
+  'مصرف الرافدين', 'مصرف الرشيد', 'المصرف العراقي للتجارة (TBI)', 'مصرف بغداد', 'مصرف الشرق الأوسط العراقي للاستثمار',
+  'مصرف الائتمان العراقي', 'مصرف آشور الدولي', 'مصرف الخليج التجاري', 'مصرف الاستثمار العراقي', 'مصرف الموصل للتنمية والاستثمار',
+  'مصرف الاتحاد العراقي', 'مصرف الإقليم التجاري', 'مصرف كردستان الدولي الإسلامي', 'مصرف المنصور للاستثمار', 'المصرف الأهلي العراقي',
+  'مصرف سومر التجاري', 'مصرف الهدى', 'مصرف دار السلام للاستثمار', 'مصرف جيهان', 'مصرف الطيف الإسلامي', 'مصرف إيلاف الإسلامي',
+  'المصرف العراقي الأول (FIB)', 'مصرف التنمية الدولي', 'مصرف العطاء الإسلامي', 'مصرف أخر',
+];
 const DEFAULTS = {
   enabled: true,
   officialOverride: 0,   // 0 = استخدم السعر الرسمي المنشور في إعدادات التطبيق (agRate)
   maxMarkupPct: 10,      // أقصى زيادة عن السعر الرسمي
-  reqCounterIdx: 7,      // رقم العداد المطلوب لدى البائع (7 = «عشرة آلاف» بعائد 10,000 نقطة/يوم). -1 = بدون شرط
+  reqCounterIdx: -1,     // ملغى: لا يُشترط أي عداد — الجميع يمكنهم البيع والشراء
+  autoApprove: false,    // false = موافقة الإدارة مطلوبة لاعتماد البائع (true = اعتماد فوري)
   minOrderPts: 1000,
   minAdPts: 10000,
   payWindowMin: 30,      // مهلة الدفع قبل إلغاء الطلب تلقائياً
@@ -108,7 +120,7 @@ module.exports = (app, express, deps) => {
     const v = Object.assign({}, DEFAULTS, (r && r.v) || {});
     return {
       enabled: v.enabled !== false, officialOverride: Math.max(0, num(v.officialOverride)),
-      maxMarkupPct: Math.max(0, Math.min(100, num(v.maxMarkupPct, 10))), reqCounterIdx: Math.floor(num(v.reqCounterIdx, 7)),
+      maxMarkupPct: Math.max(0, Math.min(100, num(v.maxMarkupPct, 10))), reqCounterIdx: -1, autoApprove: false, // مفروض: موافقة الإدارة دائماً
       minOrderPts: Math.max(1, Math.floor(num(v.minOrderPts, 1000))), minAdPts: Math.max(1, Math.floor(num(v.minAdPts, 10000))),
       payWindowMin: Math.max(5, Math.min(240, Math.floor(num(v.payWindowMin, 30)))), feePct: Math.max(0, Math.min(50, num(v.feePct))),
       maxOpenOrders: Math.max(1, Math.min(20, Math.floor(num(v.maxOpenOrders, 3)))),
@@ -210,6 +222,10 @@ module.exports = (app, express, deps) => {
     return arr.map((m) => {
       const type = MTYPES[m && m.type] ? m.type : 'other';
       const o = { type, label: txt(m && m.label, 40) || MTYPES[type], holder: txt(m && m.holder, 80), number: txt(m && m.number, 64), bank: txt(m && m.bank, 60) };
+      if (type === 'bank') {
+        if (!o.bank) fail(400, 'اختر المصرف في طريقة الدفع «مصارف عراقية»');
+        o.label = o.bank.slice(0, 40); // يظهر للمشتري اسم المصرف نفسه
+      }
       if (type !== 'cash' && o.number.length < 4) fail(400, 'رقم الحساب غير صحيح في: ' + o.label);
       if (type !== 'cash' && !o.holder) fail(400, 'اكتب اسم صاحب الحساب في: ' + o.label);
       return o;
@@ -312,7 +328,7 @@ module.exports = (app, express, deps) => {
     }
     res.json({ ok: true, enabled: true, now: Date.now(), cfg: { official: pr.official, min: pr.min, max: pr.max, pct: cfg.maxMarkupPct, minOrder: cfg.minOrderPts, minAd: cfg.minAdPts, payMin: cfg.payWindowMin, reqCounter: cfg.reqCounterIdx },
       me: { uid: me.uid, name: me.name, pts: Number(me.pts), seller: sel ? sel.status : null, level: sel ? sel.level : null, openOrders: open, unread, canSell: hasCounter(me, cfg.reqCounterIdx) },
-      ads: out, levels: LEVELS, mtypes: MTYPES });
+      ads: out, levels: LEVELS, mtypes: SEL_MTYPES, banks: IQ_BANKS });
   }));
 
   app.post('/api/p2p/seller/profile', J, wrap(async (req, res) => {
@@ -340,14 +356,14 @@ module.exports = (app, express, deps) => {
     const ex = (await q(`SELECT status FROM p2p_sellers WHERE email=$1`, [me.email])).rows[0];
     if (ex && ex.status === 'approved') fail(409, 'أنت بائع معتمد بالفعل');
     if (ex && ex.status === 'suspended') fail(403, 'حساب البائع موقوف، تواصل مع الدعم');
-    if (!hasCounter(me, cfg.reqCounterIdx) && !(ex && ex.waive)) fail(403, 'يجب أن تملك عداد «عشرة آلاف» فعّالاً لتصبح بائعاً');
     const full = txt(b.full_name, 80), phone = txt(b.phone, 30);
     if (full.length < 5) fail(400, 'اكتب اسمك الثلاثي كما في حساباتك البنكية');
     if (!/^[+0-9 ]{8,20}$/.test(phone)) fail(400, 'رقم الهاتف غير صحيح');
     const methods = cleanMethods(b.methods);
-    await q(`INSERT INTO p2p_sellers(email,status,full_name,phone,bio,methods) VALUES($1,'pending',$2,$3,$4,$5)
-      ON CONFLICT (email) DO UPDATE SET status='pending', full_name=$2, phone=$3, bio=$4, methods=$5`, [me.email, full, phone, txt(b.bio, 200), JSON.stringify(methods)]);
-    res.json({ ok: true });
+    await q(`INSERT INTO p2p_sellers(email,status,full_name,phone,bio,methods,approved_at) VALUES($1,$6::text,$2,$3,$4,$5,CASE WHEN $6::text='approved' THEN NOW() END)
+      ON CONFLICT (email) DO UPDATE SET status=$6::text, full_name=$2, phone=$3, bio=$4, methods=$5, approved_at=CASE WHEN $6::text='approved' THEN NOW() ELSE p2p_sellers.approved_at END`,
+      [me.email, full, phone, txt(b.bio, 200), JSON.stringify(methods), cfg.autoApprove ? 'approved' : 'pending']);
+    res.json({ ok: true, approved: !!cfg.autoApprove });
   }));
 
   app.post('/api/p2p/seller/update', express.json({ limit: '30kb' }), wrap(async (req, res) => {
@@ -375,7 +391,7 @@ module.exports = (app, express, deps) => {
       const x = await statsFor([me.email]); st = Object.assign(pubStats(x[me.email]), { disputes: x[me.email].disputes });
     }
     res.json({ ok: true, cfg: { official: pr.official, min: pr.min, max: pr.max, pct: cfg.maxMarkupPct, minAd: cfg.minAdPts, minOrder: cfg.minOrderPts, reqCounter: cfg.reqCounterIdx },
-      canSell: hasCounter(me, cfg.reqCounterIdx) || !!(s && s.waive), pts: Number(me.pts), seller: s, ads, incoming, stats: st, levels: LEVELS, mtypes: MTYPES });
+      canSell: hasCounter(me, cfg.reqCounterIdx) || !!(s && s.waive), pts: Number(me.pts), seller: s, ads, incoming, stats: st, levels: LEVELS, mtypes: SEL_MTYPES, banks: IQ_BANKS });
   }));
 
   app.post('/api/p2p/ad/save', J, wrap(async (req, res) => {
@@ -387,7 +403,6 @@ module.exports = (app, express, deps) => {
       const cfg = await settings(); if (!cfg.enabled) fail(403, 'النظام متوقف حالياً');
       const s = (await cl.query(`SELECT status,methods,waive FROM p2p_sellers WHERE email=$1 FOR UPDATE`, [me.email])).rows[0];
       if (!s || s.status !== 'approved') fail(403, 'يجب أن تكون بائعاً معتمداً');
-      if (!(s.waive || hasCounter(me, cfg.reqCounterIdx))) fail(403, 'يجب أن يبقى عداد «عشرة آلاف» فعّالاً لديك لنشر الإعلانات');
       const pr = await priceRange(cfg);
       const price = r2(num(b.price));
       if (!(price > 0) || !inRange(price, pr)) fail(400, `السعر يجب أن يكون بين ${pr.min} و ${pr.max} دينار لكل 1000 نقطة (السعر الرسمي ${pr.official} + حد أقصى ${cfg.maxMarkupPct}٪)`);

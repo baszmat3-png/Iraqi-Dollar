@@ -18,13 +18,28 @@ module.exports = (app, express, deps) => {
     try { const r = await pool.query('SELECT 1 FROM sync_accounts WHERE LOWER(email)=$1 AND pass_hash=$2', [e, h]); return r.rowCount ? e : ''; } catch (x) { return ''; }
   };
   app.locals.authEmail = authEmail;
+
+  // تذكرة بث لمرة واحدة: بدل وضع بصمة كلمة المرور في عنوان الطلب (كانت تُسجَّل في سجلات الوسطاء)
+  const TICKETS = new Map(); // ticket -> { email, exp }
+  const dec = (v) => { try { return decodeURIComponent(String(v || '')); } catch (x) { return String(v || ''); } };
+  setInterval(() => { const n = Date.now(); for (const [k, v] of TICKETS) if (v.exp < n) TICKETS.delete(k); }, 30000).unref();
+  app.post('/api/sync/stream-ticket', wrap(async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const email = await authEmail(dec(req.get('x-e')), req.get('x-h'));
+    if (!email) return res.status(401).json({ error: 'auth' });
+    if (TICKETS.size > 50000) TICKETS.clear();
+    const t = require('crypto').randomBytes(24).toString('hex');
+    TICKETS.set(t, { email, exp: Date.now() + 60000 });
+    res.json({ t });
+  }));
+  const redeem = (t) => { const v = TICKETS.get(String(t || '')); if (!v) return ''; TICKETS.delete(String(t)); return v.exp >= Date.now() ? v.email : ''; };
   const clients = new Set();
   const sent = new Set();
   let watermark = null;
 
   app.get('/api/sync/stream', async (req, res) => {
     if (clients.size >= MAX_CLIENTS) return res.status(503).end();
-    const verified = await authEmail(req.query.email, req.query.h);
+    const verified = req.query.t ? redeem(req.query.t) : ''; // بلا تذكرة صالحة = بث عام فقط (لا أوامر شخصية)
     res.set({
       'Content-Type': 'text/event-stream; charset=utf-8',
       'Cache-Control': 'no-cache, no-transform',

@@ -137,7 +137,7 @@ ${o.hasProof ? '<div class="mu" style="margin-top:4px">📎 صورة التحو�
 <div class="mu" style="margin-top:6px">السعر الرسمي الحالي: <b style="color:#fff">${N2(j.range.official)}</b> د.ع/1000 نقطة → النطاق ${N2(j.range.min)} – ${N2(j.range.max)}</div>
 <label>تثبيت السعر الرسمي يدوياً (0 = استخدم سعر التطبيق المنشور)<input id="s_of" type="number" step="0.01" value="${c.officialOverride}"></label>
 <label>أقصى زيادة عن السعر الرسمي (٪)<input id="s_mk" type="number" step="0.5" value="${c.maxMarkupPct}"></label>
-<label>رقم العداد المطلوب لدى البائع (7 = «عشرة آلاف»، -1 = بدون شرط)<input id="s_ci" type="number" value="${c.reqCounterIdx}"></label>
+<label>شرط العداد (ملغى — الجميع يبيعون ويشترون، القيمة لا تؤثر)<input id="s_ci" type="number" value="${c.reqCounterIdx}"></label>
 <label>أقل كمية للإعلان (نقطة)<input id="s_ma" type="number" value="${c.minAdPts}"></label>
 <label>أقل كمية للطلب (نقطة)<input id="s_mo" type="number" value="${c.minOrderPts}"></label>
 <label>مهلة الدفع (دقيقة)<input id="s_pw" type="number" value="${c.payWindowMin}"></label>
@@ -187,7 +187,7 @@ ${(s.methods || []).map((x, i) => `<div class="mt ${i === usedIdx ? 'ac' : ''}">
 ${usedIdx < 0 ? `<div class="mt ac"><b>${esc(mm.label)}</b> (نسخة وقت الطلب — عُدّلت لاحقاً)<br>${esc(mm.holder)}<br><b dir="ltr">${esc(mm.number)}</b></div>` : ''}</div>
 <div class="c"><h4 style="margin:0 0 8px">🧾 صورة التحويل</h4>${j.proof ? `<img class="pf" src="${j.proof}" data-zoom="1">` : '<div class="mu">لم يرفع المشتري صورة بعد</div>'}
 ${review ? `<div style="margin-top:12px"><div class="mu">قائمة المطابقة (للتدقيق فقط)</div><label class="ck"><input type="checkbox" class="chk"> المبلغ في الصورة = ${NF(o.iqd)} د.ع</label><label class="ck"><input type="checkbox" class="chk"> رقم/اسم المستلم = حساب البائع الأخضر أعلاه</label><label class="ck"><input type="checkbox" class="chk"> التاريخ والوقت حديث وبعد إنشاء الطلب</label><label class="ck"><input type="checkbox" class="chk"> الصورة غير مكررة في طلب آخر وغير معدّلة</label></div>` : ''}</div>
-<div class="c"><h4 style="margin:0 0 8px">💬 دردشة الطرفين</h4>${j.msgs.map((m) => `<div class="msg ${m.from === '*' ? 's' : m.from}">${esc(m.x)}${m.img ? `<img src="${esc(m.img)}" data-zoom="1">` : ''}</div>`).join('') || '<div class="mu">لا توجد رسائل</div>'}</div>
+<div class="c"><h4 style="margin:0 0 8px">💬 دردشة الطرفين</h4>${j.msgs.map((m) => `<div class="msg ${m.from === '*' ? 's' : m.from}">${esc(m.x)}${m.img ? `<img src="${SAFE_SRC(m.img)}" data-zoom="1">` : ''}</div>`).join('') || '<div class="mu">لا توجد رسائل</div>'}</div>
 ${review ? `<div class="c"><label style="margin-top:0">ملاحظة / سبب القرار (إلزامية عند الرفض وتظهر للطرفين)<textarea id="dn" rows="2" maxlength="300"></textarea></label>
 <div class="r" style="margin-top:12px"><button class="b g2 g" data-dec="approve">✅ موافقة وإضافة النقاط للمشتري</button><button class="b rd g" data-dec="reject">❌ رفض وإعادة النقاط للإعلان</button></div>
 ${o.status !== 'disputed' ? '<button class="b pu" style="margin-top:8px;width:100%" data-dec="dispute">⚖️ وضع قيد التحقيق</button>' : ''}</div>` : ''}`;

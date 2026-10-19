@@ -79,12 +79,28 @@
 #ppo .cp{border:0;background:#2bcfe220;color:var(--ac);border-radius:9px;padding:4px 10px;font:inherit;font-size:.74rem;cursor:pointer}
 #ppo .stars{display:flex;gap:4px;direction:ltr;justify-content:center;margin:8px 0}#ppo .stars button{border:0;background:none;font-size:2rem;color:#4a5a68;cursor:pointer;padding:0}#ppo .stars button.on{color:#ffc107}
 #ppo .sg{color:#ffc107;letter-spacing:1px}
-#ppo .ch{display:flex;flex-direction:column;height:100%}#ppo .ms{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:4px 2px}
-#ppo .mb{max-width:80%;padding:8px 12px;border-radius:16px;font-size:.88rem;word-break:break-word;white-space:pre-wrap}
-#ppo .mb.m{align-self:flex-start;background:linear-gradient(90deg,#00a6c4,#1fb8cf);color:#04222a;border-end-start-radius:4px}
-#ppo .mb.o{align-self:flex-end;background:#243445;border-end-end-radius:4px}#ppo .mb.s{align-self:center;background:#ffffff0d;color:var(--mu);font-size:.74rem;text-align:center;max-width:92%;border-radius:12px}
-#ppo .mb img{max-width:200px;border-radius:10px;display:block;margin-top:4px}#ppo .mb small{display:block;opacity:.6;font-size:.62rem;margin-top:3px}
-#ppo .ci{display:flex;gap:6px;padding-top:8px;align-items:flex-end}#ppo .ci textarea{margin:0;flex:1;max-height:100px}
+#ppb.room{padding:0;overflow:hidden;display:flex;flex-direction:column;max-width:760px}
+#ppo .ch{flex:1;min-height:0;display:flex;flex-direction:column;background:radial-gradient(120% 60% at 50% 0,#12202e 0,#0E1621 70%)}
+#ppo .cx{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#101c28;border-bottom:1px solid #ffffff10;font-size:.8rem;color:var(--mu)}
+#ppo .cx b{color:var(--ac)}#ppo .cx button{margin-inline-start:auto;border:1px solid var(--bd);background:none;color:var(--ac);border-radius:99px;padding:4px 12px;font:inherit;font-size:.76rem;cursor:pointer}
+#ppo .ms{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:5px;padding:14px 12px 10px;scroll-behavior:smooth;overscroll-behavior:contain}
+#ppo .dy{align-self:center;margin:8px 0 4px;font-size:.7rem;color:var(--mu);background:#ffffff0d;border-radius:99px;padding:3px 12px}
+#ppo .mb{max-width:82%;padding:8px 12px 6px;border-radius:18px;font-size:.9rem;line-height:1.55;word-break:break-word;white-space:pre-wrap;box-shadow:0 1px 0 #0003}
+#ppo .mb.m{align-self:flex-start;background:linear-gradient(135deg,#00a6c4,#1fb8cf);color:#031c22;border-end-start-radius:5px}
+#ppo .mb.o{align-self:flex-end;background:#243445;border-end-end-radius:5px}
+#ppo .mb.s{align-self:center;background:#ffffff0d;color:var(--mu);font-size:.74rem;text-align:center;max-width:92%;border-radius:12px;box-shadow:none}
+#ppo .mb img{max-width:min(230px,100%);max-height:260px;object-fit:cover;border-radius:12px;display:block;margin:2px 0 5px;cursor:zoom-in}
+#ppo .mb small{display:block;opacity:.6;font-size:.62rem;margin-top:2px;text-align:end}
+#ppo .cmp{display:flex;align-items:flex-end;gap:8px;padding:9px 10px calc(9px + env(safe-area-inset-bottom,0px));background:#101c28;border-top:1px solid #ffffff12}
+#ppo .cmp textarea{flex:1;min-width:0;margin:0;max-height:120px;min-height:44px;border-radius:22px;padding:11px 16px;line-height:1.4;background:#0E1621;overflow-y:auto}
+#ppo .cmp .cb{flex:none;width:44px;height:44px;border-radius:50%;border:1.5px solid var(--bd);background:#16283a;color:var(--ac);display:grid;place-items:center;cursor:pointer;padding:0}
+#ppo .cmp .cb.snd{background:linear-gradient(135deg,#00b6d4,#2bcfe2);border:0;color:#04222a;box-shadow:0 4px 14px #00b6d455;transition:opacity .15s,transform .1s}
+#ppo .cmp .cb.snd:active{transform:scale(.92)}#ppo .cmp .cb.snd.off{opacity:.45}
+#ppo .cmp .cb svg{width:21px;height:21px}#ppo .cmp .cb.snd svg{transform:scaleX(-1)}
+#ppo .pvw{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#101c28;border-top:1px solid #ffffff12}
+#ppo .pvw img{width:54px;height:54px;object-fit:cover;border-radius:10px}#ppo .pvw span{flex:1;font-size:.8rem;color:var(--mu)}
+#ppo .pvw button{border:0;background:#ef535033;color:#ff8a87;width:32px;height:32px;border-radius:50%;cursor:pointer;padding:0;display:grid;place-items:center}
+#ppo .mrow select.mmb{margin-top:6px}
 #ppo .ov{position:fixed;inset:0;background:#000a;z-index:10001;display:flex;align-items:flex-end;justify-content:center}
 #ppo .sh{background:#162230;border-radius:24px 24px 0 0;width:100%;max-width:560px;max-height:92%;overflow:auto;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));border:1.5px solid var(--bd);border-bottom:0}
 #ppo .em{text-align:center;color:var(--mu);padding:30px 10px}
@@ -153,7 +169,7 @@
     tabsEl.style.display = v === 'chatroom' ? 'none' : '';
     [...tabsEl.children].forEach((b) => b.classList.toggle('on', b.dataset.t === P.tab));
     title.textContent = { market: 'شراء نقاط P2P', orders: 'طلباتي', seller: 'لوحة البائع', chat: 'الدردشة', profile: 'ملف البائع', order: 'تفاصيل الطلب #' + (arg || ''), chatroom: 'محادثة', adform: arg && arg.id ? 'تعديل الإعلان' : 'إعلان جديد', apply: 'التسجيل كبائع', methods: 'طرق الدفع' }[v] || 'P2P';
-    body.scrollTop = 0; body.innerHTML = '<div class="em">جارٍ التحميل...</div>';
+    body.classList.remove('room'); P.pimg = ''; body.scrollTop = 0; body.innerHTML = '<div class="em">جارٍ التحميل...</div>';
     VIEWS[v]().catch((e) => { body.innerHTML = `<div class="em">${esc(e.message)}<br><br><button class="btn s o" data-p="retry">إعادة المحاولة</button></div>`; });
   }
 
@@ -166,7 +182,8 @@
         if (P.view !== 'market') return;
         if (!j.enabled) { body.innerHTML = '<div class="em">نظام P2P متوقف حالياً</div>'; return; }
         const c = j.cfg, ty = {};
-        j.ads.forEach((a) => a.methods.forEach((m) => { ty[m.type] = m.label; }));
+        j.ads.forEach((a) => a.methods.forEach((m) => { ty[m.type] = (j.mtypes && j.mtypes[m.type]) || m.label; }));
+        P.banks = j.banks || P.banks;
         let ads = j.ads.filter((a) => P.filt === 'all' || a.methods.some((m) => m.type === P.filt));
         const sig = JSON.stringify([ads.map((a) => [a.id, a.avail, a.price]), P.filt]);
         if (sig === P.sig) return; P.sig = sig;
@@ -240,12 +257,13 @@ ${o.hasProof ? `<button class="btn o s" style="margin-top:8px;width:100%" data-p
     async seller() {
       const j = await api('seller/me'); P.sm = j; const s = j.seller;
       if (!s) {
-        body.innerHTML = `<div class="c hero"><b style="font-size:1.1rem">اربح من بيع نقاطك</b><p style="margin:8px 0 0;color:#d6f3f8;font-size:.88rem">انضم كبائع P2P واعرض نقاطك بسعر لا يقل عن الرسمي ولا يزيد عنه أكثر من ${j.cfg.pct}٪.</p></div>
-<div class="c"><b>الشروط</b>
-<div class="rw" style="margin-top:10px"><span>${j.canSell ? '✅' : '❌'}</span><span class="sp">امتلاك عداد «عشرة آلاف» فعّال</span></div>
-<div class="rw" style="margin-top:8px"><span>⭕</span><span class="sp">إضافة طرق دفعك وأرقام حساباتك (تظهر للمشتري عند الطلب فقط)</span></div>
-<div class="rw" style="margin-top:8px"><span>⭕</span><span class="sp">موافقة الإدارة — تمنحك المستوى حسب تعاملاتك وتقييمك</span></div>
-<button class="btn" style="margin-top:14px" data-p="apply" ${j.canSell ? '' : 'disabled'}>التسجيل كبائع</button>${j.canSell ? '' : '<div class="mu" style="margin-top:8px;text-align:center">اشترِ عداد «عشرة آلاف» أولاً لتفعيل التسجيل</div>'}</div>`;
+        body.innerHTML = `<div class="c hero"><b style="font-size:1.1rem">اربح من بيع نقاطك</b><p style="margin:8px 0 0;color:#d6f3f8;font-size:.88rem">البيع والشراء متاحان للجميع. اعرض نقاطك بسعر لا يقل عن الرسمي ولا يزيد عنه أكثر من ${j.cfg.pct}٪.</p></div>
+<div class="c"><b>كيف تبدأ؟</b>
+<div class="rw" style="margin-top:10px"><span>1️⃣</span><span class="sp">أضف طرق استلام المبلغ: سوبر كي · آسيا حوالة · زين كاش · المصارف العراقية</span></div>
+<div class="rw" style="margin-top:8px"><span>2️⃣</span><span class="sp">انشر إعلانك بالكمية والسعر (تُحجز نقاطك في ضمان التطبيق)</span></div>
+<div class="rw" style="margin-top:8px"><span>3️⃣</span><span class="sp">تظهر بياناتك للمشتري عند الطلب فقط، والإدارة تدقّق التحويل قبل تحرير النقاط</span></div>
+<div class="rw" style="margin-top:8px"><span>4️⃣</span><span class="sp">موافقة الإدارة — تمنحك المستوى حسب تعاملاتك وتقييمك</span></div>
+<button class="btn" style="margin-top:14px" data-p="apply">التسجيل كبائع</button></div>`;
         return;
       }
       if (s.status !== 'approved') {
@@ -265,8 +283,8 @@ ${a.out ? `<div class="note warn" style="margin:10px 0 0">${ic('shield')}<span>�
 <button class="btn o" data-p="methods">تعديل طرق الدفع والنبذة</button>`;
     },
 
-    async apply() { const j = P.sm || await api('seller/me'); P.mm = (j.seller && j.seller.methods && j.seller.methods.length ? j.seller.methods : [{ type: 'zaincash', label: '', holder: '', number: '', bank: '' }]).map((x) => Object.assign({}, x)); body.innerHTML = methodsForm(j, true); },
-    async methods() { const j = P.sm || await api('seller/me'); P.mm = (j.seller.methods || []).map((x) => Object.assign({}, x)); body.innerHTML = methodsForm(j, false); },
+    async apply() { const j = P.sm || await api('seller/me'); P.mm = (j.seller && j.seller.methods && j.seller.methods.length ? j.seller.methods : [{ type: 'superqi', label: '', holder: '', number: '', bank: '' }]).map((x) => Object.assign({}, x)); P.banks = j.banks || P.banks; body.innerHTML = methodsForm(j, true); },
+    async methods() { const j = P.sm || await api('seller/me'); P.mm = (j.seller.methods || []).map((x) => Object.assign({}, x)); P.banks = j.banks || P.banks; body.innerHTML = methodsForm(j, false); },
 
     async adform() {
       const j = P.sm || await api('seller/me'), a = P.arg && P.arg.id ? j.ads.find((x) => x.id === P.arg.id) : null, c = j.cfg, ms = j.seller.methods;
@@ -292,9 +310,11 @@ ${a.out ? `<div class="note warn" style="margin:10px 0 0">${ic('shield')}<span>�
     },
 
     async chatroom() {
-      P.chatUid = P.arg.uid; P.chatLast = 0; P.chatMsgs = [];
+      P.chatUid = P.arg.uid; P.chatLast = 0; P.chatMsgs = []; P.chatDay = ''; P.pimg = '';
       const j = await api('chat/msgs', { uid: P.chatUid, after: 0 }); title.textContent = j.peer.name;
-      body.innerHTML = `<div class="ch" style="height:calc(100vh - 150px)"><div class="ms" id="ppms"></div><div class="ci"><button class="ib" data-p="cimg" aria-label="صورة">${ic('img')}</button><input type="file" id="ppci2" accept="image/*" style="display:none"><textarea id="ppci" rows="1" maxlength="600" placeholder="اكتب رسالة..."></textarea><button class="ib" data-p="csend" style="background:var(--ac);color:#04222a">${ic('send')}</button></div></div>`;
+      body.classList.add('room');
+      body.innerHTML = `<div class="ch">${P.arg.order ? `<div class="cx"><span>محادثة بخصوص الطلب <b>#${P.arg.order}</b></span><button data-p="order" data-v="${P.arg.order}">عرض الطلب</button></div>` : ''}<div class="ms" id="ppms"></div><div id="pppv"></div>
+<div class="cmp"><input type="file" id="ppci2" accept="image/*" hidden><button class="cb" data-p="cimg" aria-label="إرفاق صورة">${ic('img')}</button><textarea id="ppci" rows="1" maxlength="600" placeholder="اكتب رسالة..." enterkeyhint="send"></textarea><button class="cb snd off" id="ppsn" data-p="csend" aria-label="إرسال">${ic('send')}</button></div></div>`;
       addMsgs(j.msgs);
       every(async () => { if (P.view !== 'chatroom') return; const r = await api('chat/msgs', { uid: P.chatUid, after: P.chatLast }); if (r.msgs.length) addMsgs(r.msgs); }, 3000);
     },
@@ -316,9 +336,11 @@ ${a.out ? `<div class="note warn" style="margin:10px 0 0">${ic('shield')}<span>�
 <label>نبذة قصيرة عنك (اختياري)<textarea id="apb" rows="2" maxlength="200">${esc(s.bio || '')}</textarea></label></div>
 <button class="btn" data-p="${isApply ? 'applysend' : 'methodssave'}">${isApply ? 'إرسال الطلب للإدارة' : 'حفظ'}</button>`;
   }
-  const mmHtml = (mt) => P.mm.map((m, i) => `<div class="mrow" data-i="${i}"><div class="rw"><select class="mmt">${Object.keys(mt).map((k) => `<option value="${k}" ${m.type === k ? 'selected' : ''}>${esc(mt[k])}</option>`).join('')}</select>${P.mm.length > 1 ? `<button class="ib" data-p="mmdel" data-v="${i}" style="flex:none;color:#ff7a77">${ic('x')}</button>` : ''}</div>
-<input class="mmh" placeholder="اسم صاحب الحساب" value="${esc(m.holder)}" maxlength="80"><input class="mmn" placeholder="رقم الحساب / الهاتف / البطاقة" dir="ltr" value="${esc(m.number)}" maxlength="64"><input class="mmb" placeholder="اسم المصرف / ملاحظة (اختياري)" value="${esc(m.bank || '')}" maxlength="60"></div>`).join('');
-  const readMM = () => [...document.querySelectorAll('#mmw .mrow')].map((r) => ({ type: $('.mmt', r).value, label: '', holder: $('.mmh', r).value.trim(), number: $('.mmn', r).value.trim(), bank: $('.mmb', r).value.trim() }));
+  const PH = { superqi: 'رقم حساب سوبر كي / الهاتف', asiahawala: 'رقم هاتف آسيا حوالة', zaincash: 'رقم محفظة زين كاش', bank: 'رقم الحساب / IBAN' };
+  const mmHtml = (mt) => P.mm.map((m, i) => `<div class="mrow" data-i="${i}"><div class="rw"><select class="mmt">${Object.keys(mt).map((k) => `<option value="${k}" ${m.type === k ? 'selected' : ''}>${esc(mt[k])}</option>`).join('')}${mt[m.type] ? '' : `<option value="${esc(m.type)}" selected>${esc(m.label || m.type)} (قديمة)</option>`}</select>${P.mm.length > 1 ? `<button class="ib" data-p="mmdel" data-v="${i}" style="flex:none;color:#ff7a77">${ic('x')}</button>` : ''}</div>
+${m.type === 'bank' ? `<select class="mmb"><option value="">— اختر المصرف —</option>${(P.banks || []).map((b) => `<option ${m.bank === b ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select>` : ''}
+<input class="mmh" placeholder="اسم صاحب الحساب" value="${esc(m.holder)}" maxlength="80"><input class="mmn" placeholder="${PH[m.type] || 'رقم الحساب / الهاتف'}" dir="ltr" inputmode="${m.type === 'bank' ? 'text' : 'tel'}" value="${esc(m.number)}" maxlength="64"></div>`).join('');
+  const readMM = () => [...document.querySelectorAll('#mmw .mrow')].map((r) => ({ type: $('.mmt', r).value, label: '', holder: $('.mmh', r).value.trim(), number: $('.mmn', r).value.trim(), bank: $('.mmb', r) && $('.mmt', r).value === 'bank' ? $('.mmb', r).value : '' }));
   function priceHint() {
     const c = (P.sm && P.sm.cfg) || {}, i = $('#adr'), h = $('#adh'); if (!i || !h) return;
     const v = Number(i.value), ok = v >= c.min - 1e-9 && v <= c.max + 1e-9;
@@ -336,14 +358,18 @@ ${a.out ? `<div class="note warn" style="margin:10px 0 0">${ic('shield')}<span>�
       const s = Math.floor(ms / 1000); e.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
     });
   }
+  const dayLbl = (t) => { const d = new Date(t), n = new Date(), k = (x) => x.toDateString(); if (k(d) === k(n)) return 'اليوم'; if (k(d) === k(new Date(n - 864e5))) return 'أمس'; return d.toLocaleDateString('ar-IQ', { day: 'numeric', month: 'long' }); };
   function addMsgs(arr) {
     const box = $('#ppms'); if (!box) return;
-    const near = box.scrollHeight - box.scrollTop - box.clientHeight < 80 || !P.chatLast;
+    const near = box.scrollHeight - box.scrollTop - box.clientHeight < 90 || !P.chatLast;
     arr.forEach((m) => { if (P.chatMsgs.some((x) => x.id === m.id)) return; P.chatMsgs.push(m); P.chatLast = Math.max(P.chatLast, m.id);
+      const dl = dayLbl(m.t); if (dl !== P.chatDay) { P.chatDay = dl; const sp = document.createElement('div'); sp.className = 'dy'; sp.textContent = dl; box.appendChild(sp); }
       const d = document.createElement('div'); d.className = 'mb ' + (m.sys ? 's' : m.mine ? 'm' : 'o');
-      d.innerHTML = esc(m.x) + (m.img ? `<img src="${esc(m.img)}" data-p="zoom">` : '') + (m.sys ? '' : `<small>${new Date(m.t).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}</small>`); box.appendChild(d); });
+      d.innerHTML = (m.img ? `<img src="${SAFE_SRC(m.img)}" data-p="zoom" alt="">` : '') + (m.x ? esc(m.x) : '') + (m.sys ? '' : `<small>${new Date(m.t).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}</small>`); box.appendChild(d); });
     if (near) box.scrollTop = box.scrollHeight;
   }
+  function chatState() { const x = $('#ppci'), b = $('#ppsn'); if (!x || !b) return; x.style.height = 'auto'; x.style.height = Math.min(120, x.scrollHeight) + 'px'; b.classList.toggle('off', !x.value.trim() && !P.pimg); }
+  function pvPaint() { const h = $('#pppv'); if (!h) return; h.innerHTML = P.pimg ? `<div class="pvw"><img src="${SAFE_SRC(P.pimg)}" alt=""><span>الصورة جاهزة للإرسال — أضف تعليقاً إن أردت</span><button data-p="cimgx" aria-label="إزالة">${ic('x')}</button></div>` : ''; chatState(); }
   function sheet(html) { closeSheet(); const o = document.createElement('div'); o.className = 'ov'; o.id = 'ppsh'; o.innerHTML = `<div class="sh">${html}</div>`; o.addEventListener('click', (e) => { if (e.target === o) closeSheet(); }); root.appendChild(o); }
   const closeSheet = () => { const o = $('#ppsh'); if (o) o.remove(); };
   const busy = async (btn, fn) => { if (P.busy) return; P.busy = true; if (btn) btn.disabled = true; try { await fn(); } catch (e) { say(e.message); } finally { P.busy = false; if (btn) btn.disabled = false; } };
@@ -369,15 +395,17 @@ ${a.out ? `<div class="note warn" style="margin:10px 0 0">${ic('shield')}<span>�
 
   /* ---------------- الأحداث ---------------- */
   function onInput(e) {
-    if (e.target.id === 'bpts') buyCalc();
+    if (e.target.id === 'ppci') chatState();
+    else if (e.target.id === 'bpts') buyCalc();
     else if (e.target.id === 'adr') priceHint();
   }
   function onChange(e) {
     const t = e.target;
+    if (t.classList.contains('mmt')) { P.mm = readMM(); $('#mmw').innerHTML = mmHtml(P.sm ? P.sm.mtypes : P.home.mtypes); return; }
     if (t.name === 'bm') { P.buy.m = +t.value; document.querySelectorAll('#ppsh .ck').forEach((x) => x.classList.toggle('on', x.contains(t))); }
     else if (t.classList.contains('adc')) t.closest('.ck').classList.toggle('on', t.checked);
     else if (t.id === 'ppf') { const f = t.files[0]; const v = $('#ppfv'); if (f && v) { v.src = URL.createObjectURL(f); v.style.display = 'block'; } }
-    else if (t.id === 'ppci2') { const f = t.files[0]; t.value = ''; if (f) busy(null, async () => { const img = await shrink(f, 1100); await sendMsg('', img); }); }
+    else if (t.id === 'ppci2') { const f = t.files[0]; t.value = ''; if (f) busy(null, async () => { P.pimg = await shrink(f, 1100); pvPaint(); const x = $('#ppci'); if (x) x.focus(); }); }
   }
   async function sendMsg(txt, img) {
     const j = await api('chat/send', { uid: P.chatUid, body: txt, img: img || undefined, order: P.arg && P.arg.order || undefined }); addMsgs([j.msg]);
@@ -398,7 +426,7 @@ ${a.out ? `<div class="note warn" style="margin:10px 0 0">${ic('shield')}<span>�
     if (a === 'methods') return go('methods');
     if (a === 'adnew') return go('adform', {});
     if (a === 'adedit') return go('adform', { id: +v });
-    if (a === 'mmadd') { P.mm = readMM(); if (P.mm.length >= 8) return say('الحد الأقصى 8 طرق'); P.mm.push({ type: 'zaincash', holder: '', number: '', bank: '' }); $('#mmw').innerHTML = mmHtml(P.sm ? P.sm.mtypes : P.home.mtypes); return; }
+    if (a === 'mmadd') { P.mm = readMM(); if (P.mm.length >= 8) return say('الحد الأقصى 8 طرق'); P.mm.push({ type: 'superqi', holder: '', number: '', bank: '' }); $('#mmw').innerHTML = mmHtml(P.sm ? P.sm.mtypes : P.home.mtypes); return; }
     if (a === 'mmdel') { P.mm = readMM(); P.mm.splice(+v, 1); $('#mmw').innerHTML = mmHtml(P.sm ? P.sm.mtypes : P.home.mtypes); return; }
     if (a === 'star') { P.star = +v; document.querySelectorAll('#ppst button').forEach((x, i) => x.classList.toggle('on', i < P.star)); return; }
     act(a, v, b);
@@ -413,14 +441,14 @@ ${a.out ? `<div class="note warn" style="margin:10px 0 0">${ic('shield')}<span>�
       const f = $('#ppf') && $('#ppf').files[0]; if (!f) return say('اختر صورة التحويل أولاً');
       const img = await shrink(f); await api('order/proof', { id: +v, img }); say('تم إرسال الصورة للإدارة ✅'); P.sig = ''; go('order', +v, false);
     });
-    if (a === 'seeproof') return busy(b, async () => { const j = await api('order/proofimg', { id: +v }); const h = $('#ppim'); if (h) h.innerHTML = j.img ? `<img class="pf" src="${esc(j.img)}" data-p="zoom">` : '<div class="mu">لا توجد صورة</div>'; });
+    if (a === 'seeproof') return busy(b, async () => { const j = await api('order/proofimg', { id: +v }); const h = $('#ppim'); if (h) h.innerHTML = j.img ? `<img class="pf" src="${SAFE_SRC(j.img)}" data-p="zoom">` : '<div class="mu">لا توجد صورة</div>'; });
     if (a === 'cancel') { if (!confirm('إلغاء هذا الطلب؟')) return; return busy(b, async () => { await api('order/cancel', { id: +v }); say('تم إلغاء الطلب'); go('orders', null, false); }); }
     if (a === 'flag') {
       let note = ''; if (b.dataset.f === 'dispute') { note = prompt('اكتب سبب الاعتراض (لم يصل المبلغ / المبلغ ناقص ...)'); if (!note) return; }
       return busy(b, async () => { await api('order/flag', { id: +v, flag: b.dataset.f, note }); say('تم إبلاغ الإدارة'); P.sig = ''; go('order', +v, false); });
     }
     if (a === 'rate') return busy(b, async () => { if (!P.star) return say('اختر عدد النجوم'); await api('order/rate', { id: +v, stars: P.star, comment: ($('#ppcm') || {}).value || '' }); P.star = 0; say('شكراً لتقييمك ⭐'); P.sig = ''; go('order', +v, false); });
-    if (a === 'applysend') return busy(b, async () => { await api('seller/apply', { full_name: ($('#apn') || {}).value, phone: ($('#apph') || {}).value, bio: ($('#apb') || {}).value, methods: readMM() }); say('أُرسل طلبك للإدارة'); P.sm = null; P.nav = []; go('seller', null, false); });
+    if (a === 'applysend') return busy(b, async () => { const ar = await api('seller/apply', { full_name: ($('#apn') || {}).value, phone: ($('#apph') || {}).value, bio: ($('#apb') || {}).value, methods: readMM() }); say(ar && ar.approved === false ? 'أُرسل طلبك للإدارة' : 'تم تفعيل حسابك كبائع ✅'); P.sm = null; P.nav = []; go('seller', null, false); });
     if (a === 'methodssave') return busy(b, async () => { await api('seller/update', { bio: ($('#apb') || {}).value, methods: readMM() }); say('تم الحفظ'); P.sm = null; P.nav = []; go('seller', null, false); });
     if (a === 'adsave') return busy(b, async () => {
       const methods = [...document.querySelectorAll('.adc:checked')].map((x) => +x.value);
@@ -428,7 +456,8 @@ ${a.out ? `<div class="note warn" style="margin:10px 0 0">${ic('shield')}<span>�
       say(+v ? 'تم حفظ الإعلان' : 'تم نشر إعلانك ✅'); P.sm = null; P.nav = []; go('seller', null, false);
     });
     if (a === 'adact') { const f = b.dataset.f; if (f === 'close' && !confirm('إغلاق الإعلان واسترجاع النقاط غير المباعة؟')) return; return busy(b, async () => { await api('ad/act', { id: +v, act: f }); say('تم'); P.sm = null; go('seller', null, false); }); }
-    if (a === 'csend') { const x = $('#ppci'); const t = x && x.value.trim(); if (!t) return; x.value = ''; return busy(null, async () => { try { await sendMsg(t); } catch (er) { x.value = t; throw er; } }); }
+    if (a === 'csend') { const x = $('#ppci'); const t = x && x.value.trim(), im = P.pimg; if (!t && !im) return; x.value = ''; P.pimg = ''; pvPaint(); return busy(null, async () => { try { await sendMsg(t || '', im); x.focus(); } catch (er) { x.value = t || ''; P.pimg = im; pvPaint(); throw er; } }); }
+    if (a === 'cimgx') { P.pimg = ''; return pvPaint(); }
     if (a === 'cimg') { const f = $('#ppci2'); if (f) f.click(); }
   }
 
@@ -440,6 +469,8 @@ ${a.out ? `<div class="note warn" style="margin:10px 0 0">${ic('shield')}<span>�
     ev.stopImmediatePropagation(); ev.preventDefault(); open();
   }, true);
   window.P2P_OPEN = open;
+  /* لوحة المفاتيح: يتبع الواجهة حجم الشاشة المرئية لتبقى خانة الكتابة فوق الكيبورد */
+  (function () { const vv = window.visualViewport; if (!vv) return; const fit = () => { if (!root || !P.on) return; root.style.top = vv.offsetTop + 'px'; root.style.bottom = 'auto'; root.style.height = vv.height + 'px'; const m = $('#ppms'); if (m && document.activeElement && document.activeElement.id === 'ppci') m.scrollTop = m.scrollHeight; }; vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit); })();
   /* مزامنة عدادات المستخدم إلى السيرفر تلقائياً (لتظهر في لوحة التحكم ويتحقق منها نظام P2P) */
   let lastCl = '';
   async function pushCl() {

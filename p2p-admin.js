@@ -124,7 +124,7 @@ ${o.hasProof ? '<div class="mu" style="margin-top:4px">📎 صورة التحو�
 <div class="mu" style="margin-top:6px">السعر الرسمي الحالي: <b style="color:#fff">${N2(j.range.official)}</b> د.ع/1000 نقطة → النطاق ${N2(j.range.min)} – ${N2(j.range.max)}</div>
 <label>تثبيت السعر الرسمي يدوياً (0 = استخدم سعر التطبيق المنشور)<input id="s_of" type="number" step="0.01" value="${c.officialOverride}"></label>
 <label>أقصى زيادة عن السعر الرسمي (٪)<input id="s_mk" type="number" step="0.5" value="${c.maxMarkupPct}"></label>
-<label>رقم العداد المطلوب لدى البائع (7 = «عشرة آلاف»، -1 = بدون شرط)<input id="s_ci" type="number" value="${c.reqCounterIdx}"></label>
+<label>شرط العداد (ملغى — الجميع يبيعون ويشترون، القيمة لا تؤثر)<input id="s_ci" type="number" value="${c.reqCounterIdx}"></label>
 <label>أقل كمية للإعلان (نقطة)<input id="s_ma" type="number" value="${c.minAdPts}"></label>
 <label>أقل كمية للطلب (نقطة)<input id="s_mo" type="number" value="${c.minOrderPts}"></label>
 <label>مهلة الدفع (دقيقة)<input id="s_pw" type="number" value="${c.payWindowMin}"></label>

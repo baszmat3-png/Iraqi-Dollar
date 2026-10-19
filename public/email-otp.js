@@ -35,7 +35,7 @@
     (o.wa ? post('/api/otp/wa/check', { phone: o.tgt, code: c }) : post('/api/otp/email/check', { email: o.tgt, code: c, purpose: o.purpose === 'ml' ? 'verify' : o.purpose, peek: o.purpose === 'reset' })).then(function (j) {
       b.disabled = false;
       if (S.otp !== o) return;
-      if (j.__ok) { if (o.purpose === 'reset') window.__rst = { e: o.tgt, c: c }; o.code = c; pass = true; try { b.click(); } finally { pass = false; } }
+      if (j.__ok) { try { if (j.proof && !o.wa) localStorage.setItem('otpp:' + String(o.tgt).toLowerCase(), j.proof); } catch (x) { } if (o.purpose === 'reset') window.__rst = { e: o.tgt, c: c }; o.code = c; pass = true; try { b.click(); } finally { pass = false; } }
       else { toast(j.error || 'الرمز غير صحيح'); if (/كثيرة|اطلب رمزاً|انتهت/.test(j.error || '')) o.rs = 0; }
     }).catch(function () { b.disabled = false; toast('تعذر الاتصال بالسيرفر'); });
   }, true);

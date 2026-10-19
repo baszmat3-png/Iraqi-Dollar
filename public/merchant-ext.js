@@ -81,7 +81,7 @@
   }, true);
 
   /* ---------- التجار ---------- */
-  const mCard = (m) => `<button class="ic" style="background:hsl(calc(var(--h) + 8) 58% 26%);padding:18px" data-a="mxo" data-v="${m.id}"><div class="sp"><span class="mu">اسم المتجر:</span> <b style="font-size:1.3rem">${esc(m.name)}</b><div><span class="mu">نسبة الخصم:</span> <span class="bdg ok" style="border-radius:8px;border:1.5px solid var(--cy)">${m.discount}%</span></div>${m.province ? `<div class="mu" style="font-size:.85rem">${esc(m.province)}</div>` : ''}</div><div class="ci" style="width:72px;height:72px;${m.img ? `background:url('${m.img}') center/cover` : ''}">${m.img ? '' : ic('store', 30)}</div></button>`;
+  const mCard = (m) => `<button class="ic" style="background:hsl(calc(var(--h) + 8) 58% 26%);padding:18px" data-a="mxo" data-v="${m.id}"><div class="sp"><span class="mu">اسم المتجر:</span> <b style="font-size:1.3rem">${esc(m.name)}</b><div><span class="mu">نسبة الخصم:</span> <span class="bdg ok" style="border-radius:8px;border:1.5px solid var(--cy)">${m.discount}%</span></div>${m.province ? `<div class="mu" style="font-size:.85rem">${esc(m.province)}</div>` : ''}</div><div class="ci" style="width:72px;height:72px;${m.img ? `background:url('${SAFE_SRC(m.img)}') center/cover` : ''}">${m.img ? '' : ic('store', 30)}</div></button>`;
 
   V.merchants = () => {
     const me = MX.me, list = MX.merchants.filter((m) => !S.mprov || String(m.province || '').includes(S.mprov));
@@ -101,7 +101,7 @@
   function openMerchant(mid) {
     const m = MX.merchants.find((x) => x.id == mid); if (!m) return;
     const own = S.acc && m.owner === S.acc.e.toLowerCase();
-    dlg(`<h2 style="margin-top:0">${esc(m.name)}</h2>${m.img ? `<img src="${esc(m.img)}" style="width:100%;max-height:200px;object-fit:cover;border-radius:14px;margin-bottom:8px">` : ''}
+    dlg(`<h2 style="margin-top:0">${esc(m.name)}</h2>${m.img ? `<img src="${SAFE_SRC(m.img)}" style="width:100%;max-height:200px;object-fit:cover;border-radius:14px;margin-bottom:8px">` : ''}
 <span class="bdg ok">خصم ${m.discount}%</span>${det('المحافظة', m.province)}${det('المنطقة', m.area)}${det('التفاصيل', m.details)}${det('العنوان', m.address)}${det('أقرب نقطة دالة', m.landmark)}${det('الخدمات', m.services)}${det('الهاتف', m.phone)}
 ${own ? '<div class="card mu" style="margin-top:12px">هذا متجرك. حسابك للاستقبال فقط ولا يمكنك التحويل إليه.</div>'
         : `<label style="display:block;margin-top:12px">عدد النقاط<input id="mxa" type="number" inputmode="numeric" min="1"></label><div class="mxeq" id="mxeqm" style="display:none"></div><div class="mu" style="font-size:.82rem">${limTxt()}</div><button class="btn" data-a="mxpay" data-v="${m.id}">تحويل النقاط</button>`}`);
@@ -134,7 +134,7 @@ ${own ? '<div class="card mu" style="margin-top:12px">هذا متجرك. حسا�
   const merchantsForPay = () => MX.merchants.filter((m) => !(S.acc && m.owner === S.acc.e.toLowerCase()));
   const descOf = (m) => shortTxt(m.services || m.details || '', 110) || 'لم يضف التاجر وصفاً لخدماته بعد';
   const eqRow = (l, v, c) => `<div class="${c || ''}"><span>${l}</span><b>${v}</b></div>`;
-  const mAv = (m) => `<span class="mp-av" ${m && m.img ? `style="background:url('${m.img}') center/cover;color:transparent"` : ''}>${m && m.img ? '' : ic('store', 22)}</span>`;
+  const mAv = (m) => `<span class="mp-av" ${m && m.img ? `style="background:url('${SAFE_SRC(m.img)}') center/cover;color:transparent"` : ''}>${m && m.img ? '' : ic('store', 22)}</span>`;
   function payDlg() {
     if (!S.acc) return say('سجّل الدخول أولاً');
     sel = 0;
@@ -195,7 +195,7 @@ ${own ? '<div class="card mu" style="margin-top:12px">هذا متجرك. حسا�
 <div style="margin-top:8px">السقف اليومي: <b>${cap > 0 ? nf(cap) + ' نقطة' : 'غير محدد'}</b>${left != null ? ` · المتبقي: <b>${nf(left)}</b>` : ''}</div>
 ${cap > 0 ? `<div style="height:8px;border-radius:99px;background:#0003;margin-top:6px;overflow:hidden"><div style="height:100%;width:${pc}%;background:var(--cy)"></div></div>` : ''}
 <div class="mu" style="font-size:.85rem;margin-top:6px">السقف يحدده مدير لوحة التحكم. المستخدمون يحوّلون إليك، ولا يمكنك التحويل من هذه اللوحة.</div></div>
-<div class="card"><h3 style="margin:0 0 6px">صورة المتجر</h3><div class="row" style="gap:12px;align-items:center"><div class="ci" style="width:84px;height:84px;flex:none;${m.img ? `background:url('${m.img}') center/cover` : ''}">${m.img ? '' : ic('store', 34)}</div><div class="sp"><label class="btn" for="mxsi" style="display:block;margin:0;text-align:center;cursor:pointer">${m.img ? 'تغيير الصورة' : 'رفع صورة'}</label><input id="mxsi" type="file" accept="image/*" hidden>${m.img ? '<button class="btn o" style="margin-top:6px" data-a="mxsirm">حذف الصورة</button>' : ''}</div></div><div class="mu" style="font-size:.8rem;margin-top:8px">صورة مستقلة عن صورتك الشخصية، تظهر لجميع المستخدمين في قائمة التجار وقائمة الدفع للتاجر.</div></div>
+<div class="card"><h3 style="margin:0 0 6px">صورة المتجر</h3><div class="row" style="gap:12px;align-items:center"><div class="ci" style="width:84px;height:84px;flex:none;${m.img ? `background:url('${SAFE_SRC(m.img)}') center/cover` : ''}">${m.img ? '' : ic('store', 34)}</div><div class="sp"><label class="btn" for="mxsi" style="display:block;margin:0;text-align:center;cursor:pointer">${m.img ? 'تغيير الصورة' : 'رفع صورة'}</label><input id="mxsi" type="file" accept="image/*" hidden>${m.img ? '<button class="btn o" style="margin-top:6px" data-a="mxsirm">حذف الصورة</button>' : ''}</div></div><div class="mu" style="font-size:.8rem;margin-top:8px">صورة مستقلة عن صورتك الشخصية، تظهر لجميع المستخدمين في قائمة التجار وقائمة الدفع للتاجر.</div></div>
 <div class="card"><h3 style="margin:0 0 6px">بيانات المتجر</h3>${ro('المحافظة', m.province)}${ro('المنطقة', m.area)}${ro('أقرب نقطة دالة', m.landmark)}${ro('الهاتف', m.phone)}
 <div class="mu" style="font-size:.8rem;margin-top:8px">هذه البيانات تُغيَّر من لوحة التحكم فقط.</div></div>
 <div class="card"><h3 style="margin:0 0 6px">ما يمكنك تعديله</h3>
@@ -396,7 +396,7 @@ ${methodsOf().map((x, i) => `<div class="row" style="margin-top:8px;gap:8px"><in
       const image = await shrink(f, 480, 0.82);
       if (t.id === 'mxsi') { await shopImgSet(image); return; }
       applyImg = image;
-      const p = document.querySelector('#mxaip'); if (p) { p.innerHTML = ''; p.style.background = `url('${image}') center/cover`; }
+      const p = document.querySelector('#mxaip'); if (p) { p.innerHTML = ''; p.style.background = `url('${SAFE_SRC(image)}') center/cover`; }
     } catch (e) { say('تعذر قراءة الصورة'); }
   }, true);
 

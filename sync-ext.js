@@ -36,14 +36,17 @@ module.exports = function (app, express) {
   /* المستخدم يرفع طلباته وطلبات سحبه (جديدة، أو تحديث عدد الأقساط المسددة) */
   /* هوية المستخدم لمسارات الطلبات: البريد المستخدم في الطلب + بصمة كلمة المرور (ترويسة x-h) */
   const needAuth = (req, res, next) => {
-    const au = req.app.locals.authEmail, e = email((req.body && req.body.e) || req.query.e), h = req.get('x-h') || (req.body && req.body.h) || req.query.h;
+    const au = req.app.locals.authEmail, e = email((req.body && req.body.e) || req.query.e), h = req.get('x-h') || (req.body && req.body.h);
     if (!au || !e || !h) return res.status(401).json({ error: 'auth' });
     au(e, h).then((ok) => (ok && ok === e ? next() : res.status(401).json({ error: 'auth' }))).catch(() => res.status(401).json({ error: 'auth' }));
   };
 
-  app.post('/api/sync/push', parse, needAuth, (req, res) => {
+  app.post('/api/sync/push', parse, needAuth, async (req, res) => {
     const b = req.body || {}, e = email(b.e);
     if (!e) return res.status(400).json({ error: 'e' });
+    // لقطة من رصيد الدولار على الخادم لحظة وصول طلب السحب (يراها المدير للمطابقة)، وحدود منطقية للمبلغ
+    let svUsd = null;
+    try { const P = req.app.locals.pool; if (P && Array.isArray(b.wreq) && b.wreq.length) svUsd = Number((await P.query('SELECT usd FROM sync_accounts WHERE LOWER(email)=$1', [e])).rows[0]?.usd); } catch (x) { svUsd = null; }
     KINDS.forEach(k => (Array.isArray(b[k]) ? b[k] : []).slice(0, 20).forEach(r => {
       if (!r || !okId(r.id)) return;
       const id = String(r.id), ex = DB[k][id];
@@ -53,7 +56,10 @@ module.exports = function (app, express) {
         return;
       }
       if (owner(k, r) !== e || !rqOk(k, r) || JSON.stringify(r).length > 700000) return;
-      const rec = Object.assign({}, r); delete rec._mt; touch(k, id, rec); ping(rec);
+      if (k === 'wreq') { const amt = +r.a; if (!(amt > 0) || amt > 1e6) return; }
+      const rec = Object.assign({}, r); delete rec._mt;
+      if (k === 'wreq' && Number.isFinite(svUsd)) rec.sv = svUsd;
+      touch(k, id, rec); ping(rec);
     }));
     trim(); save(); res.json({ ok: 1, seq: DB.seq });
   });

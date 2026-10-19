@@ -18,7 +18,7 @@ exports.parsers = (app, express) => {
   app.use('/api/u/news/publish', express.json({ limit: '3mb' }));
 };
 
-exports.routes = (app, { pool, wrap, ctl }) => {
+exports.routes = (app, { pool, wrap, ctl, express }) => {
   const q = (s, p) => pool.query(s, p);
   const fail = (http, m) => { const e = new Error(m); e.http = http; throw e; };
   const lim = rateLimit({ windowMs: 60 * 1000, limit: 40, standardHeaders: true, legacyHeaders: false, validate: false });
@@ -30,6 +30,12 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     `CREATE INDEX IF NOT EXISTS user_news_idx ON user_news(id DESC)`,
     `CREATE TABLE IF NOT EXISTS user_news_likes(news_id BIGINT NOT NULL REFERENCES user_news(id) ON DELETE CASCADE, email TEXT NOT NULL, PRIMARY KEY(news_id,email))`,
     `CREATE TABLE IF NOT EXISTS avatars(email TEXT PRIMARY KEY, img TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
+    `CREATE TABLE IF NOT EXISTS user_privacy(
+       email TEXT PRIMARY KEY, online TEXT NOT NULL DEFAULT 'all', friend_req TEXT NOT NULL DEFAULT 'all', dm TEXT NOT NULL DEFAULT 'all',
+       posts TEXT NOT NULL DEFAULT 'all', stories TEXT NOT NULL DEFAULT 'friends', updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
+    `CREATE TABLE IF NOT EXISTS soc_friends(
+       id BIGSERIAL PRIMARY KEY, a TEXT NOT NULL, b TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
+       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(a,b))`,
   ];
   const ready = (async () => {
     for (let t = 0; t < 8; t++) {
@@ -67,16 +73,28 @@ exports.routes = (app, { pool, wrap, ctl }) => {
   });
 
   /* ---------- المستخدمون ---------- */
-  app.get('/api/news/list', wrap(async (req, res) => {
+  /* خصوصية المنشورات: all = الجميع · friends = الأصدقاء فقط · me = صاحبها فقط
+     القائمة تُجلب بـ POST مع بيانات الدخول ليتحقق السيرفر من هوية المشاهد؛ الطلب المجهول (GET) يرى منشورات «الجميع» فقط. */
+  async function listNews(res, e, viewer) {
     res.set('Cache-Control', 'no-store');
-    const e = txt(req.query.e, 200).toLowerCase();
-    const rows = (await q(`${SELECT}${FROM} ORDER BY n.id DESC LIMIT 60`)).rows;
+    const rows = (await q(`${SELECT}${FROM}
+      LEFT JOIN user_privacy pv ON pv.email = LOWER(n.email)
+      WHERE COALESCE(pv.posts,'all')='all'
+         OR ($1<>'' AND LOWER(n.email)=$1)
+         OR ($1<>'' AND COALESCE(pv.posts,'all')='friends' AND EXISTS(
+              SELECT 1 FROM soc_friends f WHERE f.status='accepted' AND ((f.a=LOWER(n.email) AND f.b=$1) OR (f.b=LOWER(n.email) AND f.a=$1))))
+      ORDER BY n.id DESC LIMIT 60`, [viewer || ''])).rows;
     let mine = null;
     if (e && rows.length) {
       const l = (await q(`SELECT news_id FROM user_news_likes WHERE email=$1 AND news_id=ANY($2::bigint[])`, [e, rows.map((r) => r.id)])).rows;
       mine = new Set(l.map((x) => Number(x.news_id)));
     }
-    res.json({ items: rows.map((r) => shape(r, mine, false, e)) });
+    res.json({ items: rows.map((r) => shape(r, mine, false, viewer || e)) });
+  }
+  app.get('/api/news/list', wrap(async (req, res) => listNews(res, txt(req.query.e, 200).toLowerCase(), '')));
+  app.post('/api/news/list', express.json({ limit: '5kb' }), wrap(async (req, res) => {
+    const u = await who(req.body);
+    await listNews(res, u.email, u.email);
   }));
 
   app.get('/api/news/:id/img', wrap(async (req, res) => {
