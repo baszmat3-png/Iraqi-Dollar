@@ -115,7 +115,7 @@ module.exports = function (app, express) {
     const f = KF[String(req.query.id || '')];
     res.set('Cache-Control', 'no-store'); res.json(f ? { ok: 1, f } : { ok: 0 });
   });
-  app.get('/api/sync/kycf-has', (req, res) => {
+  app.get('/api/sync/kycf-has', needAuth, (req, res) => {
     const e = email(req.query.e); const ids = Object.keys(KF).filter(i => DB.rq[i] && email(DB.rq[i].e) === e);
     res.set('Cache-Control', 'no-store'); res.json({ ids });
   });

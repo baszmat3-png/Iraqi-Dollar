@@ -220,17 +220,21 @@ async function createOtp(purpose, rawPhone, email, payload) {
   catch (e) { console.error('WhatsApp failed:', e.message); fail(502, 'تعذر إرسال الرمز عبر واتساب'); }
 }
 
+// زيادة العدّاد ذرّياً قبل المقارنة: لا يمكن تجاوز 5 محاولات حتى بطلبات متوازية
+async function otpTry(id) {
+  const r = await pool.query(`UPDATE otps SET attempts=attempts+1 WHERE id=$1 AND attempts<5 RETURNING attempts`, [id]);
+  if (!r.rowCount) fail(429, 'محاولات كثيرة، اطلب رمزاً جديداً');
+}
+app.locals.otpTry = otpTry;
+
 async function checkOtp(purpose, rawPhone, code) {
   const phone = normPhone(rawPhone);
   const r = await pool.query(`SELECT * FROM otps WHERE (phone=$1 OR phone=$2) AND purpose=$3 ORDER BY id DESC LIMIT 1`, [phone, rawPhone, purpose]);
   const o = r.rows[0];
   if (!o) fail(400, 'اطلب رمزاً جديداً');
   if (new Date(o.expires_at) < new Date()) fail(400, 'انتهت صلاحية الرمز');
-  if (o.attempts >= 5) fail(429, 'محاولات كثيرة، اطلب رمزاً جديداً');
-  if (sha(String(code || '')) !== o.code_hash) {
-    await pool.query(`UPDATE otps SET attempts=attempts+1 WHERE id=$1`, [o.id]);
-    fail(400, 'الرمز غير صحيح');
-  }
+  await otpTry(o.id);
+  if (sha(String(code || '')) !== o.code_hash) fail(400, 'الرمز غير صحيح');
   await pool.query(`DELETE FROM otps WHERE id=$1`, [o.id]);
   return o;
 }
@@ -552,10 +556,8 @@ app.post('/api/sync/otp-login-verify', wrap(async (req, res) => {
   );
   const otp = rOtp.rows[0];
   if (!otp) fail(400, 'انتهت صلاحية الرمز أو لم يُطلب');
-  if (sha(code) !== otp.code_hash) {
-    await pool.query(`UPDATE otps SET attempts=attempts+1 WHERE id=$1`, [otp.id]);
-    fail(400, 'الرمز غير صحيح');
-  }
+  await otpTry(otp.id);
+  if (sha(code) !== otp.code_hash) fail(400, 'الرمز غير صحيح');
   await pool.query(`DELETE FROM otps WHERE id=$1`, [otp.id]);
 
   const r = await pool.query(
@@ -585,12 +587,8 @@ app.post('/api/sync/otp-login-verify', wrap(async (req, res) => {
   });
 }));
 
-app.post('/api/sync/verify-email-success', wrap(async (req, res) => {
-  const email = String(req.body.email || '').trim().toLowerCase();
-  if (!email) fail(400, 'البريد مطلوب');
-  await pool.query(`UPDATE sync_accounts SET vml=TRUE, last_seen=NOW() WHERE LOWER(email)=LOWER($1)`, [email]);
-  res.json({ ok: true });
-}));
+// (محذوف) verify-email-success: التوثيق يتم داخل مسار التحقق من OTP فقط
+
 
 /* ---------- Auth (Standard Password) ---------- */
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 60, standardHeaders: true, legacyHeaders: false });

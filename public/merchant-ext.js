@@ -101,7 +101,7 @@
   function openMerchant(mid) {
     const m = MX.merchants.find((x) => x.id == mid); if (!m) return;
     const own = S.acc && m.owner === S.acc.e.toLowerCase();
-    dlg(`<h2 style="margin-top:0">${esc(m.name)}</h2>${m.img ? `<img src="${m.img}" style="width:100%;max-height:200px;object-fit:cover;border-radius:14px;margin-bottom:8px">` : ''}
+    dlg(`<h2 style="margin-top:0">${esc(m.name)}</h2>${m.img ? `<img src="${esc(m.img)}" style="width:100%;max-height:200px;object-fit:cover;border-radius:14px;margin-bottom:8px">` : ''}
 <span class="bdg ok">خصم ${m.discount}%</span>${det('المحافظة', m.province)}${det('المنطقة', m.area)}${det('التفاصيل', m.details)}${det('العنوان', m.address)}${det('أقرب نقطة دالة', m.landmark)}${det('الخدمات', m.services)}${det('الهاتف', m.phone)}
 ${own ? '<div class="card mu" style="margin-top:12px">هذا متجرك. حسابك للاستقبال فقط ولا يمكنك التحويل إليه.</div>'
         : `<label style="display:block;margin-top:12px">عدد النقاط<input id="mxa" type="number" inputmode="numeric" min="1"></label><div class="mxeq" id="mxeqm" style="display:none"></div><div class="mu" style="font-size:.82rem">${limTxt()}</div><button class="btn" data-a="mxpay" data-v="${m.id}">تحويل النقاط</button>`}`);

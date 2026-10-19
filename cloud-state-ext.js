@@ -7,7 +7,7 @@
  * التركيب في server.js:  const CLOUD = require('./cloud-state-ext'); CLOUD.parsers(app, express);  ... CLOUD.routes(app, { pool, wrap, fail });
  */
 const crypto = require('crypto');
-const SECRET = process.env.JWT_SECRET || 'cloud-state-secret';
+const SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 const b64 = (s) => Buffer.from(s).toString('base64url');
 const mac = (s) => crypto.createHmac('sha256', SECRET).update('cld:' + s).digest('base64url');
 const mk = (email) => { const p = b64(JSON.stringify({ e: email, t: Date.now() })); return p + '.' + mac(p); };
@@ -16,7 +16,7 @@ const ck = (tok) => {
   if (!p || !m) return null;
   const x = mac(p);
   if (x.length !== m.length || !crypto.timingSafeEqual(Buffer.from(x), Buffer.from(m))) return null;
-  try { const j = JSON.parse(Buffer.from(p, 'base64url').toString()); return j && j.e ? String(j.e).toLowerCase() : null; } catch (e) { return null; }
+  try { const j = JSON.parse(Buffer.from(p, 'base64url').toString()); return j && j.e && (Date.now() - (+j.t || 0)) < 180 * 864e5 ? String(j.e).toLowerCase() : null; } catch (e) { return null; }
 };
 
 const js = (v) => { if (typeof v === 'string') { try { return JSON.parse(v); } catch (e) { return null; } } return v; };

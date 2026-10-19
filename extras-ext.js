@@ -2,7 +2,7 @@
 const rateLimit = require('express-rate-limit');
 
 const MAX_IMG = 1.5e6;
-const img = (v) => (typeof v === 'string' && /^data:image\/(png|jpe?g|webp|gif);base64,/.test(v) && v.length <= MAX_IMG ? v : null);
+const img = (v) => (typeof v === 'string' && /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+\/=]+$/.test(v) && v.length <= MAX_IMG ? v : null);
 const txt = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
 const DON_MIN = 100, DON_MAX = 1000000;
 

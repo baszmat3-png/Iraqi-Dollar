@@ -69,7 +69,7 @@
     let last = '';
     return SUPX.msgs.map((m) => {
       const d = dayS(m.created_at), h = d !== last ? `<p class="mu" style="text-align:center;margin:10px 0 4px;font-size:.8rem">${d}</p>` : ''; last = d;
-      const b = esc(m.body || '') + (m.img ? `<img src="${m.img}" data-supimg="${m.id}" style="display:block;max-width:100%;max-height:260px;border-radius:10px;margin-top:6px;cursor:zoom-in">` : '');
+      const b = esc(m.body || '') + (m.img ? `<img src="${esc(m.img)}" data-supimg="${m.id}" style="display:block;max-width:100%;max-height:260px;border-radius:10px;margin-top:6px;cursor:zoom-in">` : '');
       return h + `<div class="bub ${m.from_admin ? 'bt' : 'me'}">${b}<small style="display:block;font-size:.66rem;opacity:.65;margin-top:3px;text-align:end">${tmS(m.created_at)}${m.pending ? ' · جارٍ الإرسال' : ''}</small></div>`;
     }).join('');
   };
@@ -135,7 +135,7 @@
   /* ---- أزرار الصفحة (تفويض نقرات) ---- */
   document.addEventListener('click', (ev) => {
     const z = ev.target.closest('[data-supimg]');
-    if (z) { const m = SUPX.msgs.find((x) => String(x.id) === z.dataset.supimg); if (m && m.img) { ev.stopPropagation(); ev.preventDefault(); const o = document.createElement('div'); o.style.cssText = 'position:fixed;inset:0;z-index:100002;background:#000d;display:flex;align-items:center;justify-content:center;padding:12px'; o.innerHTML = `<img src="${m.img}" style="max-width:100%;max-height:100%;border-radius:12px">`; o.onclick = () => o.remove(); document.body.appendChild(o); } return; }
+    if (z) { const m = SUPX.msgs.find((x) => String(x.id) === z.dataset.supimg); if (m && m.img) { ev.stopPropagation(); ev.preventDefault(); const o = document.createElement('div'); o.style.cssText = 'position:fixed;inset:0;z-index:100002;background:#000d;display:flex;align-items:center;justify-content:center;padding:12px'; o.innerHTML = `<img src="${esc(m.img)}" style="max-width:100%;max-height:100%;border-radius:12px">`; o.onclick = () => o.remove(); document.body.appendChild(o); } return; }
     const t = ev.target.closest('[data-a="rpt"],#cimg'); if (!t) return;
     ev.stopPropagation(); ev.preventDefault();
     if (t.id === 'cimg') {

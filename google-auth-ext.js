@@ -11,7 +11,7 @@ const EM = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 module.exports = (app, { pool, wrap, fail }) => {
   const CLIENT_ID = txt(process.env.GOOGLE_CLIENT_ID, 200);
   // سرّ لاشتقاق "بصمة كلمة المرور" لحسابات Google (لا يوجد لها كلمة مرور فعلية)
-  const SECRET = process.env.GOOGLE_AUTH_SECRET || process.env.JWT_SECRET || 'google-auth-fallback';
+  const SECRET = process.env.GOOGLE_AUTH_SECRET || process.env.JWT_SECRET || require('crypto').randomBytes(32).toString('hex');
   const q = (s, p) => pool.query(s, p);
 
   const gh = (sub) => 'g' + crypto.createHmac('sha256', SECRET).update('google:' + sub).digest('hex');

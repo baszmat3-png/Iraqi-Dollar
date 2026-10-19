@@ -11,8 +11,9 @@ module.exports = function (app, { pool, wrap, fail, sha, EM, deliver, wa, normPh
     const o = (await pool.query(`SELECT * FROM otps WHERE phone=$1 AND purpose=$2 ORDER BY id DESC LIMIT 1`, [email, P])).rows[0];
     if (!o) fail(400, 'اطلب رمزاً جديداً');
     if (new Date(o.expires_at) < new Date()) fail(400, 'انتهت صلاحية الرمز');
-    if (o.attempts >= 5) fail(429, 'محاولات كثيرة، اطلب رمزاً جديداً');
-    if (sha(String(code || '').trim()) !== o.code_hash) { await pool.query(`UPDATE otps SET attempts=attempts+1 WHERE id=$1`, [o.id]); fail(400, 'الرمز غير صحيح'); }
+    const bump = await pool.query(`UPDATE otps SET attempts=attempts+1 WHERE id=$1 AND attempts<5 RETURNING attempts`, [o.id]);   // ذرّي: لا تتجاوز التخمينات المتوازية الحد
+    if (!bump.rowCount) fail(429, 'محاولات كثيرة، اطلب رمزاً جديداً');
+    if (sha(String(code || '').trim()) !== o.code_hash) fail(400, 'الرمز غير صحيح');
     if (consume) await pool.query(`DELETE FROM otps WHERE id=$1`, [o.id]);
   }
 

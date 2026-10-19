@@ -341,7 +341,7 @@ ${a.out ? `<div class="note warn" style="margin:10px 0 0">${ic('shield')}<span>�
     const near = box.scrollHeight - box.scrollTop - box.clientHeight < 80 || !P.chatLast;
     arr.forEach((m) => { if (P.chatMsgs.some((x) => x.id === m.id)) return; P.chatMsgs.push(m); P.chatLast = Math.max(P.chatLast, m.id);
       const d = document.createElement('div'); d.className = 'mb ' + (m.sys ? 's' : m.mine ? 'm' : 'o');
-      d.innerHTML = esc(m.x) + (m.img ? `<img src="${m.img}" data-p="zoom">` : '') + (m.sys ? '' : `<small>${new Date(m.t).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}</small>`); box.appendChild(d); });
+      d.innerHTML = esc(m.x) + (m.img ? `<img src="${esc(m.img)}" data-p="zoom">` : '') + (m.sys ? '' : `<small>${new Date(m.t).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}</small>`); box.appendChild(d); });
     if (near) box.scrollTop = box.scrollHeight;
   }
   function sheet(html) { closeSheet(); const o = document.createElement('div'); o.className = 'ov'; o.id = 'ppsh'; o.innerHTML = `<div class="sh">${html}</div>`; o.addEventListener('click', (e) => { if (e.target === o) closeSheet(); }); root.appendChild(o); }
@@ -413,7 +413,7 @@ ${a.out ? `<div class="note warn" style="margin:10px 0 0">${ic('shield')}<span>�
       const f = $('#ppf') && $('#ppf').files[0]; if (!f) return say('اختر صورة التحويل أولاً');
       const img = await shrink(f); await api('order/proof', { id: +v, img }); say('تم إرسال الصورة للإدارة ✅'); P.sig = ''; go('order', +v, false);
     });
-    if (a === 'seeproof') return busy(b, async () => { const j = await api('order/proofimg', { id: +v }); const h = $('#ppim'); if (h) h.innerHTML = j.img ? `<img class="pf" src="${j.img}" data-p="zoom">` : '<div class="mu">لا توجد صورة</div>'; });
+    if (a === 'seeproof') return busy(b, async () => { const j = await api('order/proofimg', { id: +v }); const h = $('#ppim'); if (h) h.innerHTML = j.img ? `<img class="pf" src="${esc(j.img)}" data-p="zoom">` : '<div class="mu">لا توجد صورة</div>'; });
     if (a === 'cancel') { if (!confirm('إلغاء هذا الطلب؟')) return; return busy(b, async () => { await api('order/cancel', { id: +v }); say('تم إلغاء الطلب'); go('orders', null, false); }); }
     if (a === 'flag') {
       let note = ''; if (b.dataset.f === 'dispute') { note = prompt('اكتب سبب الاعتراض (لم يصل المبلغ / المبلغ ناقص ...)'); if (!note) return; }
