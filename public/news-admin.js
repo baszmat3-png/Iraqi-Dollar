@@ -15,6 +15,14 @@
     return j;
   }
 
+  // الزر العائم لا يظهر إلا بعد تسجيل دخول الإدارة (مع بقية الأزرار العائمة)
+  const gate = document.createElement('style');
+  gate.textContent = 'body:not(.stf-in) #nwb,body:not(.stf-in) #nwo{display:none!important}';
+  document.head.appendChild(gate);
+  const inStaff = () => document.body.classList.contains('stf-in') || !!document.querySelector('[data-a="stfout"]');
+  const syncGate = () => document.body.classList.toggle('stf-in', inStaff());
+  setInterval(syncGate, 700); syncGate();
+
   const css = document.createElement('style');
   css.textContent = `
 #nwb{position:fixed;bottom:142px;inset-inline-start:16px;z-index:9998;display:flex;align-items:center;gap:8px;background:linear-gradient(90deg,#ff8a3d,#ffb347);color:#2b1300;border:0;border-radius:99px;padding:11px 18px;font:700 .9rem Cairo,Tahoma,sans-serif;box-shadow:0 6px 22px #0007;cursor:pointer}
@@ -46,7 +54,6 @@
 #nwo .em{text-align:center;color:var(--mu);padding:30px}
 `;
   document.head.appendChild(css);
-  { const g = document.createElement('style'); g.textContent = 'body:not(.stf-in) #nwb,body:not(.stf-in) #nwo{display:none!important}'; document.head.appendChild(g); }   // يظهر بعد دخول لوحة التحكم فقط كبقية الأزرار العائمة
 
   const btn = document.createElement('button'); btn.id = 'nwb'; btn.innerHTML = '📰 أخبار المستخدمين <i hidden></i>';
   const ov = document.createElement('div'); ov.id = 'nwo';
@@ -104,6 +111,6 @@ ${n.img ? `<img class="im" loading="lazy" alt="" src="${esc(n.img)}" onerror="th
     try { await api('/api/ctl/news/delete', { id }); items = items.filter((x) => x.id !== id); sig = JSON.stringify(items); render(); say('تم حذف الخبر — اختفى من التطبيق فوراً'); }
     catch (x) { say(x.message); b.disabled = false; }
   });
-  setTimeout(() => load(), 1500);
-  setInterval(() => { if (!ov.classList.contains('on') && !document.hidden && document.body.classList.contains('stf-in')) load(); }, 20000);
+  setTimeout(() => { if (inStaff()) load(); }, 1500);
+  setInterval(() => { if (inStaff() && !ov.classList.contains('on') && !document.hidden) load(); }, 20000);
 })();

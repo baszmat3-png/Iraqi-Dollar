@@ -40,13 +40,14 @@
       clearTimeout(cfgT);
       cfgT = setTimeout(() => { try { if (typeof syncFetch === 'function') syncFetch().then((j) => { if (j && window._cfgChanged && window._cfgH) window._cfgH(j); }).catch(() => {}); } catch (e) {} }, 250);
     });
+    es.addEventListener('bal', (e) => { try { window.dispatchEvent(new CustomEvent('bal-evt', { detail: JSON.parse(e.data) })); } catch (x) {} }); // رصيدي تغيّر على السيرفر: اسحبه فوراً
     es.addEventListener('cmd', (e) => { try { onCmd(JSON.parse(e.data)); } catch (x) {} });
     es.addEventListener('error', () => { try { es.close(); } catch (e) {} es = null; retry(); });
   }
   function retry() { clearTimeout(timer); timer = setTimeout(connect, delay); delay = Math.min(delay * 1.7, 15000); }
 
   // أعد الاتصال عند تغيّر الحساب (لتصفية الأوامر الموجهة) أو عند العودة للتطبيق
-  setInterval(() => { if (myEmail() !== curEmail) connect(); }, 5000);
+  setInterval(() => { if (myEmail() !== curEmail) connect(); }, 1000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && !es) connect(); });
   setTimeout(connect, 800);
 })();
