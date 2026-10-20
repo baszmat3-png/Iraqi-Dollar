@@ -28,6 +28,11 @@ exports.routes = (app, { pool, wrap, ctl, express }) => {
     `CREATE TABLE IF NOT EXISTS user_news(id BIGSERIAL PRIMARY KEY, email TEXT NOT NULL, title TEXT NOT NULL, descr TEXT NOT NULL DEFAULT '', img TEXT,
        likes INT NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
     `CREATE INDEX IF NOT EXISTS user_news_idx ON user_news(id DESC)`,
+    `CREATE TABLE IF NOT EXISTS post_gifts(
+       id BIGSERIAL PRIMARY KEY, news_id BIGINT NOT NULL, from_email TEXT NOT NULL, to_email TEXT NOT NULL, name TEXT NOT NULL, emoji TEXT NOT NULL,
+       price BIGINT NOT NULL, qty INT NOT NULL DEFAULT 1, total BIGINT NOT NULL, recv BIGINT NOT NULL DEFAULT 0, app_cut BIGINT NOT NULL DEFAULT 0,
+       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
+    `CREATE INDEX IF NOT EXISTS post_gifts_news ON post_gifts(news_id)`,
     `CREATE TABLE IF NOT EXISTS user_news_video(news_id BIGINT PRIMARY KEY REFERENCES user_news(id) ON DELETE CASCADE, mime TEXT NOT NULL, size INT NOT NULL, data BYTEA NOT NULL)`,
     `CREATE TABLE IF NOT EXISTS user_news_likes(news_id BIGINT NOT NULL REFERENCES user_news(id) ON DELETE CASCADE, email TEXT NOT NULL, PRIMARY KEY(news_id,email))`,
     `CREATE TABLE IF NOT EXISTS avatars(email TEXT PRIMARY KEY, img TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
@@ -57,7 +62,7 @@ exports.routes = (app, { pool, wrap, ctl, express }) => {
     return { email: String(r.rows[0].email).toLowerCase(), name: r.rows[0].name };
   }
 
-  const SELECT = `SELECT n.id, n.email, n.title, n.descr, (n.img IS NOT NULL) AS has_img, EXISTS(SELECT 1 FROM user_news_video v WHERE v.news_id=n.id) AS has_video, n.likes,
+  const SELECT = `SELECT n.id, n.email, n.title, n.descr, (n.img IS NOT NULL) AS has_img, EXISTS(SELECT 1 FROM user_news_video v WHERE v.news_id=n.id) AS has_video, (SELECT COALESCE(SUM(g.qty),0)::int FROM post_gifts g WHERE g.news_id=n.id) AS gifts, n.likes,
       (EXTRACT(EPOCH FROM n.created_at)*1000)::bigint AS ts,
       a.name, COALESCE(NULLIF(a.rcode,''), a.uid) AS rcode,
       (SELECT (EXTRACT(EPOCH FROM v.updated_at)*1000)::bigint FROM avatars v WHERE v.email=LOWER(n.email)) AS av`;
@@ -67,6 +72,7 @@ exports.routes = (app, { pool, wrap, ctl, express }) => {
     id: Number(r.id), title: r.title, descr: r.descr,
     img: r.has_img ? `/api/news/${r.id}/img` : '',
     video: r.has_video ? `/api/news/${r.id}/video` : '',
+    gifts: Number(r.gifts) || 0,
     likes: Number(r.likes) || 0, liked: !!(mine && mine.has(Number(r.id))),
     ts: Number(r.ts) || 0,
     own: !!(me && String(r.email).toLowerCase() === me),

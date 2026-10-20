@@ -1096,7 +1096,7 @@ function gfHtml(D){const c=D.cfg||{},st=D.stats||{},gs=D.gifts||[],top=D.top||[]
 return `<div class="gd k" style="margin-bottom:12px">${kp('هدايا مُرسلة',f(st.qty||0),'bell')}${kp('نقاط أُنفقت',f(st.pts||0),'bell')}${kp('نقاط وصلت للمستلمين',f(st.recv||0),'bell')}</div>
 <div class="c" style="margin-bottom:12px"><h3>⚙️ إعدادات الهدايا</h3>
 <div class="lr"><span class="sp">تفعيل نظام الهدايا</span><label class="tg"><input type="checkbox" id="gf_on" ${c.enabled?'checked':''}><i></i></label></div>
-<label>نسبة ما يستلمه المستلم من سعر الهدية كنقاط (٪)<input id="gf_pct" type="number" min="0" max="100" value="${+c.pct||0}"></label>
+<label>نسبة ما يستلمه المستلم من سعر الهدية كنقاط (٪)<input id="gf_pct" type="number" min="0" max="100" value="${+c.pct||0}"></label><label>نسبة الناشر من هدايا المنشورات (٪) — الباقي لصاحب التطبيق<input id="gf_pp" type="number" min="0" max="100" value="${c.postPct==null?50:+c.postPct}"></label>
 <div class="mu" style="font-size:.74rem;margin:-2px 0 8px">0 = الهدية رمزية (تُخصم من المرسل ولا تُضاف لأحد). مثال 50 = يستلم المستلم نصف السعر نقاطاً.</div>
 <label>أقصى كمية في الإرسال الواحد<input id="gf_mq" type="number" min="1" max="99" value="${+c.maxQty||10}"></label>
 <button class="btn" style="margin-top:10px" data-a="p_gfcfg">حفظ الإعدادات</button></div>
@@ -1118,7 +1118,7 @@ function pgf(a,i,v){
  if(a=='gfsave'){if(!need('cfg'))return 1;const id=+v||0,g=k=>$('#gf_'+k+id),body={id,name:(g('n').value||'').trim(),emoji:(g('e').value||'').trim(),price:+g('p').value,active:id?g('a').checked:true,sort:g('s')?(+g('s').value||0):0};
   ctlApi('/gifts/save','POST',body).then(j=>{if(j&&j.ok){toast(id?'تم حفظ الهدية':'تمت إضافة الهدية');if(!id)['e','n','p'].forEach(k=>{const x=$('#gf_'+k+'0');if(x)x.value=''});gfLoad()}});return 1}
  if(a=='gfdel'){if(!need('cfg'))return 1;if(!confirm('حذف هذه الهدية نهائياً؟ (الأفضل إخفاؤها بدل الحذف)'))return 1;ctlApi('/gifts/delete','POST',{id:+v}).then(j=>{if(j&&j.ok){toast('تم حذف الهدية');gfLoad()}});return 1}
- if(a=='gfcfg'){if(!need('cfg'))return 1;ctlApi('/gifts/config','POST',{enabled:$('#gf_on').checked,pct:+$('#gf_pct').value||0,maxQty:+$('#gf_mq').value||10}).then(j=>{if(j&&j.ok){toast('تم حفظ إعدادات الهدايا');gfLoad()}});return 1}
+ if(a=='gfcfg'){if(!need('cfg'))return 1;ctlApi('/gifts/config','POST',{enabled:$('#gf_on').checked,pct:+$('#gf_pct').value||0,postPct:$('#gf_pp').value===''?50:+$('#gf_pp').value,maxQty:+$('#gf_mq').value||10}).then(j=>{if(j&&j.ok){toast('تم حفظ إعدادات الهدايا');gfLoad()}});return 1}
  return 0}
 
 /* ===== الدعم الفني من الخادم: كل رسائل المستخدمين + مرفقاتهم + المحادثة كاملة، مع تثبيت الأعلى وخانة الكتابة ===== */

@@ -49,6 +49,14 @@
 .nw-like.on{background:#ff3b6b22;border-color:#ff3b6b88;color:#ff5c85}
 .nw-like.on svg{fill:#ff5c85;stroke:#ff5c85}
 .nw-like:active{transform:scale(.93)}
+.nw-gift{display:inline-flex;align-items:center;gap:7px;border:1px solid #f59e0b66;background:#f59e0b18;color:#fbbf24;font:inherit;font-weight:700;cursor:pointer;padding:8px 14px;border-radius:99px}
+.nw-gift:active{transform:scale(.93)}
+.nw-gg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0;max-height:240px;overflow:auto}
+.nw-gg button{display:grid;gap:2px;justify-items:center;border:1.5px solid var(--line,#ffffff22);background:var(--inp,#ffffff0d);color:inherit;border-radius:14px;padding:8px 2px;font:inherit;cursor:pointer}
+.nw-gg button.on{border-color:#f59e0b;background:#f59e0b22}
+.nw-gg b{font-size:1.6rem;line-height:1.2}.nw-gg small{font-size:.68rem;opacity:.85}.nw-gg i{font-style:normal;font-size:.7rem;color:#fbbf24;font-weight:700}
+.nw-qty{display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0}
+.nw-qty button{width:38px;height:38px;border-radius:12px;border:1px solid var(--line,#ffffff33);background:var(--inp,#ffffff10);color:inherit;font-size:1.2rem;cursor:pointer}
 .nw-del{background:none;border:0;color:#ff6b6b;font:inherit;font-size:.8rem;cursor:pointer;padding:6px 8px}
 .nw-empty{text-align:center;padding:22px 14px;border:1px dashed var(--line,#ffffff2a);border-radius:20px;opacity:.85;font-size:.9rem}
 .nw-all{display:block;width:100%;margin:2px 0 6px;padding:11px;border-radius:16px;border:1px solid var(--line,#ffffff22);background:var(--inp,#ffffff0d);color:inherit;font:inherit;font-weight:700;cursor:pointer}
@@ -80,7 +88,7 @@ ${n.video ? `<div class="nw-vw"><video class="nw-vid" data-nv="${n.id}" src="${E
 ${n.img ? `<img class="nw-img" loading="lazy" alt="" src="${E(n.img)}" onerror="this.remove()">` : ''}
 <div class="nw-d${openId[n.id] ? ' open' : ''}">${E(n.descr)}</div>
 ${long ? `<button class="nw-more" data-nw="more" data-id="${n.id}">${openId[n.id] ? 'عرض أقل' : 'قراءة المزيد'}</button>` : ''}
-<div class="nw-ft"><button class="nw-like${n.liked ? ' on' : ''}" data-nw="like" data-id="${n.id}" aria-label="إعجاب">${SVG_HEART}<span>${n.likes || 0}</span></button>${n.own ? `<button class="nw-del" data-nw="del" data-id="${n.id}">حذف خبري</button>` : ''}</div>
+<div class="nw-ft"><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="nw-like${n.liked ? ' on' : ''}" data-nw="like" data-id="${n.id}" aria-label="إعجاب">${SVG_HEART}<span>${n.likes || 0}</span></button>${n.own ? (n.gifts ? `<span class="nw-gift" style="cursor:default">🎁 <span>${n.gifts}</span></span>` : '') : `<button class="nw-gift" data-nw="gift" data-id="${n.id}" aria-label="إرسال هدية">🎁 <span>${n.gifts || 0}</span></button>`}</div>${n.own ? `<button class="nw-del" data-nw="del" data-id="${n.id}">حذف خبري</button>` : ''}</div>
 </article>`;
   };
   const inner = () => {
@@ -205,6 +213,40 @@ ${long ? `<button class="nw-more" data-nw="more" data-id="${n.id}">${openId[n.id
     });
   }
 
+  /* ---------- هدية على منشور: الناشر يستلم 50٪ والباقي لصاحب التطبيق (النسبة من إعدادات الهدايا في لوحة التحكم) ---------- */
+  const NFm = (n) => Math.floor(+n || 0).toLocaleString('en');
+  let GL = null;
+  async function openGift(id) {
+    const m = me(); if (!m) return say('سجّل الدخول بحساب حقيقي لإرسال هدية');
+    try { if (S.acc && S.acc.demo) return say('الحساب التجريبي لا يمكنه إرسال الهدايا'); } catch (x) {}
+    try { if (!GL) GL = await J('/api/gifts/list'); } catch (x) { return say(x.message); }
+    if (!GL.enabled || !(GL.gifts || []).length) return say('الهدايا متوقفة حالياً');
+    let sel = GL.gifts[0], qty = 1; const maxQ = GL.maxQty || 10;
+    dlg(`<div class="nw-form"><h2 style="margin:0 0 2px">🎁 إرسال هدية للناشر</h2><p class="mu" style="margin:0;font-size:.82rem">يستلم الناشر نصف قيمة الهدية والباقي لصاحب التطبيق.</p>
+<div class="nw-gg" id="nwgg">${GL.gifts.map((g, i) => `<button data-gi="${i}" class="${i === 0 ? 'on' : ''}"><b>${E(g.emoji)}</b><small>${E(g.name)}</small><i>${NFm(g.price)}</i></button>`).join('')}</div>
+<div class="nw-qty"><button data-q="-">−</button><b id="nwq" style="min-width:30px;text-align:center;font-size:1.1rem">1</b><button data-q="+">+</button></div>
+<div class="mu" style="text-align:center;font-size:.85rem" id="nwgt"></div>
+<div class="mu" style="text-align:center;font-size:.78rem;margin-top:2px">رصيدك: <b>${NFm((typeof S !== 'undefined' && S.pts) || 0)}</b> نقطة</div>
+<button class="nw-go" id="nwgs">إرسال الهدية</button></div>`);
+    const d = document.getElementById('d');
+    const upd = () => { d.querySelector('#nwq').textContent = qty; d.querySelector('#nwgt').textContent = `${sel.emoji} ${sel.name} ×${qty} = ${NFm(sel.price * qty)} نقطة`; };
+    upd();
+    d.querySelector('#nwgg').addEventListener('click', (e) => { const b = e.target.closest('button[data-gi]'); if (!b) return; sel = GL.gifts[+b.dataset.gi]; d.querySelectorAll('#nwgg button').forEach((x) => x.classList.toggle('on', x === b)); upd(); });
+    d.querySelector('.nw-qty').addEventListener('click', (e) => { const b = e.target.closest('button[data-q]'); if (!b) return; qty = Math.max(1, Math.min(maxQ, qty + (b.dataset.q === '+' ? 1 : -1))); upd(); });
+    d.querySelector('#nwgs').addEventListener('click', async (e) => {
+      const b = e.currentTarget; if (b.disabled) return;
+      try { if ((+S.pts || 0) < sel.price * qty) return say('رصيدك غير كافٍ'); } catch (x) {}
+      b.disabled = true; b.textContent = 'جارٍ الإرسال...';
+      try {
+        const r = await J('/api/gifts/post', Object.assign({ id, gift: sel.id, qty }, m));
+        try { d.close(); } catch (x) {}
+        say('تم إرسال ' + sel.emoji + ' — شكراً لدعمك الناشر');
+        const n = items.find((x) => x.id === id); if (n) { n.gifts = r.gifts; sig = JSON.stringify(items); paint(); }
+        try { window.__balPull && window.__balPull(); } catch (x) { /* اختياري */ }
+      } catch (x) { say(x.message); b.disabled = false; b.textContent = 'إرسال الهدية'; }
+    });
+  }
+
   /* ---------- النقرات ---------- */
   document.addEventListener('click', async (ev) => {
     const b = ev.target.closest && ev.target.closest('[data-nw]');
@@ -213,6 +255,7 @@ ${long ? `<button class="nw-more" data-nw="more" data-id="${n.id}">${openId[n.id
     const a = b.dataset.nw, id = +b.dataset.id;
     if (a === 'pub') return openPublish();
     if (a === 'all') { shown = items.length; return paint(); }
+    if (a === 'gift') return openGift(id);
     if (a === 'snd') { const v = b.parentNode && b.parentNode.querySelector('video'); if (v) { v.muted = !v.muted; b.textContent = v.muted ? '🔇' : '🔊'; if (!v.muted) { const p = v.play(); if (p && p.catch) p.catch(() => {}); } } return; }
     if (a === 'more') { openId[id] = !openId[id]; return paint(); }
     if (a === 'like') {

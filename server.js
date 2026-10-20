@@ -1542,6 +1542,7 @@ require('./instant-sync')(app, express, { pool, wrap, ctl, fail }); // بث فو
 require('./notes-ext')(app, express, { pool, wrap, fail }); // إشعارات السيرفر للمستخدم (P2P وغيرها)
 require('./bal-sync')(app, express, { pool, wrap, fail }); // الرصيد المرجعي على السيرفر + مزامنة لحظية بالفروقات لكل الأجهزة
 require('./security-server')(app, express, { pool, wrap, ctl, fail }); // الحماية: بصمة الجهاز + VPN + تلاعب الوقت
+require('./revenue-ext')(app, express, { pool, wrap, ctl }); // إيرادات التطبيق (حصة صاحب التطبيق)
 require('./gifts-ext')(app, express, { pool, wrap, ctl, fail });
 require('./rooms-ext')(app, express, { pool, wrap, ctl, fail }); // الرومات الصوتية (+ مكتبة الموسيقى + خلفية الروم)
 require('./google-auth-ext')(app, { pool, wrap, fail }); // الدخول وإنشاء الحساب عبر Google
