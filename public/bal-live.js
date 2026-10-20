@@ -139,6 +139,7 @@
   const kick = () => { clearTimeout(tmr); tmr = setTimeout(cycle, 0); };
   const pull = () => { wantPull = true; nextOk = 0; kick(); };
 
+  window.__balPull = pull;
   window.addEventListener('bal-evt', pull);                                        // بثّ فوري من السيرفر: رصيد حسابي تغيّر
   window.addEventListener('store-evt', (e) => { if (e && e.detail && e.detail.k === 'hello') pull(); }); // (إعادة) اتصال البثّ: عوّض ما فات
   window.addEventListener('online', pull);

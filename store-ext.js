@@ -91,8 +91,18 @@ module.exports = (app, express, deps) => {
     const stock = {};
     (await q(`SELECT card_id, COUNT(*)::int n FROM store_codes WHERE NOT sold GROUP BY card_id`)).rows.forEach((r) => { stock[r.card_id] = r.n; });
     // الطلبات المرفوضة: تُرجَع للمستخدم مرة واحدة فقط (يُسترجع مبلغها لرصيده)
-    const refund = (await q(`UPDATE store_orders SET refunded=TRUE WHERE LOWER(email)=$1 AND status='rejected' AND NOT refunded RETURNING id, card_name, price`, [u.email]))
-      .rows.map((r) => ({ id: Number(r.id), n: r.card_name, p: Number(r.price) }));
+    // الاسترجاع يتم على السيرفر (المرجع الوحيد للرصيد): نعلّم الطلب ونُضيف المبلغ في معاملة واحدة
+    let refund = [];
+    const rc = await pool.connect();
+    try {
+      await rc.query('BEGIN');
+      refund = (await rc.query(`UPDATE store_orders SET refunded=TRUE WHERE LOWER(email)=$1 AND status='rejected' AND NOT refunded RETURNING id, card_name, price`, [u.email]))
+        .rows.map((r) => ({ id: Number(r.id), n: r.card_name, p: Number(r.price) }));
+      const back = refund.reduce((t, r) => t + r.p, 0);
+      if (back > 0) await rc.query(`UPDATE sync_accounts SET pts=COALESCE(pts,0)+$2 WHERE LOWER(email)=$1`, [u.email, back]);
+      await rc.query('COMMIT');
+      if (back > 0) { try { if (app.locals.liveBalKick) app.locals.liveBalKick(); } catch (e) { /* اختياري */ } }
+    } catch (e) { await rc.query('ROLLBACK').catch(() => {}); refund = []; throw e; } finally { rc.release(); }
     const orders = (await q(`SELECT * FROM store_orders WHERE LOWER(email)=$1 ORDER BY id DESC LIMIT 150`, [u.email])).rows.map(pubOrder);
     res.json({ ok: true, stock, orders, refund, t: Date.now() });
   }));
@@ -108,6 +118,9 @@ module.exports = (app, express, deps) => {
     try {
       await cl.query('BEGIN');
       await cl.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, ['store:' + cardId]);
+      // الخصم على السيرفر أولاً وبشكل ذرّي: لا شراء بدون رصيد حقيقي (لا نثق بالعميل)
+      const ch = await cl.query(`UPDATE sync_accounts SET pts=pts-$2 WHERE LOWER(email)=$1 AND COALESCE(pts,0)>=$2 RETURNING pts`, [u.email, price]);
+      if (!ch.rowCount) fail(402, 'رصيدك غير كافٍ لإتمام الشراء');
       const o = (await cl.query(
         `INSERT INTO store_orders(email,name,card_id,card_name,card_type,price) VALUES($1,$2,$3,$4,$5,$6) RETURNING *`,
         [u.email, u.name, cardId, txt(card.n, 120), txt(card.t, 12), price])).rows[0];
@@ -115,7 +128,8 @@ module.exports = (app, express, deps) => {
       const got = gotAll.filter((e) => e !== u.email);
       const fin = (await cl.query(`SELECT * FROM store_orders WHERE id=$1`, [o.id])).rows[0];
       await cl.query('COMMIT');
-      res.json({ ok: true, order: pubOrder(fin) });
+      res.json({ ok: true, order: pubOrder(fin), pts: Number(ch.rows[0].pts) });
+      try { if (app.locals.liveBalKick) app.locals.liveBalKick(); } catch (e) { /* اختياري */ }
       pushStore(cardId, got);
     } catch (e) { await cl.query('ROLLBACK').catch(() => {}); throw e; }
     finally { cl.release(); }
