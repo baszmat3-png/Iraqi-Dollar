@@ -42,6 +42,7 @@
     } catch (x) {}
   }
 
+  window.__csyncReconcile = function (e, l, r) { reconcile(e, l, r); };
   function reconcile(email, sv, rejected) {
     try {
       if (!same(email) || !Array.isArray(sv) || S.acc.demo) return;

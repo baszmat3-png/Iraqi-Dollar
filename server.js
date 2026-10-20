@@ -1544,6 +1544,7 @@ require('./bal-sync')(app, express, { pool, wrap, fail }); // الرصيد ال�
 require('./security-server')(app, express, { pool, wrap, ctl, fail }); // الحماية: بصمة الجهاز + VPN + تلاعب الوقت
 require('./revenue-ext')(app, express, { pool, wrap, ctl }); // إيرادات التطبيق (حصة صاحب التطبيق)
 require('./gifts-ext')(app, express, { pool, wrap, ctl, fail });
+require('./ctr-market-ext')(app, express, { pool, wrap, fail }); // متجر العدادات (السيرفر هو المرجع)
 require('./rooms-ext')(app, express, { pool, wrap, ctl, fail }); // الرومات الصوتية (+ مكتبة الموسيقى + خلفية الروم)
 require('./google-auth-ext')(app, { pool, wrap, fail }); // الدخول وإنشاء الحساب عبر Google
 P2PX(app, express, { pool, wrap, ctl, fail }); // المرحلة 20: P2P
