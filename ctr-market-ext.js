@@ -22,6 +22,7 @@ module.exports = (app, express, deps) => {
           id BIGSERIAL PRIMARY KEY, seller_email TEXT NOT NULL, seller_name TEXT, ci INT NOT NULL, exp BIGINT NOT NULL,
           price BIGINT NOT NULL, fee BIGINT NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'open',
           buyer_email TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), closed_at TIMESTAMPTZ)`);
+        await q(`ALTER TABLE ctr_market ADD COLUMN IF NOT EXISTS ratio DOUBLE PRECISION`);
         await q(`CREATE INDEX IF NOT EXISTS ctr_market_open ON ctr_market(status, created_at DESC)`);
         return;
       } catch (e) { if (t === 9) throw e; await new Promise((r) => setTimeout(r, 1500)); }
@@ -34,7 +35,7 @@ module.exports = (app, express, deps) => {
     try { const r = (await (c || pool).query(`SELECT val FROM sync_kv WHERE key='config'`)).rows[0]; v = (r && r.val && r.val.cfg) || {}; } catch (_) { /* افتراضي */ }
     const ct = v.ct || {};
     const mk = Number(v.mk); const fee = Number(v.cmFee);
-    return { ct, mk: Number.isFinite(mk) && mk >= 0 ? Math.min(mk, 100) : 20, fee: Number.isFinite(fee) && fee >= 0 ? Math.min(fee, 50) : 8 };
+    return { ct, mk: Number.isFinite(mk) && mk >= 0 ? Math.min(mk, 100) : 20, fee: Number.isFinite(fee) && fee >= 0 ? Math.min(fee, 50) : 10 };
   }
   const yieldOf = (C, ci) => { const o = C.ct[ci]; return o && Number(o[1]) > 0 ? Number(o[1]) : YIELD0[ci]; };
   function value(C, ci, exp, now) {
@@ -43,14 +44,17 @@ module.exports = (app, express, deps) => {
     const valued = Math.max(1, Math.floor(base * rem / LIFE_MS));
     return { base, valued, cap: Math.max(1, Math.floor(valued * (1 + C.mk / 100))), days: Math.ceil(rem / DAY), daily: yieldOf(C, ci) };
   }
+  // السعر يتناقص يومياً مع تناقص المدة: السعر الحالي = قيمة العداد الآن × نسبة العرض (سعر العرض ÷ قيمته وقت العرض)
+  const effPrice = (L, C, now) => { const r = Number(L.ratio) > 0 ? Number(L.ratio) : 1; return Math.max(1, Math.floor(value(C, Number(L.ci), Number(L.exp), now).valued * r)); };
   const cred = (req) => {
     const b = req.body || {};
     return { e: txt(b.e || req.get('x-e'), 200).toLowerCase(), h: txt(b.h || req.get('x-h'), 200) };
   };
   const row = (L, C, now, me) => {
     const v = value(C, L.ci, Number(L.exp), now);
-    return { id: Number(L.id), ci: Number(L.ci), exp: Number(L.exp), days: v.days, price: Number(L.price), valued: v.valued, base: v.base, daily: v.daily,
-      pct: v.valued ? Math.round((Number(L.price) / v.valued - 1) * 100) : 0, seller: L.seller_name || String(L.seller_email).split('@')[0], mine: !!me && String(L.seller_email).toLowerCase() === me };
+    const price = effPrice(L, C, now);
+    return { id: Number(L.id), ci: Number(L.ci), exp: Number(L.exp), days: v.days, price, listed: Number(L.price), valued: v.valued, base: v.base, daily: v.daily,
+      pct: v.valued ? Math.round((price / v.valued - 1) * 100) : 0, seller: L.seller_name || String(L.seller_email).split('@')[0], mine: !!me && String(L.seller_email).toLowerCase() === me };
   };
   const kick = () => { try { if (app.locals.liveBalKick) app.locals.liveBalKick(); } catch (_) { /* اختياري */ } };
   const sigOf = (l) => (Array.isArray(l) ? l : []);
@@ -110,7 +114,7 @@ module.exports = (app, express, deps) => {
         await cl.query(`UPDATE users SET pts=GREATEST(0, pts-$2) WHERE LOWER(email)=$1`, [e, fee]);
         if (app.locals.revenue) await app.locals.revenue(cl, 'ctr_list_fee', fee, 'ctr', 'عداد ' + ci + ' بسعر ' + price);
       }
-      const id = (await cl.query(`INSERT INTO ctr_market(seller_email,seller_name,ci,exp,price,fee) VALUES($1,$2,$3,$4,$5,$6) RETURNING id`, [e, me.name || e.split('@')[0], ci, exp, price, fee])).rows[0].id;
+      const id = (await cl.query(`INSERT INTO ctr_market(seller_email,seller_name,ci,exp,price,fee,ratio) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id`, [e, me.name || e.split('@')[0], ci, exp, price, fee, price / v.valued])).rows[0].id;
       await cl.query('COMMIT');
       out = { ok: true, id: Number(id), fee, days: v.days, bal: Number(me.pts) - fee, cl: own };
     } catch (err) { try { await cl.query('ROLLBACK'); } catch (_) {} throw err; } finally { cl.release(); }
@@ -154,7 +158,7 @@ module.exports = (app, express, deps) => {
       const L = (await cl.query(`SELECT * FROM ctr_market WHERE id=$1 FOR UPDATE`, [id])).rows[0];
       if (!L || L.status !== 'open') fail(409, 'تم بيع هذا العداد أو إلغاء عرضه');
       if (Number(L.exp) <= now) fail(409, 'انتهت مدة هذا العداد');
-      const price = Number(L.price);
+      const price = effPrice(L, await cfg(cl), now);
       if (Number(me.pts) < price) fail(402, 'رصيد النقاط غير كافٍ');
       const mine = sigOf(me.cl).filter((c) => c && Number(c.e) > now);
       if (mine.length >= 100) fail(400, 'وصلت للحد الأقصى من العدادات');

@@ -144,8 +144,8 @@
 
   #rmx.hasbg:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,#0000004d,#0000008c 60%,#000000b3)}
   #rmx.hasbg .rm-in{z-index:1}
-  .rm-gw{position:relative;display:flex;align-items:center;flex:none}
-  .rm-gw #rmMicW.up{position:absolute;left:50%;bottom:calc(100% + 10px);transform:translateX(-50%);z-index:5}
+  .rm-gw{position:static;display:flex;align-items:center;flex:none}
+  .rm-gw #rmMicW.up{position:absolute;inset-inline-end:10px;left:auto;bottom:calc(302px + env(safe-area-inset-bottom,0px));transform:none;z-index:5}
   .rm-gw #rmMicW.up .mc{box-shadow:0 6px 18px #0006}
   .rm-bge{display:grid;gap:8px;padding:12px;border-radius:16px;background:#ffffff0d}
   .rm-bge .pv{height:120px;border-radius:12px;background:#0006 center/cover no-repeat;display:grid;place-items:center;color:var(--mu);font-size:.85rem;border:1px dashed #ffffff33}

@@ -97,18 +97,34 @@ ${long ? `<button class="nw-more" data-nw="more" data-id="${n.id}">${openId[n.id
   };
   window.nwStrip = () => `<div class="nw-sec"><b>أخبار المستخدمين</b><button class="nw-pub" data-nw="pub">${SVG_PLUS} نشر خبر</button></div><div id="nwbox">${inner()}</div>`;
   /* تشغيل تلقائي صامت للفيديو عند ظهوره على الشاشة، وإيقافه عند خروجه */
+  /* إيقاف الفيديو وكتم صوته (عند الخروج من نطاق الرؤية/الصفحة/التطبيق) */
+  const stopV = (v) => { try { v.pause(); v.muted = true; const b = v.parentNode && v.parentNode.querySelector('.nw-snd'); if (b) b.textContent = '🔇'; } catch (x) {} };
+  const playing = new Set();
+  document.addEventListener('play', (ev) => { const v = ev.target; if (v && v.tagName === 'VIDEO' && v.classList && v.classList.contains('nw-vid')) playing.add(v); }, true);
+  const sweep = () => playing.forEach((v) => {
+    try {
+      if (v.paused) { playing.delete(v); return; }
+      const r = v.isConnected ? v.getBoundingClientRect() : null, vh = window.innerHeight || 800;
+      const vis = r && r.height > 0 && Math.min(r.bottom, vh) - Math.max(r.top, 0) >= r.height * 0.4 && !document.hidden && !(document.getElementById('nwbox') === null);
+      if (!vis) { stopV(v); playing.delete(v); }
+    } catch (x) { playing.delete(v); }
+  });
+  setInterval(sweep, 400);
+  window.addEventListener('scroll', sweep, { passive: true, capture: true });
+  window.addEventListener('pagehide', () => document.querySelectorAll('video.nw-vid').forEach(stopV));
+  window.addEventListener('blur', () => document.querySelectorAll('video.nw-vid').forEach(stopV));
   let vio = null;
   const watchVideos = () => {
     try {
       if (!('IntersectionObserver' in window)) return;
       if (!vio) vio = new IntersectionObserver((es) => es.forEach((en) => {
         const v = en.target; if (!v || v.tagName !== 'VIDEO') return;
-        if (en.isIntersecting && en.intersectionRatio >= 0.55 && !document.hidden) { const p = v.play(); if (p && p.catch) p.catch(() => {}); } else { try { v.pause(); } catch (x) {} }
+        if (en.isIntersecting && en.intersectionRatio >= 0.55 && !document.hidden) { const p = v.play(); if (p && p.catch) p.catch(() => {}); } else { stopV(v); }
       }), { threshold: [0, 0.55, 1] });
       document.querySelectorAll('#nwbox video.nw-vid').forEach((v) => vio.observe(v));
     } catch (x) { /* اختياري */ }
   };
-  document.addEventListener('visibilitychange', () => { if (document.hidden) document.querySelectorAll('#nwbox video').forEach((v) => { try { v.pause(); } catch (x) {} }); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) document.querySelectorAll('video.nw-vid').forEach(stopV); });
   const paint = () => { const b = document.getElementById('nwbox'); if (b) { b.innerHTML = inner(); watchVideos(); } };
 
   /* ---------- الجلب والتحديث ---------- */
