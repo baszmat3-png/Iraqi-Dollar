@@ -34,6 +34,8 @@
     play: 'M6 4l14 8-14 8V4z', pause: 'M6 4h4v16H6zM14 4h4v16h-4z', ban: 'M4.9 4.9l14.2 14.2M12 2a10 10 0 100 20 10 10 0 000-20z',
     gear: 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z',
     chat: 'M21 12a8 8 0 01-11.5 7.2L3 21l1.8-5.5A8 8 0 1121 12z',
+    trophy: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 01-10 0V4zM17 5h3v2a3 3 0 01-3 3M7 5H4v2a3 3 0 003 3',
+    coin: 'M12 2a10 10 0 100 20 10 10 0 000-20zM12 6.5v11M9.2 9.5h4a1.6 1.6 0 010 3.2h-3a1.6 1.6 0 000 3.2h4.2',
   };
   try { if (typeof P !== 'undefined' && !P.mic) P.mic = IP.mic; } catch (e) {}
   const I = (n, z) => `<svg class="rmi" ${z ? `style="width:${z}px;height:${z}px"` : ''} viewBox="0 0 24 24"><path d="${IP[n] || ''}"/></svg>`;
@@ -176,6 +178,16 @@
   #rmmini.on{display:flex}#rmmini b{font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:34vw}
   #rmmini .rm-ib{width:30px;height:30px}
   .rm-vol{width:100%;accent-color:var(--cy)}
+  .rm-fab{position:absolute;inset-inline-end:10px;bottom:calc(86px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;z-index:4}
+  .rm-fab .rm-ib{width:44px;height:44px;background:#0008;border:1px solid #ffffff26}
+  .rm-fab .rm-ib.c1{color:#fbbf24}.rm-fab .rm-ib.c2{color:#f59e0b}.rm-fab .rm-ib.c3{color:#67e8f9}.rm-fab .rm-ib.c4{color:#c4b5fd}
+  .rm-sp{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:14px;background:#ffffff10;margin-bottom:7px}
+  .rm-sp .rk{width:26px;text-align:center;font-weight:800;color:var(--mu)}.rm-sp:nth-child(1) .rk{color:#fbbf24}.rm-sp:nth-child(2) .rk{color:#cbd5e1}.rm-sp:nth-child(3) .rk{color:#d97706}
+  .rm-sp .bg{font-size:1.5rem;line-height:1}.rm-sp .nm{flex:1;min-width:0}.rm-sp .nm b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rm-sp .nm small{color:var(--mu)}.rm-sp .am{font-weight:800;color:#fbbf24;white-space:nowrap}.rm-sp.me{outline:1.5px solid var(--cy)}
+  .rm-lv{display:inline-block;font-size:.7rem;font-weight:800;padding:1px 8px;border-radius:99px;background:#ffffff1a;margin-inline-start:6px}
+  .rm-lv.l1{color:#d97706}.rm-lv.l2{color:#cbd5e1}.rm-lv.l3{color:#fbbf24}.rm-lv.l4{color:#67e8f9}.rm-lv.l5{color:#f0abfc}.rm-lv.l6{color:#fb7185}
+  .rm-eg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}.rm-eg div{background:#ffffff10;border-radius:14px;padding:10px;text-align:center}.rm-eg b{display:block;font-size:1.05rem;color:#fbbf24}.rm-eg small{color:var(--mu)}
   `;
   document.head.appendChild(css);
 
@@ -418,6 +430,7 @@
       <div class="rm-seats" id="rmSeats"></div>
       <div class="rm-mus" id="rmMus" style="display:none"></div>
       <div class="rm-chat" id="rmChat"></div>
+      <div class="rm-fab"><button class="rm-ib c1" data-rm="earn" aria-label="أرباحي من الرومات">${I('coin', 22)}</button><button class="rm-ib c2" data-rm="supp" aria-label="أبرز الداعمين">${I('trophy', 22)}</button><button class="rm-ib c3" data-rm="vol" aria-label="التحكم بالصوت">${I('vol', 22)}</button><button class="rm-ib c4" data-rm="mus" aria-label="الموسيقى">${I('music', 22)}</button></div>
       <div class="rm-f"><button class="rm-ib" data-rm="members" aria-label="المتواجدون">${I('users', 20)}<i class="bd" id="rmN">0</i></button>
         <input id="rmIn" maxlength="300" placeholder="اكتب رسالة…" autocomplete="off"><button class="rm-ib go" data-rm="send" aria-label="إرسال">${I('send', 20)}</button>
         <span class="rm-gw"><button class="rm-ib gf" data-rm="gift" aria-label="هدية">${I('gift', 22)}</button><span id="rmMicW"></span></span></div>
@@ -938,6 +951,32 @@
       <button class="rm-act r" data-rm="leave">${I('power', 18)} مغادرة الروم</button></div>`);
   }
 
+  async function suppDlg() {
+    if (!RS) return; let j; try { j = await post('/api/rooms/supporters', { tok: RS.tok }); } catch (e) { return say(e.message); }
+    const l = j.list || [];
+    dlg(`<h2 style="margin-top:0">${I('trophy', 22)} أبرز الداعمين</h2>
+      ${l.length ? l.map((x) => `<div class="rm-sp${x.me ? ' me' : ''}"><span class="rk">${x.rank}</span><span class="bg">${x.badge}</span><span class="nm"><b>${E(x.name)}${x.here ? ' 🟢' : ''}</b><small><span class="rm-lv l${x.lv}">المستوى ${x.lv} · ${E(x.lvName)}</span> · ${fmt(x.n)} هدية</small></span><span class="am">${fmt(x.total)}</span></div>`).join('') : '<div class="rm-info" style="text-align:center">لا يوجد داعمون بعد — كن أول من يرسل هدية 🎁</div>'}
+      <div class="rm-info" style="margin-top:10px;font-size:.78rem">المستويات: ${(j.levels || []).map((x) => `${x.badge} ${E(x.name)} من ${fmt(x.min)}`).join(' · ')}</div>`);
+  }
+  async function earnDlg() {
+    const me = idn(); if (!me) return say('سجّل الدخول أولاً');
+    let j; try { j = await post('/api/rooms/earnings', me); } catch (e) { return say(e.message); }
+    const ago = (t) => { const m = Math.max(0, Math.round((Date.now() - new Date(t)) / 60000)); return m < 60 ? m + ' د' : m < 1440 ? Math.round(m / 60) + ' س' : Math.round(m / 1440) + ' يوم'; };
+    dlg(`<h2 style="margin-top:0">${I('coin', 22)} أرباحي من الرومات</h2>
+      <div class="rm-eg"><div><b>${fmt(j.total)}</b><small>إجمالي الأرباح</small></div><div><b>${fmt(j.d1)}</b><small>آخر 24 ساعة</small></div><div><b>${fmt(j.owner)}</b><small>كصاحب روم</small></div><div><b>${fmt(j.aud)}</b><small>كمتواجد في روم</small></div></div>
+      <div class="rm-info" style="font-size:.8rem">آخر 7 أيام: <b>${fmt(j.d7)}</b> نقطة · ما أرسلتَه من هدايا: <b>${fmt(j.sent)}</b> <span class="rm-lv l${j.me.lv}">${j.me.badge} ${E(j.me.lvName)}</span></div>
+      ${(j.byRoom || []).length ? '<h3 style="margin:12px 0 6px;font-size:.95rem">حسب الروم</h3>' + j.byRoom.map((x) => `<div class="rm-sp"><span class="nm"><b>${E(x.name || 'روم')}</b></span><span class="am">${fmt(x.pts)}</span></div>`).join('') : ''}
+      ${(j.last || []).length ? '<h3 style="margin:12px 0 6px;font-size:.95rem">آخر العمليات</h3>' + j.last.map((x) => `<div class="rm-sp"><span class="nm"><b>${E(x.frm || '')} ${x.kind === 'owner' ? '(نصيب صاحب الروم)' : '(نصيب المتواجدين)'}</b><small>${E(x.note || '')} · ${E(x.room || '')} · ${ago(x.created_at)}</small></span><span class="am">+${fmt(x.pts)}</span></div>`).join('') : '<div class="rm-info" style="text-align:center;margin-top:10px">لا أرباح بعد: تتوزع هدايا الروم على المتواجدين وعلى صاحب الروم.</div>'}`);
+  }
+  function volDlg(withNp) {
+    if (!RS) return;
+    dlg(`<h2 style="margin-top:0">${I('vol', 22)} التحكم بالصوت</h2><div class="rm-f1">
+      ${withNp ? npHtml() : ''}
+      <label>صوت الموسيقى<input type="range" class="rm-vol" id="rmVol" min="0" max="100" value="${Math.round(RS.mvol * 100)}"></label>
+      <label class="rm-sw"><span>${I('voloff', 18)} كتم الموسيقى</span><input type="checkbox" id="rmMm" ${RS.mmute ? 'checked' : ''}></label>
+      <label class="rm-sw"><span>${I(RS.deaf ? 'voloff' : 'vol', 18)} كتم أصوات المتحدثين</span><input type="checkbox" id="rmDf" ${RS.deaf ? 'checked' : ''}></label></div>`);
+  }
+
   /* ---------- الخروج ---------- */
   function cleanup() {
     const rs = RS; if (!rs) return; rs.gone = true; RS = null;
@@ -985,6 +1024,10 @@
       case 'leave': return leaveRoom();
       case 'menu': return menuDlg();
       case 'members': return membersDlg();
+      case 'supp': return suppDlg();
+      case 'earn': return earnDlg();
+      case 'vol': return volDlg();
+      case 'mus': return isMod() ? musicDlg() : volDlg(true);
       case 'hands': return membersDlg(true);
       case 'send': return sendChat();
       case 'gift': return giftDlg();

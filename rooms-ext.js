@@ -55,6 +55,9 @@ module.exports = (app, express, deps) => {
        id BIGSERIAL PRIMARY KEY, email TEXT NOT NULL, room_id INT, kind TEXT NOT NULL, pts BIGINT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
     `CREATE INDEX IF NOT EXISTS room_sales_room_idx ON room_sales(room_id)`,
     `CREATE INDEX IF NOT EXISTS room_gift_log_room_idx ON room_gift_log(room_id)`,
+    `CREATE TABLE IF NOT EXISTS room_earn(id BIGSERIAL PRIMARY KEY, email TEXT NOT NULL, room_id INT, kind TEXT NOT NULL, pts BIGINT NOT NULL, from_email TEXT, note TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
+    `CREATE INDEX IF NOT EXISTS room_earn_email_idx ON room_earn(email, id DESC)`,
+    `UPDATE room_settings SET v = v || '{"ownerPct":25,"audPct":25,"split":2}'::jsonb WHERE k='cfg' AND NOT (v ? 'split')`,
   ];
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -98,7 +101,7 @@ module.exports = (app, express, deps) => {
   app.use(['/api/rooms', '/api/ctl/rooms'], (_req, _res, next) => ready.then(() => next(), next));
 
   /* ======================= الإعدادات ======================= */
-  const DEF = { enabled: true, createPrice: 250000, baseMics: 2, maxMics: 8, micPrice: 100000, maxMembers: 40, ownerPct: 20, audPct: 50, maxOwned: 1, chatCooldown: 1 };
+  const DEF = { enabled: true, createPrice: 250000, baseMics: 2, maxMics: 8, micPrice: 100000, maxMembers: 40, ownerPct: 25, audPct: 25, maxOwned: 1, chatCooldown: 1 };
   async function cfg() {
     const r = (await q(`SELECT v FROM room_settings WHERE k='cfg'`)).rows[0];
     const v = Object.assign({}, DEF, (r && r.v) || {});
@@ -108,8 +111,8 @@ module.exports = (app, express, deps) => {
     v.baseMics = num(v.baseMics, 2, 1, 12);
     v.maxMics = Math.max(v.baseMics, num(v.maxMics, 8, 1, 12));
     v.maxMembers = num(v.maxMembers, 40, 2, 200);
-    v.ownerPct = num(v.ownerPct, 20, 0, 100);
-    v.audPct = num(v.audPct, 50, 0, 100);
+    v.ownerPct = num(v.ownerPct, 25, 0, 100);
+    v.audPct = num(v.audPct, 25, 0, 100);
     if (v.ownerPct + v.audPct > 100) v.audPct = 100 - v.ownerPct;
     v.maxOwned = num(v.maxOwned, 1, 1, 20);
     return v;
@@ -533,24 +536,55 @@ module.exports = (app, express, deps) => {
         await cl.query(`UPDATE sync_accounts SET pts=pts+$2 WHERE LOWER(email)=$1`, [L.row.owner, ownerCut]);
         await cl.query(`UPDATE users SET pts=pts+$2 WHERE LOWER(email)=$1`, [L.row.owner, ownerCut]);
         cmds.push(await addCmd(cl, L.row.owner, ownerCut, 'نصيب صاحب الروم', g.name + (qty > 1 ? ' ×' + qty : '') + ' من ' + m.name));
+        await cl.query(`INSERT INTO room_earn(email,room_id,kind,pts,from_email,note) VALUES($1,$2,'owner',$3,$4,$5)`, [L.row.owner, L.row.id, ownerCut, m.email, g.name + (qty > 1 ? ' ×' + qty : '')]);
       }
       if (per > 0) {
         await cl.query(`UPDATE sync_accounts SET pts=pts+$2 WHERE LOWER(email)=ANY($1)`, [aud, per]);
         await cl.query(`UPDATE users SET pts=pts+$2 WHERE LOWER(email)=ANY($1)`, [aud, per]);
-        for (const em of aud) cmds.push(await addCmd(cl, em, per, 'نصيب من هدية روم', g.name + (qty > 1 ? ' ×' + qty : '') + ' من ' + m.name));
+        for (const em of aud) {
+          cmds.push(await addCmd(cl, em, per, 'نصيب من هدية روم', g.name + (qty > 1 ? ' ×' + qty : '') + ' من ' + m.name));
+          await cl.query(`INSERT INTO room_earn(email,room_id,kind,pts,from_email,note) VALUES($1,$2,'aud',$3,$4,$5)`, [em, L.row.id, per, m.email, g.name + (qty > 1 ? ' ×' + qty : '')]);
+        }
       }
       const glog = (await cl.query(`INSERT INTO room_gift_log(room_id,from_email,gift_id,name,emoji,price,qty,total,owner_cut,aud_cut,aud_n) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
         [L.row.id, m.email, g.id, g.name, g.emoji, price, qty, total, ownerCut, per * aud.length, aud.length])).rows[0].id;
       const appCut = total - ownerCut - per * aud.length; // حصة صاحب التطبيق (الباقي بعد صاحب الروم والحاضرين)
+      if (appCut > 0 && app.locals.revenue) await app.locals.revenue(cl, 'room_gift', appCut, 'room:' + L.row.id, g.name + (qty > 1 ? ' ×' + qty : ''));
       await finIn(cl, 'rm:g:' + glog, m.email, 'room_gift', appCut, 'حصة التطبيق من هدية ' + g.name + ' في ' + L.row.name);
       await cl.query(`UPDATE rooms SET gifts_total=gifts_total+$2, owner_earn=owner_earn+$3, last_active=NOW() WHERE id=$1`, [L.row.id, total, ownerCut]);
       return { g, price, total, ownerCut, per, audN: aud.length, appCut, cmds, bal: Number(row.pts) - total };
     });
     fire(out.cmds);
+    try { if (app.locals.liveBalKick) app.locals.liveBalKick(); } catch (_) { /* اختياري */ }
     const ev = { id: ++L.cid, from: m.uid, fromName: m.name, emoji: out.g.emoji, name: out.g.name, qty, total: out.total, to: tgt ? tgt.uid : '', toName: tgt ? tgt.name : '', t: Date.now() };
     bcast(L, 'gift', ev);
     sys(L, '🎁 ' + m.name + ' أرسل ' + out.g.emoji + ' ' + out.g.name + (qty > 1 ? ' ×' + qty : '') + (tgt ? ' إلى ' + tgt.name : ''));
     res.json({ ok: true, bal: out.bal, ownerCut: out.ownerCut, per: out.per, audN: out.audN });
+  }));
+
+  /* ---------- أبرز الداعمين + أرباحي من الرومات ---------- */
+  const LEVELS = [[6, 'أسطوري', '🔥', 5000000], [5, 'ملكي', '👑', 1000000], [4, 'ماسي', '💎', 250000], [3, 'ذهبي', '🥇', 50000], [2, 'فضي', '🥈', 10000], [1, 'برونزي', '🥉', 1000]];
+  const levelOf = (t) => { const x = LEVELS.find((l) => t >= l[3]); return x ? { lv: x[0], lvName: x[1], badge: x[2] } : { lv: 0, lvName: 'داعم', badge: '⭐' }; };
+  app.post('/api/rooms/supporters', jsonBody, wrap(async (req, res) => {
+    const ent = byTok.get(txt((req.body || {}).tok, 80));
+    if (!ent) fail(401, 'انتهت جلسة الروم، ادخل من جديد');
+    const { L } = ent;
+    const rs = (await q(`SELECT g.from_email e, SUM(g.total)::float8 t, COUNT(*)::int n, MAX(a.name) name, MAX(a.uid) uid
+        FROM room_gift_log g LEFT JOIN sync_accounts a ON LOWER(a.email)=LOWER(g.from_email) WHERE g.room_id=$1 GROUP BY g.from_email ORDER BY t DESC LIMIT 30`, [L.row.id])).rows;
+    const here = new Set([...L.members.values()].map((x) => x.email));
+    const list = rs.map((r, i) => Object.assign({ rank: i + 1, name: r.name || String(r.e).split('@')[0], uid: r.uid || '', total: r.t, n: r.n, here: here.has(r.e), me: r.e === ent.m.email }, levelOf(r.t)));
+    res.json({ ok: true, list, levels: LEVELS.slice().reverse().map((l) => ({ lv: l[0], name: l[1], badge: l[2], min: l[3] })) });
+  }));
+  app.post('/api/rooms/earnings', jsonBody, wrap(async (req, res) => {
+    const me = await acct(req.body.e, req.body.h);
+    const t = (await q(`SELECT COALESCE(SUM(pts) FILTER (WHERE kind='owner'),0)::float8 owner, COALESCE(SUM(pts) FILTER (WHERE kind='aud'),0)::float8 aud,
+        COALESCE(SUM(pts) FILTER (WHERE created_at > NOW()-INTERVAL '1 day'),0)::float8 d1, COALESCE(SUM(pts) FILTER (WHERE created_at > NOW()-INTERVAL '7 days'),0)::float8 d7, COUNT(*)::int n
+        FROM room_earn WHERE email=$1`, [me.email])).rows[0];
+    const byRoom = (await q(`SELECT e.room_id id, MAX(r.name) name, SUM(e.pts)::float8 pts FROM room_earn e LEFT JOIN rooms r ON r.id=e.room_id WHERE e.email=$1 GROUP BY e.room_id ORDER BY pts DESC LIMIT 10`, [me.email])).rows;
+    const last = (await q(`SELECT e.kind, e.pts::float8 pts, e.note, e.created_at, COALESCE(a.name, e.from_email) frm, r.name room FROM room_earn e
+        LEFT JOIN sync_accounts a ON LOWER(a.email)=LOWER(e.from_email) LEFT JOIN rooms r ON r.id=e.room_id WHERE e.email=$1 ORDER BY e.id DESC LIMIT 20`, [me.email])).rows;
+    const sup = (await q(`SELECT COALESCE(SUM(total),0)::float8 t FROM room_gift_log WHERE from_email=$1`, [me.email])).rows[0].t;
+    res.json({ ok: true, total: t.owner + t.aud, owner: t.owner, aud: t.aud, d1: t.d1, d7: t.d7, n: t.n, byRoom, last, sent: sup, me: levelOf(sup) });
   }));
 
   /* ======================= لوحة التحكم ======================= */
@@ -634,7 +668,7 @@ module.exports = (app, express, deps) => {
     const v = {
       enabled: !!b.enabled, createPrice: num(b.createPrice, DEF.createPrice, 0, 1e12), micPrice: num(b.micPrice, DEF.micPrice, 0, 1e12),
       baseMics: num(b.baseMics, 2, 1, 12), maxMics: num(b.maxMics, 8, 1, 12), maxMembers: num(b.maxMembers, 40, 2, 200),
-      ownerPct: num(b.ownerPct, 20, 0, 100), audPct: num(b.audPct, 50, 0, 100), maxOwned: num(b.maxOwned, 1, 1, 20),
+      ownerPct: num(b.ownerPct, 25, 0, 100), audPct: num(b.audPct, 25, 0, 100), split: 2, maxOwned: num(b.maxOwned, 1, 1, 20),
     };
     if (v.ownerPct + v.audPct > 100) fail(400, 'مجموع نسبة صاحب الروم ونسبة الحاضرين يجب ألا يتجاوز 100٪');
     await q(`INSERT INTO room_settings(k,v) VALUES('cfg',$1) ON CONFLICT (k) DO UPDATE SET v=EXCLUDED.v`, [JSON.stringify(v)]);
