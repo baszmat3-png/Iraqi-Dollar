@@ -97,6 +97,7 @@ module.exports = (app, express, deps) => {
     const ci = parseInt(b.ci, 10), exp = Math.round(Number(b.exp)), price = Math.round(Number(b.price)), now = Date.now();
     if (!(ci >= 0 && ci < YIELD0.length) || !(exp > now)) fail(400, 'عداد غير صالح');
     if (!(price >= 1)) fail(400, 'أدخل سعراً صحيحاً');
+    if (app.locals.hasLoan && await app.locals.hasLoan(e)) fail(403, 'عدادك محجوز بسبب قرض غير مسدَّد — سدِّد الاستدانة أولاً ثم اعرضه للبيع');
     const cl = await pool.connect(); let out;
     try {
       await cl.query('BEGIN');
