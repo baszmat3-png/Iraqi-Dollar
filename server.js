@@ -120,7 +120,7 @@ require('./poke-ext')(app); // مزامنة فورية لكل الأقسام
 // للتجربة دون حجب: CSP_REPORT_ONLY=1 (يظهر أي خرق في كونسول المتصفح فقط)
 const CSP_DIRECTIVES = {
   'default-src': ["'self'"],
-  'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://accounts.google.com', 'https://ssl.gstatic.com'],
+  'script-src': ["'self'", "'unsafe-inline'", 'https://accounts.google.com', 'https://ssl.gstatic.com'],
   'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://accounts.google.com'],
   'font-src': ["'self'", 'data:', 'https://fonts.gstatic.com'],
   'img-src': ["'self'", 'data:', 'blob:', 'https:'],
@@ -130,9 +130,10 @@ const CSP_DIRECTIVES = {
   'worker-src': ["'self'", 'blob:'],
   'manifest-src': ["'self'"],
   'frame-ancestors': ["'self'"], 'object-src': ["'none'"], 'base-uri': ["'self'"], 'form-action': ["'self'"],
+  'upgrade-insecure-requests': [],
 };
 // صفحة الإدارة أشد: لا صور/وسائط من مواقع خارجية، فلا يمكن تسريب مفتاح الإدارة حتى عبر طلب صورة
-const ADMIN_CSP = Object.assign({}, CSP_DIRECTIVES, { 'img-src': ["'self'", 'data:', 'blob:'], 'media-src': ["'self'", 'data:', 'blob:'], 'connect-src': ["'self'"], 'frame-src': ["'none'"], 'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'"], 'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'] });
+const ADMIN_CSP = Object.assign({}, CSP_DIRECTIVES, { 'img-src': ["'self'", 'data:', 'blob:'], 'media-src': ["'self'", 'data:', 'blob:'], 'connect-src': ["'self'"], 'frame-src': ["'none'"], 'script-src': ["'self'", "'unsafe-inline'"], 'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'] });
 const mkHelmet = (d) => helmet({ contentSecurityPolicy: { useDefaults: false, reportOnly: process.env.CSP_REPORT_ONLY === '1', directives: d } });
 const helmetApp = mkHelmet(CSP_DIRECTIVES), helmetAdmin = mkHelmet(ADMIN_CSP);
 app.use((req, res, next) => (/^\/admin(\.html)?\/?$/.test(req.path) ? helmetAdmin : helmetApp)(req, res, next));
