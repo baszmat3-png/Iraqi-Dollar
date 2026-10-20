@@ -37,7 +37,7 @@ module.exports = function createPepper(pool) {
   const migrated = new Set();          // بريد → رُحِّل (لا حاجة لاستعلام آخر)
   const dec = (v) => { try { return decodeURIComponent(String(v || '')); } catch (x) { return String(v || ''); } };
   const nrm = (e) => dec(e).trim().toLowerCase().slice(0, 120);
-  const SKIP = /^\/api\/ctl\/owner-login/;   // بصمة المالك تُقارَن بمتغير البيئة، لا بقاعدة البيانات
+  const SKIP = /^(\/api)?\/ctl\/owner-login/;   // بصمة المالك تُقارَن بمتغير البيئة، لا بقاعدة البيانات
 
   async function upgrade(email, raw) {
     if (!email || migrated.has(email)) return;
