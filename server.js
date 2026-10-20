@@ -1539,6 +1539,7 @@ require('./security-ext').routes(app, { pool, wrap, sendWhatsApp, normPhone }); 
 require('./fin-ext').routes(app, { pool, wrap, ctl, SYNC, GAME }); // المرحلة 1ج: المالية
 EXCL.routes(app, { pool, wrap, ctl, GAME }); // المرحلة 14: المستثنون + الأعلى مالياً
 require('./instant-sync')(app, express, { pool, wrap, ctl, fail }); // بث فوري SSE + البحث بكود الإحالة
+require('./notes-ext')(app, express, { pool, wrap, fail }); // إشعارات السيرفر للمستخدم (P2P وغيرها)
 require('./bal-sync')(app, express, { pool, wrap, fail }); // الرصيد المرجعي على السيرفر + مزامنة لحظية بالفروقات لكل الأجهزة
 require('./security-server')(app, express, { pool, wrap, ctl, fail }); // الحماية: بصمة الجهاز + VPN + تلاعب الوقت
 require('./gifts-ext')(app, express, { pool, wrap, ctl, fail });

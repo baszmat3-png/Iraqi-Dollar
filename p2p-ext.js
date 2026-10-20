@@ -193,7 +193,7 @@ module.exports = (app, express, deps) => {
   }
   const flush = (cmds) => { if (app.locals.broadcastCmd) cmds.forEach(([id, b]) => { try { app.locals.broadcastCmd(id, b); } catch (_) {} }); };
   async function note(c, email, title, body) {
-    try { await c.query(`INSERT INTO soc_notes(email,kind,title,body) VALUES($1,'dm',$2,$3)`, [email, title, body]); } catch (_) {}
+    try { if (app.locals.notify) app.locals.notify(email, title, body, 'p2p'); } catch (_) {}
   }
   const room = (a, b) => [a, b].sort().join('|');
   async function sys(c, a, b, orderId, body) {
@@ -257,6 +257,7 @@ module.exports = (app, express, deps) => {
         if (ad) await giveBack(c, cmds, ad, Number(o.pts));
         await sys(c, o.buyer_email, o.seller_email, o.id, 'انتهت مهلة الدفع وأُلغي الطلب #' + o.id);
         await note(c, o.buyer_email, 'انتهى طلب P2P', 'انتهت مهلة الدفع للطلب #' + o.id);
+        await note(c, o.seller_email, 'انتهى طلب P2P', 'انتهت مهلة دفع المشتري للطلب #' + o.id + ' وعادت النقاط لإعلانك.');
       }
       await c.query('COMMIT'); flush(cmds);
     } catch (e) { try { await c.query('ROLLBACK'); } catch (_) {} console.error('p2p expire:', e.message); } finally { c.release(); }
@@ -495,6 +496,7 @@ module.exports = (app, express, deps) => {
       oid = (await cl.query(`INSERT INTO p2p_orders(ad_id,buyer_email,seller_email,pts,fee,price,total_iqd,method,expires_at)
         VALUES($1,$2,$3,$4,$5,$6,$7,$8,NOW()+make_interval(mins => $9::int)) RETURNING id`, [ad.id, me.email, ad.seller_email, pts, fee, price, iqd, JSON.stringify(method), cfg.payWindowMin])).rows[0].id;
       await sys(cl, me.email, ad.seller_email, oid, `طلب جديد #${oid}: ${pts.toLocaleString('en')} نقطة مقابل ${iqd.toLocaleString('en')} د.ع — المشتري يدفع عبر ${method.label}`);
+      await note(cl, me.email, 'تم إنشاء طلبك #' + oid, `اشتريت ${pts.toLocaleString('en')} نقطة مقابل ${iqd.toLocaleString('en')} د.ع. ادفع عبر ${method.label} وأرفق صورة التحويل خلال ${cfg.payWindowMin} دقيقة.`);
       await note(cl, ad.seller_email, 'طلب شراء P2P جديد', `${me.name || 'مستخدم'} يريد شراء ${pts.toLocaleString('en')} نقطة (${iqd.toLocaleString('en')} د.ع)`);
       await cl.query('COMMIT');
     } catch (e) { try { await cl.query('ROLLBACK'); } catch (_) {} throw e; } finally { cl.release(); }
@@ -562,6 +564,7 @@ module.exports = (app, express, deps) => {
       await cl.query(`UPDATE p2p_orders SET status='cancelled', decided_at=NOW() WHERE id=$1`, [o.id]);
       if (ad) await giveBack(cl, cmds, ad, Number(o.pts));
       await sys(cl, o.buyer_email, o.seller_email, o.id, `أُلغي الطلب #${o.id} من قبل المشتري`);
+      await note(cl, o.seller_email, 'أُلغي طلب P2P', `ألغى المشتري الطلب #${o.id} وعادت النقاط المحجوزة لإعلانك.`);
       await cl.query('COMMIT');
     } catch (e) { try { await cl.query('ROLLBACK'); } catch (_) {} throw e; } finally { cl.release(); }
     flush(cmds); res.json({ ok: true });
@@ -577,6 +580,7 @@ module.exports = (app, express, deps) => {
     const nt = txt(b.note, 200); if (nt.length < 5) fail(400, 'اكتب سبب الاعتراض');
     await q(`UPDATE p2p_orders SET seller_flag='dispute', seller_flag_note=$2, status='disputed', dispute_reason='seller_not_received', dispute_note=$2, disputed_by='seller', disputed_at=NOW() WHERE id=$1 AND status='proof_submitted'`, [o.id, nt]);
     await q(`INSERT INTO p2p_msgs(room,f,t,body,order_id) VALUES($1,'*','*',$2,$3)`, [room(o.buyer_email, o.seller_email), `⚠️ البائع أبلغ أن المبلغ لم يصل للطلب #${o.id}: ${nt} — الطلب عند الإدارة`, o.id]);
+    await note(pool, o.buyer_email, 'نزاع على طلبك #' + o.id, 'أبلغ البائع أن المبلغ لم يصله. الإدارة ستراجع صورة التحويل وتقرر.');
     res.json({ ok: true });
   }));
 
@@ -768,6 +772,8 @@ module.exports = (app, express, deps) => {
       } else {
         await cl.query(`UPDATE p2p_orders SET status='disputed', admin_note=$2 WHERE id=$1`, [o.id, note]);
         await sys(cl, o.buyer_email, o.seller_email, o.id, `⚖️ الطلب #${o.id} قيد التحقيق من الإدارة${note ? ': ' + note : ''}`);
+        await note_(cl, o.buyer_email, 'طلبك #' + o.id + ' قيد التحقيق', note || 'الإدارة تراجع النزاع.');
+        await note_(cl, o.seller_email, 'الطلب #' + o.id + ' قيد التحقيق', note || 'الإدارة تراجع النزاع.');
       }
       if (b.ban && act !== 'approve') {
         await cl.query(`UPDATE p2p_sellers SET status='suspended', admin_note=$2 WHERE email=$1`, [o.seller_email, ('حظر بسبب نزاع #' + o.id + (note ? ': ' + note : '')).slice(0, 300)]);
