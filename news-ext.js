@@ -28,6 +28,7 @@ exports.routes = (app, { pool, wrap, ctl, express }) => {
     `CREATE TABLE IF NOT EXISTS user_news(id BIGSERIAL PRIMARY KEY, email TEXT NOT NULL, title TEXT NOT NULL, descr TEXT NOT NULL DEFAULT '', img TEXT,
        likes INT NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
     `CREATE INDEX IF NOT EXISTS user_news_idx ON user_news(id DESC)`,
+    `CREATE TABLE IF NOT EXISTS user_news_video(news_id BIGINT PRIMARY KEY REFERENCES user_news(id) ON DELETE CASCADE, mime TEXT NOT NULL, size INT NOT NULL, data BYTEA NOT NULL)`,
     `CREATE TABLE IF NOT EXISTS user_news_likes(news_id BIGINT NOT NULL REFERENCES user_news(id) ON DELETE CASCADE, email TEXT NOT NULL, PRIMARY KEY(news_id,email))`,
     `CREATE TABLE IF NOT EXISTS avatars(email TEXT PRIMARY KEY, img TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
     `CREATE TABLE IF NOT EXISTS user_privacy(
@@ -56,7 +57,7 @@ exports.routes = (app, { pool, wrap, ctl, express }) => {
     return { email: String(r.rows[0].email).toLowerCase(), name: r.rows[0].name };
   }
 
-  const SELECT = `SELECT n.id, n.email, n.title, n.descr, (n.img IS NOT NULL) AS has_img, n.likes,
+  const SELECT = `SELECT n.id, n.email, n.title, n.descr, (n.img IS NOT NULL) AS has_img, EXISTS(SELECT 1 FROM user_news_video v WHERE v.news_id=n.id) AS has_video, n.likes,
       (EXTRACT(EPOCH FROM n.created_at)*1000)::bigint AS ts,
       a.name, COALESCE(NULLIF(a.rcode,''), a.uid) AS rcode,
       (SELECT (EXTRACT(EPOCH FROM v.updated_at)*1000)::bigint FROM avatars v WHERE v.email=LOWER(n.email)) AS av`;
@@ -65,6 +66,7 @@ exports.routes = (app, { pool, wrap, ctl, express }) => {
   const shape = (r, mine, admin, me) => ({
     id: Number(r.id), title: r.title, descr: r.descr,
     img: r.has_img ? `/api/news/${r.id}/img` : '',
+    video: r.has_video ? `/api/news/${r.id}/video` : '',
     likes: Number(r.likes) || 0, liked: !!(mine && mine.has(Number(r.id))),
     ts: Number(r.ts) || 0,
     own: !!(me && String(r.email).toLowerCase() === me),
@@ -125,6 +127,57 @@ exports.routes = (app, { pool, wrap, ctl, express }) => {
     const r = await q(`INSERT INTO user_news(email,title,descr,img) VALUES($1,$2,$3,$4) RETURNING id`, [u.email, title, descr, img]);
     ping({ id: Number(r.rows[0].id) });
     res.json({ ok: true, id: Number(r.rows[0].id) });
+  }));
+
+  /* ---------- فيديو الخبر: رفع على دفعات (كل دفعة ≤ 1MB) ثم تجميع وحفظ · بث مع Range ---------- */
+  const MAX_VIDEO = 20 * 1024 * 1024, MAX_PARTS = 24, UP = new Map(); // key -> { parts:[], n, t }
+  setInterval(() => { const n = Date.now(); for (const [k, v] of UP) if (n - v.t > 10 * 60 * 1000) UP.delete(k); }, 60000).unref();
+  const vidKind = (b) => {
+    if (b.length > 12 && b.slice(4, 8).toString('latin1') === 'ftyp') return 'video/mp4';       // mp4 / mov / 3gp
+    if (b.length > 4 && b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3) return 'video/webm';
+    return '';
+  };
+  const dec = (v) => { try { return decodeURIComponent(String(v || '')); } catch (x) { return String(v || ''); } };
+  app.post('/api/u/news/vchunk', express.raw({ type: '*/*', limit: '1.6mb' }), lim, wrap(async (req, res) => {
+    const au = app.locals.authEmail, e = dec(req.get('x-e')).trim().toLowerCase(), h = req.get('x-h') || '';
+    const ok = au && e && h ? await au(e, h) : '';
+    if (!ok || ok !== e) fail(401, 'غير مسجّل الدخول');
+    const id = Number(req.query.id) || 0, i = parseInt(req.query.i, 10), n = parseInt(req.query.n, 10);
+    if (!id || !(n >= 1 && n <= MAX_PARTS) || !(i >= 0 && i < n)) fail(400, 'طلب غير صحيح');
+    const own = (await q(`SELECT 1 FROM user_news WHERE id=$1 AND LOWER(email)=$2`, [id, e])).rows[0];
+    if (!own) fail(404, 'الخبر غير موجود');
+    const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+    if (!body.length || body.length > 1.5 * 1024 * 1024) fail(400, 'دفعة غير صالحة');
+    const key = e + '|' + id;
+    if (i === 0) { if (UP.size > 40) fail(429, 'مشغول، حاول بعد قليل'); UP.set(key, { parts: new Array(n).fill(null), n, t: Date.now() }); }
+    const st = UP.get(key); if (!st || st.n !== n) fail(409, 'ابدأ الرفع من جديد');
+    st.parts[i] = body; st.t = Date.now();
+    if (i < n - 1) return res.json({ ok: true, done: false });
+    UP.delete(key);
+    if (st.parts.some((x) => !x)) fail(409, 'دفعات ناقصة، أعد الرفع');
+    const all = Buffer.concat(st.parts);
+    if (all.length > MAX_VIDEO) fail(413, 'الفيديو كبير (الحد 20MB)');
+    const mime = vidKind(all); if (!mime) fail(400, 'صيغة الفيديو غير مدعومة (استخدم MP4 أو WebM)');
+    await q(`INSERT INTO user_news_video(news_id,mime,size,data) VALUES($1,$2,$3,$4) ON CONFLICT (news_id) DO UPDATE SET mime=$2,size=$3,data=$4`, [id, mime, all.length, all]);
+    ping({ id });
+    res.json({ ok: true, done: true });
+  }));
+  app.get('/api/news/:id/video', wrap(async (req, res) => {
+    const id = Number(req.params.id) || 0;
+    const m = (await q(`SELECT mime,size FROM user_news_video WHERE news_id=$1`, [id])).rows[0];
+    if (!m) return res.status(404).end();
+    const size = Number(m.size);
+    let a = 0, b = size - 1, code = 200;
+    const rg = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || ''));
+    if (rg && (rg[1] || rg[2])) {
+      if (rg[1] === '') { a = Math.max(0, size - Number(rg[2])); } else { a = Number(rg[1]); if (rg[2]) b = Math.min(size - 1, Number(rg[2])); }
+      if (!(a <= b) || a >= size) { res.set('Content-Range', 'bytes */' + size); return res.status(416).end(); }
+      code = 206;
+    }
+    const chunk = (await q(`SELECT substring(data from $2 for $3) AS d FROM user_news_video WHERE news_id=$1`, [id, a + 1, b - a + 1])).rows[0];
+    res.status(code).set({ 'Content-Type': m.mime, 'Accept-Ranges': 'bytes', 'Content-Length': String(b - a + 1), 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff' });
+    if (code === 206) res.set('Content-Range', `bytes ${a}-${b}/${size}`);
+    res.end(chunk && chunk.d ? chunk.d : Buffer.alloc(0));
   }));
 
   app.post('/api/u/news/like', lim, wrap(async (req, res) => {

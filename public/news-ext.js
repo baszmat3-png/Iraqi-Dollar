@@ -36,6 +36,10 @@
 .nw-code{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:99px;background:var(--inp,#ffffff12);border:1px solid var(--line,#ffffff1f);font-weight:700;letter-spacing:.5px;direction:ltr}
 .nw-t{font-weight:800;font-size:1.05rem;line-height:1.5;margin:0 0 6px}
 .nw-img{width:100%;max-height:320px;object-fit:cover;border-radius:16px;display:block;margin:8px 0;background:var(--inp,#ffffff10)}
+.nw-vw{position:relative;margin:8px 0;border-radius:16px;overflow:hidden;background:#000}
+.nw-vid{display:block;width:100%;max-height:420px;background:#000;object-fit:contain}
+.nw-snd{position:absolute;bottom:10px;inset-inline-start:10px;width:38px;height:38px;border-radius:50%;border:0;background:#000a;color:#fff;font-size:1.1rem;cursor:pointer;display:grid;place-items:center}
+.nw-vtag{position:absolute;top:8px;inset-inline-end:8px;background:#000a;color:#fff;font-size:.7rem;padding:3px 9px;border-radius:99px}
 .nw-d{font-size:.92rem;line-height:1.8;opacity:.92;white-space:pre-wrap;word-break:break-word;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 .nw-d.open{display:block;-webkit-line-clamp:unset}
 .nw-more{background:none;border:0;color:var(--cy,#22d3ee);font:inherit;font-size:.82rem;font-weight:700;cursor:pointer;padding:4px 0}
@@ -72,6 +76,7 @@
     return `<article class="nw-card" data-nid="${n.id}">
 <div class="nw-top">${avatar(n)}<div class="nw-who"><b>${E(n.pub.name)}</b><div class="nw-meta">${n.pub.code ? `<span class="nw-code" title="كود الإحالة">كود الإحالة: ${E(n.pub.code)}</span>` : ''}<span>${E(ago2(n.ts))}</span></div></div></div>
 <h3 class="nw-t">${E(n.title)}</h3>
+${n.video ? `<div class="nw-vw"><video class="nw-vid" data-nv="${n.id}" src="${E((window.__SERVER || '') + n.video)}" muted loop playsinline webkit-playsinline preload="metadata"></video><button class="nw-snd" data-nw="snd" data-id="${n.id}" aria-label="الصوت">🔇</button></div>` : ''}
 ${n.img ? `<img class="nw-img" loading="lazy" alt="" src="${E(n.img)}" onerror="this.remove()">` : ''}
 <div class="nw-d${openId[n.id] ? ' open' : ''}">${E(n.descr)}</div>
 ${long ? `<button class="nw-more" data-nw="more" data-id="${n.id}">${openId[n.id] ? 'عرض أقل' : 'قراءة المزيد'}</button>` : ''}
@@ -83,7 +88,20 @@ ${long ? `<button class="nw-more" data-nw="more" data-id="${n.id}">${openId[n.id
     return items.slice(0, shown).map(card).join('') + (items.length > shown ? `<button class="nw-all" data-nw="all">عرض المزيد (${items.length - shown})</button>` : '');
   };
   window.nwStrip = () => `<div class="nw-sec"><b>أخبار المستخدمين</b><button class="nw-pub" data-nw="pub">${SVG_PLUS} نشر خبر</button></div><div id="nwbox">${inner()}</div>`;
-  const paint = () => { const b = document.getElementById('nwbox'); if (b) b.innerHTML = inner(); };
+  /* تشغيل تلقائي صامت للفيديو عند ظهوره على الشاشة، وإيقافه عند خروجه */
+  let vio = null;
+  const watchVideos = () => {
+    try {
+      if (!('IntersectionObserver' in window)) return;
+      if (!vio) vio = new IntersectionObserver((es) => es.forEach((en) => {
+        const v = en.target; if (!v || v.tagName !== 'VIDEO') return;
+        if (en.isIntersecting && en.intersectionRatio >= 0.55 && !document.hidden) { const p = v.play(); if (p && p.catch) p.catch(() => {}); } else { try { v.pause(); } catch (x) {} }
+      }), { threshold: [0, 0.55, 1] });
+      document.querySelectorAll('#nwbox video.nw-vid').forEach((v) => vio.observe(v));
+    } catch (x) { /* اختياري */ }
+  };
+  document.addEventListener('visibilitychange', () => { if (document.hidden) document.querySelectorAll('#nwbox video').forEach((v) => { try { v.pause(); } catch (x) {} }); });
+  const paint = () => { const b = document.getElementById('nwbox'); if (b) { b.innerHTML = inner(); watchVideos(); } };
 
   /* ---------- الجلب والتحديث ---------- */
   async function load(force) {
@@ -123,6 +141,24 @@ ${long ? `<button class="nw-more" data-nw="more" data-id="${n.id}">${openId[n.id
     fr.readAsDataURL(file);
   });
 
+  /* رفع الفيديو على دفعات 1MB (يعمل عبر جسر التطبيق وعلى الشبكات الضعيفة) */
+  async function uploadVideo(id, file, m, onPct) {
+    const CH = 1024 * 1024, n = Math.max(1, Math.ceil(file.size / CH));
+    for (let i = 0; i < n; i++) {
+      const part = file.slice(i * CH, Math.min(file.size, (i + 1) * CH));
+      let ok = false, last = '';
+      for (let t = 0; t < 3 && !ok; t++) {
+        try {
+          const r = await fetch('/api/u/news/vchunk?id=' + id + '&i=' + i + '&n=' + n, { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/octet-stream', 'x-e': encodeURIComponent(m.e), 'x-h': m.h }, body: part });
+          const j = await r.json().catch(() => ({}));
+          if (!r.ok) { last = j.error || 'خطأ ' + r.status; if (r.status >= 400 && r.status < 500 && r.status !== 429) throw new Error(last); } else ok = true;
+        } catch (x) { last = x.message || last; if (/غير|كبير|صيغة|ابدأ|ناقصة/.test(last)) throw x; await new Promise((r) => setTimeout(r, 800 * (t + 1))); }
+      }
+      if (!ok) throw new Error(last || 'انقطع الاتصال');
+      try { onPct(Math.round(((i + 1) / n) * 100)); } catch (x) { /* */ }
+    }
+  }
+
   function openPublish() {
     if (!me()) return say('سجّل الدخول بحساب حقيقي لنشر الأخبار');
     try { if (S.acc && S.acc.demo) return say('الحساب التجريبي لا يمكنه نشر الأخبار'); } catch (x) {}
@@ -130,9 +166,19 @@ ${long ? `<button class="nw-more" data-nw="more" data-id="${n.id}">${openId[n.id
     dlg(`<div class="nw-form"><h2 style="margin:0 0 4px">نشر خبر</h2><p class="mu" style="margin:0 0 6px;font-size:.85rem">سيظهر خبرك لجميع المستخدمين مع اسمك وصورتك وكود الإحالة.</p>
 <label for="nwt">عنوان الخبر</label><input id="nwt" type="text" maxlength="90" placeholder="اكتب عنواناً واضحاً">
 <label>صورة الخبر (اختياري)</label><label class="nw-drop" for="nwi" style="margin:0"><span>📷 اضغط لاختيار صورة</span></label><input id="nwi" type="file" accept="image/*" style="display:none"><img id="nwp" class="nw-prev" alt="">
+<label>فيديو (اختياري — حتى 20MB و60 ثانية، MP4)</label><label class="nw-drop" for="nwv" style="margin:0"><span>🎬 اضغط لاختيار فيديو</span></label><input id="nwv" type="file" accept="video/mp4,video/webm,video/*" style="display:none">
 <label for="nwd">وصف الخبر</label><textarea id="nwd" maxlength="1500" placeholder="اكتب تفاصيل الخبر هنا..."></textarea><div class="nw-cnt"><span id="nwc">0</span> / 1500</div>
 <button class="nw-go" id="nwgo">نشر الخبر</button></div>`);
     const d = document.getElementById('d');
+    let vf = null;
+    d.querySelector('#nwv').addEventListener('change', async (e) => {
+      const f = e.target.files && e.target.files[0]; vf = null; if (!f) return;
+      const sp = d.querySelector('label[for=nwv] span');
+      if (f.size > 20 * 1024 * 1024) { say('الفيديو أكبر من 20MB — اختر فيديو أقصر'); e.target.value = ''; sp.textContent = '🎬 اضغط لاختيار فيديو'; return; }
+      const dur = await new Promise((ok) => { try { const v = document.createElement('video'); v.preload = 'metadata'; v.onloadedmetadata = () => { const t = v.duration; URL.revokeObjectURL(v.src); ok(t); }; v.onerror = () => ok(-1); v.src = URL.createObjectURL(f); } catch (x) { ok(-1); } });
+      if (dur > 61) { say('مدة الفيديو أطول من 60 ثانية'); e.target.value = ''; sp.textContent = '🎬 اضغط لاختيار فيديو'; return; }
+      vf = f; sp.textContent = '✅ ' + (f.name || 'فيديو').slice(0, 28) + ' (' + (f.size / 1048576).toFixed(1) + 'MB) — اضغط للتغيير';
+    });
     d.querySelector('#nwd').addEventListener('input', (e) => { d.querySelector('#nwc').textContent = e.target.value.length; });
     d.querySelector('#nwi').addEventListener('change', async (e) => {
       const f = e.target.files && e.target.files[0]; if (!f) return;
@@ -146,9 +192,14 @@ ${long ? `<button class="nw-more" data-nw="more" data-id="${n.id}">${openId[n.id
       if (descr.length < 5) return say('اكتب وصفاً للخبر');
       const b = e.currentTarget; b.disabled = true; b.textContent = 'جارٍ النشر...';
       try {
-        await J('/api/u/news/publish', Object.assign({}, m, { title, descr, img }));
+        const pr = await J('/api/u/news/publish', Object.assign({}, m, { title, descr, img }));
+        let vErr = '';
+        if (vf && pr && pr.id) {
+          try { await uploadVideo(pr.id, vf, m, (pc) => { b.textContent = 'جارٍ رفع الفيديو ' + pc + '%'; }); }
+          catch (x) { vErr = x.message || 'تعذر رفع الفيديو'; }
+        }
         try { d.close(); } catch (x) {}
-        say('تم نشر خبرك — يراه الجميع الآن');
+        say(vErr ? 'نُشر الخبر لكن تعذر رفع الفيديو: ' + vErr : 'تم نشر خبرك — يراه الجميع الآن');
         shown = Math.max(shown, 5); load(true);
       } catch (x) { say(x.message); b.disabled = false; b.textContent = 'نشر الخبر'; }
     });
@@ -162,6 +213,7 @@ ${long ? `<button class="nw-more" data-nw="more" data-id="${n.id}">${openId[n.id
     const a = b.dataset.nw, id = +b.dataset.id;
     if (a === 'pub') return openPublish();
     if (a === 'all') { shown = items.length; return paint(); }
+    if (a === 'snd') { const v = b.parentNode && b.parentNode.querySelector('video'); if (v) { v.muted = !v.muted; b.textContent = v.muted ? '🔇' : '🔊'; if (!v.muted) { const p = v.play(); if (p && p.catch) p.catch(() => {}); } } return; }
     if (a === 'more') { openId[id] = !openId[id]; return paint(); }
     if (a === 'like') {
       const m = me(); if (!m) return say('سجّل الدخول بحساب حقيقي للإعجاب');
