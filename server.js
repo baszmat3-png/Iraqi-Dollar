@@ -997,10 +997,23 @@ const ctlFails = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, skipSuccessful
 const pubLimiter = rateLimit({ windowMs: 60 * 1000, limit: 900, standardHeaders: true, legacyHeaders: false });
 // فحص الأوامر كل 5 ثوانٍ من كل جهاز، وشبكات الهاتف في العراق تشارك نفس الـ IP بين كثيرين
 const syncLimiter = rateLimit({ windowMs: 60 * 1000, limit: 1500, standardHeaders: true, legacyHeaders: false });
-function ctlAuth(req, _res, next) {
+const adminOk = (req) => !!ADMIN_KEY && keyEq(req.headers['x-admin-key'] || '', ADMIN_KEY);
+const ownerOk = (req) => ownerTokenOk(req.get('x-owner-token'));
+const ctlJson = express.json({ limit: '1mb' });
+// المالك (مفتاح الإدارة أو توكن المالك) = صلاحية كاملة. الموظف (X-Staff-Token) = مسارات صلاحياته فقط (staff-ext.js)، وغير المصنّف للمالك فقط.
+function ctlAuth(req, res, next) {
+  if (adminOk(req) || ownerOk(req)) return next();
+  if (req.get('x-staff-token') && app.locals.staffAuth) {
+    return ctlJson(req, res, (err) => {
+      if (err) return next(err);
+      app.locals.staffAuth(req).then((r) => {
+        if (r && r.ok) { req.staffUser = r.u; return next(); }
+        next(Object.assign(new Error(r && r.denied ? 'لا تملك صلاحية هذا الإجراء' : 'انتهت جلسة الموظف، سجّل الدخول من جديد'), { http: r && r.denied ? 403 : 401 }));
+      }).catch(next);
+    });
+  }
   if (!ADMIN_KEY) return next(Object.assign(new Error('ADMIN_KEY غير مضبوط في إعدادات Render'), { http: 503 }));
-  if (!keyEq(req.headers['x-admin-key'] || '', ADMIN_KEY)) return next(Object.assign(new Error('مفتاح الإدارة غير صحيح'), { http: 401 }));
-  next();
+  return next(Object.assign(new Error('مفتاح الإدارة غير صحيح'), { http: 401 }));
 }
 const ctl = [ctlFails, ctlAuth];
 
@@ -1556,6 +1569,7 @@ require('./gifts-ext')(app, express, { pool, wrap, ctl, fail });
 require('./ctr-market-ext')(app, express, { pool, wrap, fail }); // متجر العدادات (السيرفر هو المرجع)
 require('./missions-ext')(app, express, { pool, wrap, fail }); // المهمات (5 مراحل)
 require('./cycle-ext')(app, express, { pool, wrap, fail }); // دورة عائد العداد (من السيرفر)
+require('./staff-ext')(app, express, { pool, wrap, ctl, fail, ownerOk, adminOk }); // حسابات الموظفين وصلاحياتهم
 require('./loans-ext')(app, express, { pool, wrap, ctl, fail }); // الاستدانة (أقساط) على السيرفر
 require('./rooms-ext')(app, express, { pool, wrap, ctl, fail }); // الرومات الصوتية (+ مكتبة الموسيقى + خلفية الروم)
 require('./google-auth-ext')(app, { pool, wrap, fail }); // الدخول وإنشاء الحساب عبر Google

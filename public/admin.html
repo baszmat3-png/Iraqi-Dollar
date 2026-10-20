@@ -236,7 +236,7 @@ dialog .dx{background:#ffffff14;transition:.15s}dialog .dx:hover{background:#fff
 
 .st-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}.st-sum div{background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:10px 6px;text-align:center}.st-sum b{display:block;font-size:1.2rem;color:var(--cy)}.st-sum small{color:var(--mu);font-size:.72rem}.st-iq{display:block;font-size:.74rem;opacity:.85}
 </style><link rel="stylesheet" href="/pro-theme.css?v=3"></head><body><div id="app"></div><div class="sn" id="sn" role="status" aria-live="assertive" popover="manual"></div><dialog id="d"></dialog>
-<script src="/xss-guard.js"></script><script src="/admin-loans.js?v=1"></script><script>/* الإشعارات دائماً أمام أي نافذة: كل showModal جديد يُعيد رفع الإشعار للطبقة العليا */
+<script src="/xss-guard.js"></script><script src="/admin-loans.js?v=1"></script><script src="/admin-staff.js?v=1"></script><script>/* الإشعارات دائماً أمام أي نافذة: كل showModal جديد يُعيد رفع الإشعار للطبقة العليا */
 (function(){var o=HTMLDialogElement.prototype.showModal;HTMLDialogElement.prototype.showModal=function(){var r=o.apply(this,arguments);try{var t=document.getElementById('sn');if(t&&t.showPopover&&t.classList.contains('s')&&t.matches(':popover-open')){t.hidePopover();t.showPopover()}}catch(e){}return r}})();
 </script>
 <script>
@@ -313,12 +313,12 @@ const need=k=>can(k)||(toast('لا تملك صلاحية هذا الإجراء')
 const alog=x=>{if(!S.staff)return;const l=LS('alog',[]);l.unshift({t:Date.now(),u:S.staff.u,x});LSset('alog',l.slice(0,200))};
 const STFX=365*864e5;
 function stfSave(){LSset('stf',{u:S.staff.u,x:Date.now()+STFX})}
-function stfLoad(){const j=LS('stf',null);if(!j||j.x<Date.now())return;if(j.u==OWNER.u){const t=LS('ownt','');if(!t)return;S.staff={u:j.u,role:'owner',p:[]};fetch('/api/ctl/owner-check',{headers:{'X-Owner-Token':t},cache:'no-store'}).then(r=>{if(r.status==401){LSset('ownt','');LSset('stf',null);S.staff=null;S.r='stafflogin';try{draw()}catch(e){}}}).catch(()=>{});return}const s=STF().find(x=>x.u==j.u&&!x.off);if(s)S.staff={u:s.u,role:s.role,p:s.p||[]}}
+function stfLoad(){const j=LS('stf',null);if(!j||j.x<Date.now())return;if(j.u==OWNER.u){const t=LS('ownt','');if(!t)return;S.staff={u:j.u,role:'owner',p:[]};fetch('/api/ctl/owner-check',{headers:{'X-Owner-Token':t},cache:'no-store'}).then(r=>{if(r.status==401){LSset('ownt','');LSset('stf',null);S.staff=null;S.r='stafflogin';try{draw()}catch(e){}}}).catch(()=>{});return}const s=LS('stp',null);if(s&&s.u==j.u&&LS('stt',''))S.staff={u:s.u,role:s.role,p:s.p||[]}}
 async function stfIn(){const u=$('#su').value.trim().toLowerCase(),w=$('#sp').value,L=LS('fl',{n:0,t:0});if(L.t>Date.now())return er('محاولات كثيرة، حاول بعد '+Math.ceil((L.t-Date.now())/6e4)+' دقيقة');
 if(!u||!w)return er('اكتب اسم المستخدم وكلمة المرور');const h=sh(u,w);let st=null;
 /* المالك: التحقق في الخادم فقط (لا هاش داخل هذا الملف) */
 if(u==OWNER.u.toLowerCase()){try{const r=await fetch('/api/ctl/owner-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({u,h}),cache:'no-store'}),j=await r.json().catch(()=>({}));if(r.ok&&j.token){LSset('ownt',j.token);st={u:OWNER.u,role:'owner',p:[]}}else if(r.status==429||r.status==503)return er(j.error||'تعذر تسجيل الدخول')}catch(e){return er('تعذر الاتصال بالخادم')}}
-else{const s=STF().find(x=>x.u==u&&x.h===h&&!x.off);if(s)st={u:s.u,role:s.role,p:s.p||[]}}
+else{try{const r=await fetch('/api/ctl/staff-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({u,h}),cache:'no-store'}),j=await r.json().catch(()=>({}));if(r.ok&&j.token){LSset('stt',j.token);LSset('stp',{u:j.u,role:j.role,p:j.p||[]});if(!LS('adminkey',''))LSset('adminkey','staff-session');st={u:j.u,role:j.role,p:j.p||[]}}else if(r.status==429)return er(j.error||'محاولات كثيرة، حاول لاحقاً')}catch(e){return er('تعذر الاتصال بالخادم')}}
 if(!st){L.n=L.n+1;if(L.n>=5){L.t=Date.now()+3e5;L.n=0}LSset('fl',L);return er('بيانات الدخول غير صحيحة')}
 LSset('fl',{n:0,t:0});S.staff=st;S.pt='stats';stfSave();alog('تسجيل دخول');go('panel')}
 
@@ -394,7 +394,7 @@ if(o.p=='reset'){S.rs={e:p.e,x:Date.now()+6e5};return go('resetpw')}
 if(o.p=='ph'){S.phone=p.v;S.v.ph=1}else{S.mail=p.v;S.v.ml=1}persist();try{syncReport()}catch(e){}toast('تم التوثيق بنجاح');go('profile')}
 const V={
 stafflogin:()=>hd('دخول الإدارة','shield',{back:'welcome'})+`<div class="card" style="padding:16px;margin-top:20px">${fld('su','اسم المستخدم','text','username','dir="ltr" autocomplete="username" autocapitalize="none"')}${pwf('sp','كلمة المرور','current-password')}<p id="er" role="alert" style="color:#ef5350;text-align:center;min-height:1.5em;margin:12px 0 0"></p><button class="btn" data-a="stfin">دخول</button></div>`,
-panel:()=>{if(!S.staff)return V.welcome();if(S.staff.role!='owner'){const s=STF().find(x=>x.u==S.staff.u&&!x.off);if(!s){S.staff=null;try{localStorage.removeItem('stf');localStorage.removeItem('ownt')}catch(x){}return V.welcome()}S.staff.p=s.p||[]}
+panel:()=>{if(!S.staff)return V.welcome();if(S.staff.role!='owner'){if(!LS('stt','')){S.staff=null;try{localStorage.removeItem('stf');localStorage.removeItem('ownt')}catch(x){}return V.welcome()}}
 const TP={excl:'staff',fin:'staff',agr:'rq',rcx:'rf',vb:'users',demo:'users',mon:'stats',games:'stats',pst:'products',lg:'staff',cards:'products',terms:'cfg',sys:'staff',sec:'staff',gifts:'cfg',rooms:'cfg'},T=[['stats','النظرة العامة'],['fin','المالية'],['excl','المستثنون والأعلى مالياً'],['users','المستخدمون'],['demo','الحسابات والتحكم'],['ctr2','العقد'],['rq','الطلبات'],['ord','طلبات المتجر'],['agr','طلبات الوكالات'],['wd','السحوبات'],['mon','المراقبة'],['games','الألعاب والأرباح'],['chg','شحن النقاط'],['tx','المعاملات'],['ct','العدادات والدورة'],['products','المنتجات'],['cards','البطاقات والأكواد'],['pst','المخزون'],['agents','الوكلاء'],['mr','التجار'],['rf','الإحالات'],['rcx','أرقام الإحالة المميزة'],['vb','توثيق الحسابات'],['dc','أكواد الخصم'],['debt','الاستدانة'],['support','الدعم'],['nw','آخر الأخبار'],['ann','الإشعارات'],['terms','شروط الاستخدام'],['cfg','الإعدادات'],['lg','سجل النشاط'],['staff','الموظفون'],['sec','🛡️ الحماية'],['gifts','🎁 الهدايا'],['rooms','🎙️ الرومات'],['sys','النظام والأمان']].filter(t=>can(TP[t[0]]||t[0]));
 const H=hd('لوحة التحكم','shield',{acts:`<button class="ib r" data-a="stfout" aria-label="خروج">${ic('out')}</button>`})+`<div class="row" style="margin-bottom:10px"><span class="bdg ok">${ROLES[S.staff.role]||''}</span><b>${esc(S.staff.u)}</b></div>`;
 if(!T.length)return H+'<div class="card mu" style="text-align:center">لا توجد صلاحيات لهذا الحساب</div>';
@@ -1505,8 +1505,8 @@ function zop(i,v){
  if(b.t=='adj'&&o.loc){srcAdd('admin',b.d.pts,o.e);txadd(o.e,o.n,b.d.pts>0?'شحن من الإدارة':'خصم من الإدارة',Math.abs(b.d.pts),b.d.pts>0?'in':'out')}
 }
 /* ===== واجهة التحكم المركزي (لوحة التحكم) ===== */
-async function ctlApi(path,method,body){const k=LS('adminkey','');if(!k){toast('أدخل مفتاح الإدارة أولاً');return null}
-try{const r=await fetch('/api/ctl'+path,{method,headers:{'Content-Type':'application/json','X-Admin-Key':k},body:body?JSON.stringify(body):undefined}),j=await r.json().catch(()=>({}));if(!r.ok){toast(j.error||('خطأ '+r.status));return null}return j}catch(e){toast('تعذر الاتصال بالخادم');return null}}
+async function ctlApi(path,method,body){const k=LS('adminkey',''),ot=LS('ownt',''),stt=LS('stt','');if(!k&&!ot&&!stt){toast('سجّل الدخول أولاً');return null}
+try{const H={'Content-Type':'application/json'};if(k)H['X-Admin-Key']=k;if(ot)H['X-Owner-Token']=ot;if(stt&&!k&&!ot)H['X-Staff-Token']=stt;const r=await fetch('/api/ctl'+path,{method,headers:H,body:body?JSON.stringify(body):undefined}),j=await r.json().catch(()=>({}));if(!r.ok){toast(j.error||('خطأ '+r.status));return null}return j}catch(e){toast('تعذر الاتصال بالخادم');return null}}
 async function ctlCheck(){const L=[];let max=null;
 try{const r=await fetch('/api/sync?since=init',{cache:'no-store'}),t=await r.text();let j=null;try{j=JSON.parse(t)}catch(e){}
 if(j&&j.max!=null){max=j.max;L.push('✅ الخادم الجديد يعمل (آخر أمر #'+j.max+')')}else L.push('❌ الخادم قديم: لم يُرفع server.js الجديد أو لم ينتهِ نشر Render بعد')}catch(e){L.push('❌ تعذر الاتصال بالخادم')}
@@ -1636,7 +1636,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-r],[data-a
  case'wde':{const q=+v;$('#d').close();if(q>S.usd)return toast('رصيدك غير كافٍ');S.usd-=q;S.wd.push({t:Date.now(),a:q,m:S.wm,em:1});wreqAdd(q,1);toast('تم تقديم طلب سحب طارئ $'+q.toFixed(2));break}
  case'sec':{const n=Date.now();S._st=(S._st||[]).filter(t=>n-t<4000);S._st.push(n);if(S._st.length>=7){S._st=[];return go('stafflogin')}return}
  case'stfin':stfIn();return;
- case'stfout':try{localStorage.removeItem('stf');localStorage.removeItem('ownt')}catch(x){}S.staff=null;return go('stafflogin');
+ case'stfout':try{localStorage.removeItem('stf');localStorage.removeItem('ownt');localStorage.removeItem('stt');localStorage.removeItem('stp');if(localStorage.getItem('adminkey')==='"staff-session"')localStorage.removeItem('adminkey')}catch(x){}S.staff=null;return go('stafflogin');
  case'pnl':return go('panel');
  case'pthm':return setPth(+v);
  case'ptab':S.pt=v;panelFast();return;
