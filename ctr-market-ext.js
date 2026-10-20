@@ -23,6 +23,7 @@ module.exports = (app, express, deps) => {
           price BIGINT NOT NULL, fee BIGINT NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'open',
           buyer_email TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), closed_at TIMESTAMPTZ)`);
         await q(`ALTER TABLE ctr_market ADD COLUMN IF NOT EXISTS ratio DOUBLE PRECISION`);
+        await q(`CREATE TABLE IF NOT EXISTS ctr_dc_use(code TEXT NOT NULL, email TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY(code,email))`);
         await q(`CREATE INDEX IF NOT EXISTS ctr_market_open ON ctr_market(status, created_at DESC)`);
         return;
       } catch (e) { if (t === 9) throw e; await new Promise((r) => setTimeout(r, 1500)); }
@@ -31,11 +32,11 @@ module.exports = (app, express, deps) => {
   app.use('/api/ctr', (_req, _res, next) => ready.then(() => next(), next));
 
   async function cfg(c) {
-    let v = {};
-    try { const r = (await (c || pool).query(`SELECT val FROM sync_kv WHERE key='config'`)).rows[0]; v = (r && r.val && r.val.cfg) || {}; } catch (_) { /* افتراضي */ }
+    let v = {}, dcs = [];
+    try { const r = (await (c || pool).query(`SELECT val FROM sync_kv WHERE key='config'`)).rows[0]; v = (r && r.val && r.val.cfg) || {}; dcs = (r && r.val && Array.isArray(r.val.dcs)) ? r.val.dcs : []; } catch (_) { /* افتراضي */ }
     const ct = v.ct || {};
     const mk = Number(v.mk); const fee = Number(v.cmFee);
-    return { ct, mk: Number.isFinite(mk) && mk >= 0 ? Math.min(mk, 100) : 20, fee: Number.isFinite(fee) && fee >= 0 ? Math.min(fee, 50) : 10 };
+    return { ct, dcs, hcl: !!v.hcl, coff: v.coff || {}, mk: Number.isFinite(mk) && mk >= 0 ? Math.min(mk, 100) : 20, fee: Number.isFinite(fee) && fee >= 0 ? Math.min(fee, 50) : 10 };
   }
   const yieldOf = (C, ci) => { const o = C.ct[ci]; return o && Number(o[1]) > 0 ? Number(o[1]) : YIELD0[ci]; };
   function value(C, ci, exp, now) {
@@ -176,5 +177,41 @@ module.exports = (app, express, deps) => {
     kick();
     try { if (app.locals.notify) app.locals.notify(out.sE, 'تم بيع عدادك', out.name + ' اشترى عدادك بسعر ' + out.price.toLocaleString('en') + ' نقطة — أُضيفت لرصيدك', 'ctr'); } catch (_) { /* اختياري */ }
     res.json({ ok: true, bal: out.bal, cl: out.cl, ci: out.ci, days: out.days, price: out.price });
+  }));
+
+  /* شراء عداد جديد من الكتالوج: السعر من السيرفر (إنتاجية العداد × 300 مع كود الخصم إن صحّ)، يُخصم ويُضاف العداد فوراً بمدة 360 يوماً */
+  app.post('/api/ctr/buy-new', jsonBody, wrap(async (req, res) => {
+    const b = req.body || {}, { e, h } = cred(req), ci = parseInt(b.ci, 10), now = Date.now();
+    if (!(ci >= 0 && ci < YIELD0.length)) fail(400, 'عداد غير صالح');
+    const code = txt(b.dc, 30).toUpperCase();
+    const cl = await pool.connect(); let out;
+    try {
+      await cl.query('BEGIN');
+      const me = await auth(cl, e, h);
+      const C = await cfg(cl);
+      if (C.hcl) fail(403, 'شراء العدادات متوقف مؤقتاً');
+      if (C.coff && C.coff[ci]) fail(403, 'هذا العداد غير متاح حالياً');
+      let price = yieldOf(C, ci) * 300, used = '';
+      if (code) {
+        const d = C.dcs.find((x) => x && String(x.c).toUpperCase() === code);
+        if (!d || d.on === 0 || d.sc !== 'c') fail(400, 'كود الخصم غير صحيح');
+        if (Number(d.mx) > 0) { const n = Number((await cl.query(`SELECT COUNT(*)::int n FROM ctr_dc_use WHERE code=$1`, [code])).rows[0].n); if (n >= Number(d.mx)) fail(400, 'انتهى عدد استخدامات الكود'); }
+        const ins = await cl.query(`INSERT INTO ctr_dc_use(code,email) VALUES($1,$2) ON CONFLICT DO NOTHING RETURNING code`, [code, e]);
+        if (!ins.rows.length) fail(400, 'استخدمت هذا الكود من قبل');
+        price = Math.max(1, Math.ceil(price * (1 - Math.max(0, Math.min(100, Number(d.p) || 0)) / 100))); used = code;
+      }
+      const mine = sigOf(me.cl).filter((c) => c && Number(c.e) > now);
+      if (mine.length >= 100) fail(400, 'وصلت للحد الأقصى من العدادات');
+      const dec = await cl.query(`UPDATE sync_accounts SET pts=pts-$2 WHERE LOWER(email)=$1 AND COALESCE(pts,0)>=$2 RETURNING pts`, [e, price]);
+      if (!dec.rows.length) fail(402, 'رصيد النقاط غير كافٍ');
+      await cl.query(`UPDATE users SET pts=GREATEST(0, pts-$2) WHERE LOWER(email)=$1`, [e, price]);
+      mine.push({ i: ci, e: now + LIFE_MS });
+      await setCl(cl, e, mine);
+      await cl.query('COMMIT');
+      out = { ok: true, bal: Number(dec.rows[0].pts), cl: mine, price, days: 360 };
+      out.note = 'شراء بسعر ' + price + (used ? ' كود ' + used : '');
+    } catch (err) { try { await cl.query('ROLLBACK'); } catch (_) {} throw err; } finally { cl.release(); }
+    pool.query(`INSERT INTO ctr_log(email,op,idx,n,note) VALUES($1,'buy',$2,1,$3)`, [e, ci, out.note]).catch(() => {});
+    delete out.note; kick(); res.json(out);
   }));
 };

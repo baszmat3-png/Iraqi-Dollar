@@ -1239,8 +1239,17 @@ app.post('/api/sync/report', pubLimiter, wrap(async (req, res) => {
         const sg = (l) => (Array.isArray(l) ? l : []).filter((c) => c && Number(c.e) > nowMs).map((c) => (Math.floor(Number(c.i)) | 0) + ':' + Math.round(Number(c.e))).sort().join(',');
         const cr = (await pool.query('SELECT cl FROM sync_accounts WHERE LOWER(email)=LOWER($1)', [email])).rows[0];
         if (sg(cr && cr.cl) === a.clb) {
-          const nl = a.cl.slice(0, 100).map((c) => ({ i: Math.floor(Number(c && c.i)), e: Math.round(Number(c && c.e)) }))
+          let nl = a.cl.slice(0, 100).map((c) => ({ i: Math.floor(Number(c && c.i)), e: Math.round(Number(c && c.e)) }))
             .filter((c) => c.i >= 0 && c.i < 20 && c.e > nowMs && c.e < nowMs + 400 * 864e5);
+          // الوضع الصارم: العدادات تُضاف من السيرفر فقط (شراء/سوق/إدارة)؛ الرفع من الجهاز لا يستطيع إضافة عداد جديد أبداً.
+          // يُفعَّل للتطبيقات المحدَّثة (cv>=2) دائماً، ولكل الأجهزة بضبط CTR_STRICT=1 بعد تحديث المستخدمين.
+          if (Number(a.cv) >= 2 || process.env.CTR_STRICT === '1') {
+            const pool0 = new Map(); (Array.isArray(cr && cr.cl) ? cr.cl : []).forEach((c) => { if (c && Number(c.e) > nowMs) { const k = (Math.floor(Number(c.i)) | 0) + ':' + Math.round(Number(c.e)); pool0.set(k, (pool0.get(k) || 0) + 1); } });
+            const keep = []; let added = 0;
+            nl.forEach((c) => { const k = c.i + ':' + c.e, n = pool0.get(k) || 0; if (n > 0) { pool0.set(k, n - 1); keep.push(c); } else added++; });
+            if (added) clrej = true;
+            nl = keep;
+          }
           try { await pool.query(`UPDATE sync_accounts SET cl=$2::jsonb, ncl=$3, cl_at=NOW() WHERE LOWER(email)=LOWER($1)`, [email, JSON.stringify(nl), nl.length]); }
           catch (e2) { await pool.query(`UPDATE sync_accounts SET cl=$2::jsonb, cl_at=NOW() WHERE LOWER(email)=LOWER($1)`, [email, JSON.stringify(nl)]).catch(() => {}); }
         } else clrej = true;

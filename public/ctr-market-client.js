@@ -75,6 +75,12 @@
     const j = await post('/api/ctr/list', { ci: l.i, exp: l.e, price: q });
     if (j) { adopt(j.cl); pull(); toast('تم عرض العداد للبيع · خُصمت عمولة ' + f(j.fee) + ' نقطة'); S.mt = 'my'; CM.load(); }
   };
+  CM.buyNew = async function (i, dq, pr, c) {
+    const j = await post('/api/ctr/buy-new', { ci: i, dc: dq ? dq.code : '' });
+    if (!j) return;
+    try { if (dq) dq.commit(); txlog('شراء عداد ' + c[0] + (dq ? ' (كود ' + dq.code + ')' : ''), j.price, 'out'); cstat(i); rfEv(j.price); } catch (x) {}
+    adopt(j.cl); pull(); toast('تم شراء عداد ' + c[0] + ' لمدة 12 شهراً'); try { draw(); } catch (x) {}
+  };
   CM.slx = async function (id) { const j = await post('/api/ctr/cancel', { id: +id }); if (j) { adopt(j.cl); toast('تم إلغاء العرض وعاد العداد إليك'); CM.load(); } };
   CM.mb = function (id) {
     const L = CM.list.find((x) => x.id == id); if (!L) return; const c = CT[L.ci], tot = c[3] * L.days, net = tot - L.price;
