@@ -1570,7 +1570,8 @@ require('./gifts-ext')(app, express, { pool, wrap, ctl, fail });
 require('./ctr-market-ext')(app, express, { pool, wrap, fail }); // متجر العدادات (السيرفر هو المرجع)
 require('./missions-ext')(app, express, { pool, wrap, fail }); // المهمات (5 مراحل)
 require('./cycle-ext')(app, express, { pool, wrap, fail }); // دورة عائد العداد (من السيرفر)
-require('./staff-ext')(app, express, { pool, wrap, ctl, fail, ownerOk, adminOk }); // حسابات الموظفين وصلاحياتهم
+require('./staff-ext')(app, express, { pool, wrap, ctl, fail, ownerOk, adminOk });
+require('./support-agents-ext')(app, express, { pool, wrap, ctl, fail, rateLimit }); // مستخدمون للرد على الدعم // حسابات الموظفين وصلاحياتهم
 require('./loans-ext')(app, express, { pool, wrap, ctl, fail }); // الاستدانة (أقساط) على السيرفر
 require('./rooms-ext')(app, express, { pool, wrap, ctl, fail }); // الرومات الصوتية (+ مكتبة الموسيقى + خلفية الروم)
 require('./google-auth-ext')(app, { pool, wrap, fail }); // الدخول وإنشاء الحساب عبر Google
