@@ -39,7 +39,7 @@
       return `<div class="card"><div class="row2"><b style="color:${c[4]}">عداد ${c[0]}</b><span class="bdg ${m > 0 ? 'no' : 'ok'}">${m > 0 ? '+' + m + '%' : m < 0 ? m + '%' : 'بسعر القيمة'}</span></div>
       <div class="mu">البائع: ${L.seller}</div>
       <div class="mu">⏳ المتبقي <b style="color:var(--cy)">${L.days}</b> يوماً من 365 · يمنح ${f(c[3])} نقطة كل 24 ساعة</div>
-      <div class="row2" style="margin-top:8px"><div><b class="cy">${f(L.price)} نقطة</b><div class="mu" style="font-size:.8rem">${f(iq(L.price))} دينار</div></div><button class="btn sm" data-a="mb" data-i="${L.id}">تفاصيل وشراء</button></div></div>`;
+      <div class="row2" style="margin-top:8px"><div><b class="cy">${f(L.price)} نقطة</b><div class="mu" style="font-size:.8rem">السعر بالدينار: ${f(iq(L.price))} دينار</div></div><button class="btn sm" data-a="mb" data-i="${L.id}">تفاصيل وشراء</button></div></div>`;
     };
     return hd('متجر العدادات', 'gauge', { back: 'home' }) +
       `<div class="note" style="color:var(--cy);background:#0f2a33;border-color:var(--line)">${ic('info', 18)}<span>يُسعَّر العداد بحسب مدته المتبقية، ولا يُعرض بأكثر من قيمته + ${CM.mk}%. عمولة التطبيق ${CM.fee}% تُدفع بالنقاط، ويتناقص السعر يومياً مع نقصان المدة. يستلم المشتري العداد بمدته المتبقية نفسها.</span></div>
