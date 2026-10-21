@@ -12,7 +12,7 @@ const LIFE_DAYS = 365, DAY = 864e5, LIFE_MS = LIFE_DAYS * DAY;
 const txt = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
 
 module.exports = (app, express, deps) => {
-  const { pool, wrap, fail } = deps;
+  const { pool, wrap, fail, ctl } = deps;
   const q = (s, p) => pool.query(s, p);
   const jsonBody = express.json({ limit: '10kb' });
   const ready = (async () => {
@@ -35,7 +35,9 @@ module.exports = (app, express, deps) => {
     let v = {}, dcs = [];
     try { const r = (await (c || pool).query(`SELECT val FROM sync_kv WHERE key='config'`)).rows[0]; v = (r && r.val && r.val.cfg) || {}; dcs = (r && r.val && Array.isArray(r.val.dcs)) ? r.val.dcs : []; } catch (_) { /* افتراضي */ }
     const ct = v.ct || {};
-    const mk = Number(v.mk); const fee = Number(v.cmFee); const cx = Number(v.cxFee);
+    let o = {};
+    try { const r2 = (await (c || pool).query(`SELECT val FROM sync_kv WHERE key='ctr_market_cfg'`)).rows[0]; o = (r2 && r2.val) || {}; } catch (_) { /* افتراضي */ }
+    const mk = Number(o.mk != null ? o.mk : v.mk); const fee = Number(o.fee != null ? o.fee : v.cmFee); const cx = Number(o.cx != null ? o.cx : v.cxFee);
     return { cx: Number.isFinite(cx) && cx >= 0 ? Math.min(cx, 50) : 5, ct, dcs, hcl: !!v.hcl, coff: v.coff || {}, mk: Number.isFinite(mk) && mk >= 0 ? Math.min(mk, 100) : 20, fee: Number.isFinite(fee) && fee >= 0 ? Math.min(fee, 50) : 10 };
   }
   const yieldOf = (C, ci) => { const o = C.ct[ci]; return o && Number(o[1]) > 0 ? Number(o[1]) : YIELD0[ci]; };
@@ -50,7 +52,9 @@ module.exports = (app, express, deps) => {
   const effPrice = (L, C, now) => { const r = Number(L.ratio) > 0 ? Number(L.ratio) : 1; return Math.max(1, Math.floor(value(C, Number(L.ci), Number(L.exp), now).valued * r)); };
   const cred = (req) => {
     const b = req.body || {};
-    return { e: txt(b.e || req.get('x-e'), 200).toLowerCase(), h: txt(b.h || req.get('x-h'), 200) };
+    let e = b.e || req.get('x-e') || '';
+    try { e = decodeURIComponent(String(e)); } catch (_) { /* كما هو */ } // الواجهة ترسل x-e مُرمَّزاً (%40)
+    return { e: txt(e, 200).toLowerCase(), h: txt(b.h || req.get('x-h'), 200) };
   };
   const row = (L, C, now, me) => {
     const v = value(C, L.ci, Number(L.exp), now);
@@ -223,4 +227,49 @@ module.exports = (app, express, deps) => {
     pool.query(`INSERT INTO ctr_log(email,op,idx,n,note) VALUES($1,'buy',$2,1,$3)`, [e, ci, out.note]).catch(() => {});
     delete out.note; kick(); res.json(out);
   }));
+
+  /* ---------------- لوحة التحكم: «المتجر البيع» (مالك فقط) ---------------- */
+  if (ctl) {
+    app.get('/api/ctl/ctr-market', ...ctl, wrap(async (_req, res) => {
+      const now = Date.now(), C = await cfg();
+      const open = (await q(`SELECT m.*, (SELECT email FROM sync_accounts a WHERE LOWER(a.email)=LOWER(m.seller_email)) AS em FROM ctr_market m WHERE status='open' AND exp>$1 ORDER BY id DESC LIMIT 300`, [now])).rows.map((L) => {
+        const v = value(C, Number(L.ci), Number(L.exp), now);
+        return { id: Number(L.id), seller: L.seller_name || '', email: L.seller_email, ci: Number(L.ci), days: v.days, price: effPrice(L, C, now), listed: Number(L.price), valued: v.valued, fee: Number(L.fee), at: L.created_at };
+      });
+      const st = (await q(`SELECT status, COUNT(*)::int n, COALESCE(SUM(price),0)::bigint vol, COALESCE(SUM(fee),0)::bigint fee FROM ctr_market GROUP BY status`)).rows;
+      const rv = (await q(`SELECT kind, COALESCE(SUM(pts),0)::bigint pts, COUNT(*)::int n FROM app_revenue WHERE kind IN ('ctr_list_fee','ctr_cancel_refund') GROUP BY kind`).catch(() => ({ rows: [] }))).rows;
+      const recent = (await q(`SELECT id, seller_email, seller_name, buyer_email, ci, price, fee, status, created_at, closed_at FROM ctr_market WHERE status<>'open' ORDER BY id DESC LIMIT 60`)).rows;
+      res.json({ ok: true, cfg: { fee: C.fee, cx: C.cx, mk: C.mk }, open, stats: st, revenue: rv, recent });
+    }));
+    app.post('/api/ctl/ctr-market/settings', ...ctl, jsonBody, wrap(async (req, res) => {
+      const b = req.body || {}, n = (v, lo, hi) => { const x = Number(v); if (!Number.isFinite(x) || x < lo || x > hi) fail(400, 'قيمة غير صالحة'); return Math.round(x * 100) / 100; };
+      const val = { fee: n(b.fee, 0, 50), cx: n(b.cx, 0, 50), mk: n(b.mk, 0, 100) };
+      await q(`INSERT INTO sync_kv(key,val,updated_at) VALUES('ctr_market_cfg',$1,NOW()) ON CONFLICT (key) DO UPDATE SET val=EXCLUDED.val, updated_at=NOW()`, [JSON.stringify(val)]);
+      res.json({ ok: true, cfg: val });
+    }));
+    app.post('/api/ctl/ctr-market/cancel', ...ctl, jsonBody, wrap(async (req, res) => {
+      // إلغاء عرض من الإدارة: يعود العداد لصاحبه ويُردّ له كامل رسوم العرض (بلا استقطاع)
+      const id = parseInt((req.body || {}).id, 10); if (!id) fail(400, 'عرض غير صالح');
+      const cl = await pool.connect(); let out;
+      try {
+        await cl.query('BEGIN');
+        const L = (await cl.query(`SELECT * FROM ctr_market WHERE id=$1 FOR UPDATE`, [id])).rows[0];
+        if (!L || L.status !== 'open') fail(409, 'العرض غير متاح');
+        const e = String(L.seller_email).toLowerCase();
+        const me = (await cl.query(`SELECT cl FROM sync_accounts WHERE LOWER(email)=$1 FOR UPDATE`, [e])).rows[0];
+        if (!me) fail(404, 'حساب البائع غير موجود');
+        const own = sigOf(me.cl).slice(); if (Number(L.exp) > Date.now()) own.push({ i: Number(L.ci), e: Number(L.exp) });
+        await setCl(cl, e, own);
+        const refund = Number(L.fee) || 0;
+        if (refund > 0) {
+          await cl.query(`UPDATE sync_accounts SET pts=pts+$2 WHERE LOWER(email)=$1`, [e, refund]);
+          await cl.query(`UPDATE users SET pts=pts+$2 WHERE LOWER(email)=$1`, [e, refund]);
+          await cl.query(`INSERT INTO app_revenue(kind,pts,ref,note) VALUES('ctr_cancel_refund',$1,$2,$3)`, [-refund, 'ctr:' + id, 'إلغاء إداري لعرض']).catch(() => {});
+        }
+        await cl.query(`UPDATE ctr_market SET status='cancelled', closed_at=NOW() WHERE id=$1`, [id]);
+        await cl.query('COMMIT'); out = { ok: true, refund };
+      } catch (err) { try { await cl.query('ROLLBACK'); } catch (_) {} throw err; } finally { cl.release(); }
+      kick(); res.json(out);
+    }));
+  }
 };

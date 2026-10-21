@@ -1567,7 +1567,7 @@ require('./bal-sync')(app, express, { pool, wrap, fail }); // الرصيد ال�
 require('./security-server')(app, express, { pool, wrap, ctl, fail }); // الحماية: بصمة الجهاز + VPN + تلاعب الوقت
 require('./revenue-ext')(app, express, { pool, wrap, ctl }); // إيرادات التطبيق (حصة صاحب التطبيق)
 require('./gifts-ext')(app, express, { pool, wrap, ctl, fail });
-require('./ctr-market-ext')(app, express, { pool, wrap, fail }); // متجر العدادات (السيرفر هو المرجع)
+require('./ctr-market-ext')(app, express, { pool, wrap, fail, ctl }); // متجر العدادات (السيرفر هو المرجع)
 require('./missions-ext')(app, express, { pool, wrap, fail }); // المهمات (5 مراحل)
 require('./cycle-ext')(app, express, { pool, wrap, fail }); // دورة عائد العداد (من السيرفر)
 require('./staff-ext')(app, express, { pool, wrap, ctl, fail, ownerOk, adminOk });
