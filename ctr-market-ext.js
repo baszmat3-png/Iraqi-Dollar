@@ -5,10 +5,10 @@
  *  POST /api/ctr/list   {e,h,ci,exp,price}  : عرض عداد للبيع (يُسحب من حسابه، وتُخصم رسوم العرض 8% نقاطاً وتذهب للتطبيق)
  *  POST /api/ctr/cancel {e,h,id}   : إلغاء عرض (يعود العداد بمدته؛ من رسوم العرض يُستبقى cxFee% من السعر (5% افتراضياً) ويُردّ الباقي)
  *  POST /api/ctr/buy    {e,h,id}   : شراء — يُخصم السعر من المشتري ويُضاف للبائع ويستلم المشتري العداد بمدته المتبقية فوراً
- * التقييم: سعر الكتالوج × (المتبقي ÷ 360 يوماً)؛ الحد الأقصى للعرض = التقييم + cfg.mk% (افتراضي 20).
+ * التقييم: سعر الكتالوج × (المتبقي ÷ 365 يوماً، يتحدّث يومياً)؛ الحد الأقصى للعرض = التقييم + cfg.mk% (افتراضي 20).
  */
 const YIELD0 = [50, 100, 100, 500, 500, 1000, 5000, 10000, 100000];
-const LIFE_MS = 360 * 864e5, DAY = 864e5;
+const LIFE_DAYS = 365, DAY = 864e5, LIFE_MS = LIFE_DAYS * DAY;
 const txt = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
 
 module.exports = (app, express, deps) => {
@@ -42,7 +42,8 @@ module.exports = (app, express, deps) => {
   function value(C, ci, exp, now) {
     const base = yieldOf(C, ci) * 300;
     const rem = Math.max(0, Math.min(LIFE_MS, exp - now));
-    const valued = Math.max(1, Math.floor(base * rem / LIFE_MS));
+    const dleft = Math.ceil(rem / DAY); // السعر يتغير مرة كل يوم (بعدد الأيام الصحيحة المتبقية) لا كل دقيقة
+    const valued = Math.max(1, Math.floor(base * dleft / LIFE_DAYS));
     return { base, valued, cap: Math.max(1, Math.floor(valued * (1 + C.mk / 100))), days: Math.ceil(rem / DAY), daily: yieldOf(C, ci) };
   }
   // السعر يتناقص يومياً مع تناقص المدة: السعر الحالي = قيمة العداد الآن × نسبة العرض (سعر العرض ÷ قيمته وقت العرض)
@@ -216,7 +217,7 @@ module.exports = (app, express, deps) => {
       mine.push({ i: ci, e: now + LIFE_MS });
       await setCl(cl, e, mine);
       await cl.query('COMMIT');
-      out = { ok: true, bal: Number(dec.rows[0].pts), cl: mine, price, days: 360 };
+      out = { ok: true, bal: Number(dec.rows[0].pts), cl: mine, price, days: LIFE_DAYS };
       out.note = 'شراء بسعر ' + price + (used ? ' كود ' + used : '');
     } catch (err) { try { await cl.query('ROLLBACK'); } catch (_) {} throw err; } finally { cl.release(); }
     pool.query(`INSERT INTO ctr_log(email,op,idx,n,note) VALUES($1,'buy',$2,1,$3)`, [e, ci, out.note]).catch(() => {});

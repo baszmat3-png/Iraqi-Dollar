@@ -270,7 +270,7 @@ exports.routes = (app, { pool, wrap, ctl }) => {
   const CTN = ['بسيط', 'الاعتيادي', 'برونزي', 'الفضي', 'الذهبي', 'الماسي', 'الناري', 'عشرة آلاف', 'تيتانيوم'];
   const CTD = [50, 100, 100, 500, 500, 1000, 5000, 10000, 100000];
   const CTC = ['#8fb8c9', '#6fd3a0', '#cd7f32', '#c0c8d0', '#ffd34d', '#2bcfe2', '#ff6b35', '#b57bff', '#9fb3c8'];
-  const CT_LIFE = 360 * 864e5;
+  const CT_LIFE = 365 * 864e5;
   q(`CREATE TABLE IF NOT EXISTS ctr_log(id BIGSERIAL PRIMARY KEY, email TEXT NOT NULL, op TEXT NOT NULL, idx INT, n INT NOT NULL DEFAULT 0, note TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`).catch((e) => console.error('ctr_log', e.message));
   async function ctrCfg() {
     // العائد اليومي يؤخذ من الإعدادات المنشورة إن عُدّل من لوحة التحكم، وإلا القيم الافتراضية

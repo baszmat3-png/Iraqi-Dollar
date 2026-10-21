@@ -52,7 +52,7 @@ if (!process.env.DATABASE_URL) { console.error('Missing env DATABASE_URL'); proc
 /* ---------- Game data (source of truth, mirrors index.html) ---------- */
 // [name, price(pts), yield per day, type p=points g=gems]
 // Pricing rule: 600,000 pts = 79,200 IQD (1 pt = 0.132 IQD). Price = daily yield x 300 days (10 months payback);
-// counter lifetime = 360 days (+60 days = 20% platform profit).
+// counter lifetime = 365 days (+60 days = 20% platform profit).
 const CT = [
   ['بسيط', 15000, 50, 'p'],
   ['الاعتيادي', 30000, 100, 'p'],
@@ -73,7 +73,7 @@ const PT_IQD = 0.132;                                  // دينار لكل نق
 const AGENT_PT_IQD = 0.12;                             // دينار لكل نقطة (للوكيل)
 const IQD_PER_USD = Number(process.env.IQD_PER_USD) || 1620; // سعر الدولار بالدينار
 const DAY = 86400;
-const YEAR_MS = 360 * 864e5; // مدة العداد: 12 شهراً = 360 يوماً
+const YEAR_MS = 365 * 864e5; // مدة العداد: 365 يوماً
 const WHEEL = ['3600', 'x', '200', 'x', '500', '100', 'gem', '50'];
 
 /* ---------- Helpers ---------- */

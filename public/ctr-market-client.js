@@ -30,7 +30,7 @@
     } catch (x) { toast('تحقق من الاتصال بالإنترنت'); return null; }
   }
   const dl = (l) => Math.ceil((l.e - Date.now()) / 864e5);
-  const val = (i, e) => { const c = CT[i], rem = Math.max(0, Math.min(360 * 864e5, e - Date.now())), v = Math.max(1, Math.floor(c[2] * rem / (360 * 864e5))); return { v, cap: Math.floor(v * (1 + CM.mk / 100)) }; };
+  const val = (i, e) => { const c = CT[i], rem = Math.max(0, Math.min(365 * 864e5, e - Date.now())), v = Math.max(1, Math.floor(c[2] * Math.ceil(rem / 864e5) / 365)); return { v, cap: Math.floor(v * (1 + CM.mk / 100)) }; };
 
   CM.view = function () {
     if (!CM.ok && !CM.busy) setTimeout(CM.load, 0);
@@ -38,8 +38,8 @@
       const c = CT[L.ci], m = L.pct;
       return `<div class="card"><div class="row2"><b style="color:${c[4]}">عداد ${c[0]}</b><span class="bdg ${m > 0 ? 'no' : 'ok'}">${m > 0 ? '+' + m + '%' : m < 0 ? m + '%' : 'بسعر القيمة'}</span></div>
       <div class="mu">البائع: ${L.seller}</div>
-      <div class="mu">⏳ المتبقي <b style="color:var(--cy)">${L.days}</b> يوماً من 360 · يمنح ${f(c[3])} نقطة كل 24 ساعة</div>
-      <div class="row2" style="margin-top:8px"><div><b class="cy">${f(L.price)} نقطة</b><div class="mu" style="font-size:.8rem">${f(iq(L.price))} دينار · قيمته بحسب مدته: ${f(L.valued)}</div></div><button class="btn sm" data-a="mb" data-i="${L.id}">تفاصيل وشراء</button></div></div>`;
+      <div class="mu">⏳ المتبقي <b style="color:var(--cy)">${L.days}</b> يوماً من 365 · يمنح ${f(c[3])} نقطة كل 24 ساعة</div>
+      <div class="row2" style="margin-top:8px"><div><b class="cy">${f(L.price)} نقطة</b><div class="mu" style="font-size:.8rem">${f(iq(L.price))} دينار</div></div><button class="btn sm" data-a="mb" data-i="${L.id}">تفاصيل وشراء</button></div></div>`;
     };
     return hd('متجر العدادات', 'gauge', { back: 'home' }) +
       `<div class="note" style="color:var(--cy);background:#0f2a33;border-color:var(--line)">${ic('info', 18)}<span>يُسعَّر العداد بحسب مدته المتبقية، ولا يُعرض بأكثر من قيمته + ${CM.mk}%. عمولة التطبيق ${CM.fee}% تُدفع بالنقاط، ويتناقص السعر يومياً مع نقصان المدة. يستلم المشتري العداد بمدته المتبقية نفسها.</span></div>
@@ -58,7 +58,7 @@
     if (debtHold()) return toast('هذا العداد محجوز بسبب قرض غير مسدَّد — سدِّد القرض أولاً ثم اعرضه للبيع');
     const c = CT[l.i], x = val(l.i, l.e), d = dl(l);
     return dlg(`<h2 style="margin-top:0">عرض عداد ${c[0]} للبيع</h2>${rows([
-      ['المدة المتبقية', d + ' يوماً من 360 (سيستلمه المشتري بالمدة نفسها)'], ['سعر العداد الأصلي', both(c[2])], ['قيمته الآن بحسب مدته', both(x.v)],
+      ['المدة المتبقية', d + ' يوماً من 365 (سيستلمه المشتري بالمدة نفسها)'], ['سعر العداد الأصلي', both(c[2])], ['قيمته الآن بحسب مدته', both(x.v)],
       ['الحد الأقصى (+' + CM.mk + '%)', both(x.cap)], ['عمولة التطبيق', CM.fee + '% من سعر العرض بالنقاط'], ['تناقص السعر', 'يتناقص السعر يومياً تلقائياً مع نقصان المدة']])}
       <div class="seg" style="margin:8px 0">${[[-10, '-10%'], [0, 'القيمة'], [10, '+10%'], [20, '+20%']].map((o) => `<button type="button" onclick="CM.pc(${o[0]},${+i})">${o[1]}</button>`).join('')}</div>
       <label>سعر العرض بالنقاط<input id="slp" type="number" inputmode="numeric" value="${x.v}" oninput="CM.fe()"></label>
@@ -94,7 +94,7 @@
     const pc = L.price > 0 ? Math.round(net / L.price * 100) : 0;
     return dlg(`<h2 style="margin-top:0">عداد ${c[0]} — ${f(c[3])} نقطة/يوم</h2>${S.pts < L.price ? `<div class="note" style="color:#ef5350;background:#3a2025;border-color:#7a3a3a">${ic('warn', 18)}<span>رصيدك غير كافٍ، ينقصك ${f(L.price - S.pts)} نقطة</span></div>` : ''}${rows([
       ['السعر الحالي', both(L.price)], ['سعر العداد الأصلي', both(c[2])], ['قيمته بحسب مدته', both(L.valued)], ['البائع', L.seller],
-      ['يمنح كل 24 ساعة', f(c[3]) + ' نقطة'], ['المدة المتبقية', L.days + ' يوماً من 360'],
+      ['يمنح كل 24 ساعة', f(c[3]) + ' نقطة'], ['المدة المتبقية', L.days + ' يوماً من 365'],
       ['إجمالي المنح خلال المتبقي (' + L.days + ' يوماً)', f(tot) + ' نقطة'], ['إجمالي العائد بالدينار', f(iq(tot)) + ' دينار · $' + usd(tot)],
       ['صافي الربح بعد ثمن الشراء', (net >= 0 ? '+' : '') + f(net) + ' نقطة = ' + (net >= 0 ? '+' : '') + f(iq(Math.abs(net))) + ' دينار (' + pc + '%)'],
       ['استرجاع ثمن العداد خلال', rec ? (rec <= L.days ? rec + ' يوماً' : 'لا يُسترجع كاملاً خلال المدة المتبقية') : '—'],
