@@ -14,20 +14,13 @@
       return j;
     } catch (x) { return null; }
   }
-  function btn() {
-    let b = document.getElementById('sgaBtn');
-    if (!SGA.on) { if (b) b.remove(); return; }
-    if (!b) {
-      b = document.createElement('button'); b.id = 'sgaBtn'; b.type = 'button'; b.setAttribute('aria-label', 'رسائل الدعم');
-      b.style.cssText = 'position:fixed;z-index:9990;left:12px;bottom:calc(84px + env(safe-area-inset-bottom,0px));width:50px;height:50px;border-radius:50%;border:0;background:#1f6feb;color:#fff;font-size:1.5rem;box-shadow:0 4px 14px #0007;cursor:pointer';
-      b.onclick = SGA.open; document.body.appendChild(b);
-    }
-    b.innerHTML = '🎧' + (SGA.unread ? `<span style="position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;border-radius:10px;background:#f5222d;font-size:.72rem;line-height:20px;padding:0 4px">${SGA.unread > 99 ? '99+' : SGA.unread}</span>` : '');
-  }
+  function btn() { const b = document.getElementById('sgaBtn'); if (b) b.remove(); }
   SGA.poll = async function () {
-    const m = me(); if (!m) { SGA.on = 0; btn(); return; }
+    const m = me(); if (!m) { SGA.on = 0; return; }
     const j = await api('me', {}, 1);
-    SGA.on = j && j.agent ? 1 : 0; SGA.unread = j && j.unread || 0; btn();
+    const o0 = SGA.on, u0 = SGA.unread;
+    SGA.on = j && j.agent ? 1 : 0; SGA.unread = +(j && j.unread) || 0; btn();
+    if ((o0 !== SGA.on || u0 !== SGA.unread) && S.r === 'home' && !document.getElementById('sgaOv')) { try { const dd = document.getElementById('d'); if (!(dd && dd.open)) draw(); } catch (x) {} }
     const o = document.getElementById('sgaOv');
     if (o && SGA.on) { if (SGA.user) SGA.thread(SGA.user, 1); else SGA.list(1); }
   };

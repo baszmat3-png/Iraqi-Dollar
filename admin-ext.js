@@ -59,6 +59,8 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     if (req.body.img && !im) fail(400, 'تعذر إرسال الصورة: الصيغة غير مدعومة أو الحجم كبير');
     if (!body && !im) fail(400, 'الرسالة فارغة');
     await q(`INSERT INTO support_msgs(email,from_admin,body,img) VALUES($1,FALSE,$2,$3)`, [e, body, im]);
+    // إشعار لموظفي الدعم المعيَّنين
+    q(`INSERT INTO notices(email,body) SELECT g.email,$2 FROM support_agents g WHERE g.email<>LOWER($1)`, [e, '📩 رسالة دعم جديدة: ' + (body ? (body.length > 60 ? body.slice(0, 60) + '…' : body) : '📷 صورة')]).catch(() => {});
     res.json({ ok: true });
   }));
 
