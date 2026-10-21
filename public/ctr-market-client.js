@@ -46,7 +46,7 @@
       <div class="seg">${[['mk', 'السوق'], ['my', 'عدادي للبيع']].map((x) => `<button class="${S.mt == x[0] ? 'on' : ''}" data-a="mtab" data-v="${x[0]}">${x[1]}</button>`).join('')}</div>` +
       (S.mt == 'mk' ? (CM.list.length ? CM.list.map(mkc).join('') : em(CM.ok ? 'لا توجد عروض الآن' : 'جارٍ التحميل...'))
         : sec('عدادات يمكنك عرضها') + (S.cl.length ? S.cl.map((l, j) => { const c = CT[l.i]; return `<div class="card row2" style="padding:12px 16px"><div><b style="color:${c[4]}">عداد ${c[0]}</b><div class="mu">⏳ المتبقي ${dl(l)} يوماً · ربح متبقٍّ ≈ ${f(c[3] * dl(l))} نقطة</div></div><button class="btn sm" data-a="sl" data-i="${j}">عرض للبيع</button></div>`; }).join('') : em('لا تملك عدادات'))
-        + sec('عروضي') + (CM.my.length ? CM.my.map((L) => { const c = CT[L.ci]; return `<div class="card row2" style="padding:12px 16px"><div><b style="color:${c[4]}">عداد ${c[0]}</b><div class="mu">⏳ المتبقي ${L.days} يوماً</div><div class="cy">${f(L.price)} نقطة</div></div><button class="btn o sm" data-a="slx" data-i="${L.id}">إلغاء العرض</button></div>`; }).join('') : em('لا توجد عروض')));
+        + sec('عروضي') + (CM.my.length ? CM.my.map((L) => { const c = CT[L.ci]; return `<div class="card row2" style="padding:12px 16px"><div><b style="color:${c[4]}">عداد ${c[0]}</b><div class="mu">⏳ المتبقي ${L.days} يوماً</div><div class="cy">${f(L.price)} نقطة</div></div><button class="btn sm" style="background:#e5484d;border-color:#e5484d;color:#fff" data-a="slx" data-i="${L.id}">إلغاء العرض</button></div>`; }).join('') : em('لا توجد عروض')));
   };
 
   const iq = (p) => Math.round(p * (CFG.agRate || 132) / 1000);
