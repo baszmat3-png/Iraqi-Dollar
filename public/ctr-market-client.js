@@ -16,7 +16,7 @@
     try {
       const r = await fetch('/api/ctr/market', { cache: 'no-store', headers: h || {} });
       const j = await r.json();
-      if (j && j.ok) { CM.list = j.list || []; CM.my = j.my || []; CM.mk = j.mkPct; CM.fee = j.feePct; CM.ok = 1; }
+      if (j && j.ok) { CM.list = j.list || []; CM.my = j.my || []; CM.mk = j.mkPct; CM.cx = j.cxPct; CM.fee = j.feePct; CM.ok = 1; }
     } catch (x) {}
     CM.busy = 0; redraw();
   };
@@ -81,7 +81,13 @@
     try { if (dq) dq.commit(); txlog('شراء عداد ' + c[0] + (dq ? ' (كود ' + dq.code + ')' : ''), j.price, 'out'); cstat(i); rfEv(j.price); } catch (x) {}
     adopt(j.cl); pull(); toast('تم شراء عداد ' + c[0] + ' لمدة 12 شهراً'); try { draw(); } catch (x) {}
   };
-  CM.slx = async function (id) { const j = await post('/api/ctr/cancel', { id: +id }); if (j) { adopt(j.cl); toast('تم إلغاء العرض وعاد العداد إليك'); CM.load(); } };
+  CM.slx = async function (id) {
+    const L = (CM.my || []).find((x) => String(x.id) == String(id)); if (!L) return;
+    const kept = Math.min(L.fee || 0, Math.ceil((L.listed || L.price) * (CM.cx == null ? 5 : CM.cx) / 100));
+    if (!confirm('إلغاء العرض؟ سيُخصم ' + f(kept) + ' نقطة (' + (CM.cx == null ? 5 : CM.cx) + '% من السعر) من رسوم العرض ويُستردّ لك الباقي، ويعود العداد إليك.')) return;
+    const j = await post('/api/ctr/cancel', { id: +id });
+    if (j) { adopt(j.cl); try { pull(); } catch (x) {} toast('تم إلغاء العرض وعاد العداد إليك' + (j.refund ? ' · استُرجع ' + f(j.refund) + ' نقطة' : '')); CM.load(); }
+  };
   CM.mb = function (id) {
     const L = CM.list.find((x) => x.id == id); if (!L) return; const c = CT[L.ci], tot = c[3] * L.days, net = tot - L.price;
     const rec = c[3] > 0 ? Math.ceil(L.price / c[3]) : 0, end = new Date(L.exp).toLocaleDateString('ar-IQ', { year: 'numeric', month: 'long', day: 'numeric' });

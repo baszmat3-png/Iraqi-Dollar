@@ -3,7 +3,7 @@
  *  GET  /api/ctr/market            : العروض المفتوحة (+ عروضي إن أُرسلت x-e/x-h)
  *  GET  /api/ctr/quote?ci=&exp=    : تقييم عداد حسب المدة المتبقية + الحد الأقصى + رسوم العرض
  *  POST /api/ctr/list   {e,h,ci,exp,price}  : عرض عداد للبيع (يُسحب من حسابه، وتُخصم رسوم العرض 8% نقاطاً وتذهب للتطبيق)
- *  POST /api/ctr/cancel {e,h,id}   : إلغاء عرض (يعود العداد بمدته، الرسوم لا تُستردّ)
+ *  POST /api/ctr/cancel {e,h,id}   : إلغاء عرض (يعود العداد بمدته؛ من رسوم العرض يُستبقى cxFee% من السعر (5% افتراضياً) ويُردّ الباقي)
  *  POST /api/ctr/buy    {e,h,id}   : شراء — يُخصم السعر من المشتري ويُضاف للبائع ويستلم المشتري العداد بمدته المتبقية فوراً
  * التقييم: سعر الكتالوج × (المتبقي ÷ 360 يوماً)؛ الحد الأقصى للعرض = التقييم + cfg.mk% (افتراضي 20).
  */
@@ -35,8 +35,8 @@ module.exports = (app, express, deps) => {
     let v = {}, dcs = [];
     try { const r = (await (c || pool).query(`SELECT val FROM sync_kv WHERE key='config'`)).rows[0]; v = (r && r.val && r.val.cfg) || {}; dcs = (r && r.val && Array.isArray(r.val.dcs)) ? r.val.dcs : []; } catch (_) { /* افتراضي */ }
     const ct = v.ct || {};
-    const mk = Number(v.mk); const fee = Number(v.cmFee);
-    return { ct, dcs, hcl: !!v.hcl, coff: v.coff || {}, mk: Number.isFinite(mk) && mk >= 0 ? Math.min(mk, 100) : 20, fee: Number.isFinite(fee) && fee >= 0 ? Math.min(fee, 50) : 10 };
+    const mk = Number(v.mk); const fee = Number(v.cmFee); const cx = Number(v.cxFee);
+    return { cx: Number.isFinite(cx) && cx >= 0 ? Math.min(cx, 50) : 5, ct, dcs, hcl: !!v.hcl, coff: v.coff || {}, mk: Number.isFinite(mk) && mk >= 0 ? Math.min(mk, 100) : 20, fee: Number.isFinite(fee) && fee >= 0 ? Math.min(fee, 50) : 10 };
   }
   const yieldOf = (C, ci) => { const o = C.ct[ci]; return o && Number(o[1]) > 0 ? Number(o[1]) : YIELD0[ci]; };
   function value(C, ci, exp, now) {
@@ -54,7 +54,7 @@ module.exports = (app, express, deps) => {
   const row = (L, C, now, me) => {
     const v = value(C, L.ci, Number(L.exp), now);
     const price = effPrice(L, C, now);
-    return { id: Number(L.id), ci: Number(L.ci), exp: Number(L.exp), days: v.days, price, listed: Number(L.price), valued: v.valued, base: v.base, daily: v.daily,
+    return { id: Number(L.id), ci: Number(L.ci), exp: Number(L.exp), days: v.days, price, listed: Number(L.price), fee: Number(L.fee) || 0, valued: v.valued, base: v.base, daily: v.daily,
       pct: v.valued ? Math.round((price / v.valued - 1) * 100) : 0, seller: L.seller_name || String(L.seller_email).split('@')[0], mine: !!me && String(L.seller_email).toLowerCase() === me };
   };
   const kick = () => { try { if (app.locals.liveBalKick) app.locals.liveBalKick(); } catch (_) { /* اختياري */ } };
@@ -75,7 +75,7 @@ module.exports = (app, express, deps) => {
     if (e && h) { const a = (await q(`SELECT email FROM sync_accounts WHERE LOWER(email)=$1 AND pass_hash=$2`, [e, h])).rows[0]; if (a) me = e; }
     const rs = (await q(`SELECT * FROM ctr_market WHERE status='open' AND exp>$1 ORDER BY id DESC LIMIT 200`, [now])).rows;
     const list = rs.map((L) => row(L, C, now, me));
-    res.json({ ok: true, list: list.filter((x) => !x.mine), my: list.filter((x) => x.mine), mkPct: C.mk, feePct: C.fee });
+    res.json({ ok: true, list: list.filter((x) => !x.mine), my: list.filter((x) => x.mine), mkPct: C.mk, feePct: C.fee, cxPct: C.cx });
   }));
 
   async function auth(cl, e, h) {
@@ -136,11 +136,18 @@ module.exports = (app, express, deps) => {
       const own = sigOf(me.cl).slice();
       if (Number(L.exp) > now) own.push({ i: Number(L.ci), e: Number(L.exp) });
       await setCl(cl, e, own);
+      // رسوم الإلغاء: يُستبقى cx% من سعر العرض للتطبيق ويُردّ للبائع باقي رسوم العرض (مثلاً 10% رُسّمت: 5% تُخصم و5% تُستردّ)
+      const C = await cfg(cl), kept = Math.min(Number(L.fee) || 0, Math.ceil(Number(L.price) * C.cx / 100)), refund = Math.max(0, (Number(L.fee) || 0) - kept);
+      if (refund > 0) {
+        await cl.query(`UPDATE sync_accounts SET pts=pts+$2 WHERE LOWER(email)=$1`, [e, refund]);
+        await cl.query(`UPDATE users SET pts=pts+$2 WHERE LOWER(email)=$1`, [e, refund]);
+        await cl.query(`INSERT INTO app_revenue(kind,pts,ref,note) VALUES('ctr_cancel_refund',$1,$2,$3)`, [-refund, 'ctr:' + id, 'استرداد جزء من رسوم عرض ملغى']).catch(() => {});
+      }
       await cl.query(`UPDATE ctr_market SET status='cancelled', closed_at=NOW() WHERE id=$1`, [id]);
       await cl.query('COMMIT');
-      out = { ok: true, cl: own };
+      out = { ok: true, cl: own, kept, refund };
     } catch (err) { try { await cl.query('ROLLBACK'); } catch (_) {} throw err; } finally { cl.release(); }
-    res.json(out);
+    kick(); res.json(out);
   }));
 
   app.post('/api/ctr/buy', jsonBody, wrap(async (req, res) => {
