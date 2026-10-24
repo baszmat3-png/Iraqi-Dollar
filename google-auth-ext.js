@@ -77,7 +77,14 @@ module.exports = (app, { pool, wrap, fail }) => {
           await q(`UPDATE sync_accounts SET pass_hash_old=COALESCE(pass_hash_old, pass_hash), pass_hash=$2 WHERE LOWER(email)=$1 AND pass_hash=$3`, [email, PP.map(gh(sub)), gh(sub)]);
           row.pass_hash = PP.map(gh(sub));
         }
-        if (row.pass_hash !== PP.map(gh(sub))) fail(409, 'هذا الحساب مسجَّل بكلمة مرور؛ سجّل الدخول بالبريد وكلمة المرور (أو استعد كلمة المرور بالرمز)');
+        if (row.pass_hash !== PP.map(gh(sub))) {
+          // بريد Google مُوثَّق = إثبات ملكية البريد (كاستعادة كلمة المرور بالرمز): نسمح بالدخول ونربط الحساب ببصمة Google.
+          // كلمة المرور القديمة تُحفظ في pass_hash_old (ويمكن استعادتها/إعادة تعيينها بالرمز).
+          await q(`ALTER TABLE sync_accounts ADD COLUMN IF NOT EXISTS pass_hash_old TEXT`).catch(() => {});
+          await q(`UPDATE sync_accounts SET pass_hash_old=COALESCE(pass_hash_old, pass_hash), pass_hash=$2 WHERE LOWER(email)=$1`, [email, PP.map(gh(sub))]);
+          row.pass_hash = PP.map(gh(sub));
+          try { if (app.locals.notify) app.locals.notify(email, 'تسجيل دخول عبر Google', 'تم تسجيل الدخول إلى حسابك عبر Google. إن لم تكن أنت فأعد تعيين كلمة المرور فوراً بالرمز.', 'security'); } catch (_) { /* اختياري */ }
+        }
       }
       // البريد موثَّق من Google
       if (!row.vml) await q(`UPDATE sync_accounts SET vml=TRUE, last_seen=NOW() WHERE LOWER(email)=$1`, [email]);
