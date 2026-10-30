@@ -145,7 +145,9 @@ app.use(express.json({ limit: '50kb' }));
 app.use('/api', require('./auth-guard')()); // تحديد تخمين بصمة كلمة المرور
 const PEPPER = require('./pass-pepper')(pool); app.locals.pepper = PEPPER; // PASS_PEPPER: تخزين البصمة كـHMAC (اختياري)
 app.use('/api', PEPPER.middleware);
-if (CORS_ORIGIN) app.use('/api', cors({ origin: CORS_ORIGIN.split(',') }));
+// أصل واجهة تطبيق أندرويد (WebViewAssetLoader) يُسمح له دائماً، فتعمل الطلبات المطلقة (مثل رموز OTP) بلا ضبط CORS_ORIGIN
+const APP_ORIGINS = ['https://appassets.androidplatform.net'].concat((CORS_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean));
+app.use('/api', cors({ origin: APP_ORIGINS }));
 
 const wrap = (fn) => (req, res) => fn(req, res).catch((e) => {
   if (e.http) return res.status(e.http).json({ error: e.message });

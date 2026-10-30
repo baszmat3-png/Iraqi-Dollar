@@ -35,21 +35,32 @@ module.exports = function (app, { pool, wrap, fail, sha, EM, deliver, wa, normPh
     limit(req.ip);
     const email = norm(req.body.email), P = pur(req.body.purpose);
     if (!EM.test(email)) fail(400, 'بريد إلكتروني غير صحيح');
-    const acc = (await pool.query(`SELECT 1 FROM sync_accounts WHERE LOWER(email)=$1 AND COALESCE(pass_hash,'')<>''`, [email])).rowCount > 0;
+    const accQ = await pool.query(`SELECT phone FROM sync_accounts WHERE LOWER(email)=$1 AND COALESCE(pass_hash,'')<>'' LIMIT 1`, [email]);
+    const acc = accQ.rowCount > 0, accPhone = acc ? accQ.rows[0].phone : '';
     if (P === PURPOSE.signup && acc) fail(409, 'هذا البريد مسجل مسبقاً، سجّل الدخول');
-    if (P === PURPOSE.reset && !acc) return res.json({ ok: true }); // لا نكشف وجود الحساب
+    // السيرفر هو المرجع الوحيد (إنشاء الحساب يكشف وجوده أصلاً)، فلا تناقض بين "مسجل مسبقاً" و"غير مسجل"
+    if (P === PURPOSE.reset && !acc) fail(404, 'لا يوجد حساب بهذا البريد، أنشئ حساباً جديداً');
     const rec = await pool.query(`SELECT 1 FROM otps WHERE phone=$1 AND purpose=$2 AND created_at > NOW() - INTERVAL '60 seconds'`, [email, P]);
     if (rec.rowCount) fail(429, 'انتظر 60 ثانية قبل إعادة الإرسال');
     const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
     await pool.query(`DELETE FROM otps WHERE phone=$1 AND purpose=$2`, [email, P]);
     await pool.query(`INSERT INTO otps(purpose,phone,email,code_hash,expires_at) VALUES($1,$2,$3,$4,NOW()+INTERVAL '5 minutes')`, [P, email, email, sha(code)]);
+    // احتياطي واتساب: نفس الرمز يُرسل إلى هاتف الحساب (استعادة/توثيق) أو هاتف التسجيل (حساب جديد) إن فشل البريد
+    const fbPhone = normPhone(P === PURPOSE.signup ? req.body.phone : accPhone);
+    let via = 'email';
     try { await deliver(email, code); }
     catch (e) {
-      await pool.query(`DELETE FROM otps WHERE phone=$1 AND purpose=$2`, [email, P]);
       console.error('email otp failed:', e.message);
-      fail(502, /timeout/i.test(e.message) ? 'تعذر الاتصال بخادم البريد، حاول لاحقاً' : 'تعذر إرسال الرمز إلى البريد');
+      if (/^\+?\d{8,15}$/.test(fbPhone)) {
+        try { await wa(fbPhone, code); via = 'wa'; }
+        catch (e2) { console.error('wa fallback failed:', e2.message); }
+      }
+      if (via !== 'wa') {
+        await pool.query(`DELETE FROM otps WHERE phone=$1 AND purpose=$2`, [email, P]);
+        fail(502, /timeout/i.test(e.message) ? 'تعذر الاتصال بخادم البريد، حاول لاحقاً' : 'تعذر إرسال الرمز إلى البريد');
+      }
     }
-    res.json({ ok: true });
+    res.json({ ok: true, via, to: via === 'wa' ? fbPhone.slice(0, 4) + '••••' + fbPhone.slice(-3) : undefined });
   }));
 
   // peek=true: يتحقق دون استهلاك الرمز (لاستعادة كلمة المرور؛ يُستهلك عند تعيين كلمة المرور)

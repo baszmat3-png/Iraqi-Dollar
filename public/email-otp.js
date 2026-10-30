@@ -2,7 +2,7 @@
 (function () {
   if (window.__eotp || typeof S === 'undefined' || typeof sendOtp !== 'function') return;
   window.__eotp = 1;
-  var base = window.__SERVER || '';
+  var base = ''; // مسار نسبي: يمر عبر جسر التطبيق (nb.js) كما في الموقع، بدل طلب مطلق يحجبه CORS
   var orig = sendOtp;
   function post(path, body) {
     return fetch(base + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
@@ -17,9 +17,9 @@
     var rnd = Array.from(crypto.getRandomValues(new Uint8Array(8)), function (x) { return x.toString(16); }).join('');
     var o = S.otp = { p: p, ph: ph, pl: pl, back: back, code: '#' + rnd, srv: 1, exp: Date.now() + 3e5, t: 0, rs: Date.now() + 6e4, st: 0, dsp: p === 'reset' ? target.replace(/^(.{2}).*(@.*)$/, '$1•••$2') : target, ch: isWa ? 'w' : 'm', purpose: purpose, tgt: target, wa: isWa };
     go('otp');
-    (isWa ? post('/api/otp/wa/start', { phone: target }) : post('/api/otp/email/start', { email: target, purpose: apiPurpose })).then(function (j) {
+    (isWa ? post('/api/otp/wa/start', { phone: target }) : post('/api/otp/email/start', p === 'signup' && ph ? { email: target, purpose: apiPurpose, phone: ph } : { email: target, purpose: apiPurpose })).then(function (j) {
       if (S.otp !== o) return;
-      if (j.__ok) o.st = 1; else { o.st = 2; o.rs = 0; if (typeof toast === 'function') toast(j.error || 'تعذر إرسال الرمز إلى البريد'); }
+      if (j.__ok) { o.st = 1; if (j.via === 'wa') { o.ch = 'w'; if (j.to) o.dsp = j.to; if (typeof go === 'function') go('otp'); if (typeof toast === 'function') toast('تعذر الإرسال إلى البريد، أُرسل الرمز عبر واتساب'); } } else { o.st = 2; o.rs = 0; if (typeof toast === 'function') toast(j.error || 'تعذر إرسال الرمز إلى البريد'); }
       refresh(o);
     }).catch(function () { o.st = 2; o.rs = 0; if (typeof toast === 'function') toast('تعذر الاتصال بالسيرفر'); refresh(o); });
   };
@@ -46,7 +46,7 @@
       e.stopImmediatePropagation(); e.preventDefault();
       var fe = document.getElementById('fe'), e2 = (fe && fe.value || '').trim().toLowerCase();
       if (!EM.test(e2)) return toast('اكتب بريداً إلكترونياً صحيحاً');
-      var ac = AC.get()[e2]; if (!ac) return toast('لا يوجد حساب بهذا البريد');
+      // لا فحص محلي: السيرفر يقرر وجود الحساب (يعمل على أي جهاز)
       var d = document.getElementById('d'); if (d && d.close) d.close();
       return sendOtp('reset', e2, { e: e2 }, 'login');
     }
@@ -59,7 +59,9 @@
         return post('/api/otp/email/reset', { email: S.rs.e, code: window.__rst.c, h: h });
       }).then(function (j) {
         if (!j.__ok) return toast(j.error || 'تعذر تغيير كلمة المرور');
-        window.__rst = null; pass = true; try { r.click(); } finally { pass = false; }
+        var em = S.rs.e; window.__rst = null;
+        if (AC.get()[em]) { pass = true; try { r.click(); } finally { pass = false; } }
+        else { S.rs = null; toast('تم تغيير كلمة المرور، سجّل الدخول الآن'); if (typeof go === 'function') go('login'); }
       }).catch(function () { toast('تعذر الاتصال بالسيرفر'); });
     }
   }, true);
