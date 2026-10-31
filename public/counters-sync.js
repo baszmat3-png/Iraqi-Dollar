@@ -159,7 +159,7 @@
     };
   }
 
-  window.gcOne = function () { setTimeout(poll, 300); return 0; };
+  window.gcOne = function () { poll(); setTimeout(poll, 1200); return 0; };
   setInterval(poll, 5000);
   setTimeout(poll, 1200);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });

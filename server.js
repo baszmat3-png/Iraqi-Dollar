@@ -1375,10 +1375,11 @@ app.post('/api/ctl/cmd', ...ctl, wrap(async (req, res) => {
     const dGems = Math.floor(d.gems || 0);
     const dUsd = Number(d.usd || 0);
     if (body.e) {
-      await pool.query(
-        `UPDATE sync_accounts SET pts=GREATEST(0, pts+$2), gems=GREATEST(0, gems+$3), usd=GREATEST(0, usd+$4) WHERE LOWER(email)=LOWER($1)`,
+      const nb = await pool.query(
+        `UPDATE sync_accounts SET pts=GREATEST(0, pts+$2), gems=GREATEST(0, gems+$3), usd=GREATEST(0, usd+$4) WHERE LOWER(email)=LOWER($1) RETURNING pts,gems,usd`,
         [body.e, dPts, dGems, dUsd]
       );
+      try { const r0 = nb.rows[0]; if (r0 && app.locals.pushBal) app.locals.pushBal(body.e, { pts: Number(r0.pts), gems: Number(r0.gems), usd: Number(r0.usd) }); } catch (e) { /* اختياري */ } // بثّ فوري قبل بقية الاستعلامات
       await pool.query(
         `UPDATE users SET pts=GREATEST(0, pts+$2), gems=GREATEST(0, gems+$3), usd=GREATEST(0, usd+$4) WHERE LOWER(email)=LOWER($1)`,
         [body.e, dPts, dGems, dUsd]
@@ -1449,6 +1450,7 @@ app.post('/api/ctl/cmd', ...ctl, wrap(async (req, res) => {
     // تصفير عدادات حساب واحد: يُحدَّث السيرفر فوراً ثم يطبّقه جهاز المستخدم عبر أمر المزامنة
     await colsReady;
     await pool.query(`UPDATE sync_accounts SET cl='[]'::jsonb, ncl=0, nrun=0 WHERE LOWER(email)=LOWER($1)`, [body.e]);
+    try { if (app.locals.pushAcct) app.locals.pushAcct(body.e, { cl: [] }); } catch (e) { /* اختياري */ }
     await pool.query(`UPDATE users SET running=false, done=false, left_sec=86400, accr=0, accg=0 WHERE LOWER(email)=LOWER($1)`, [body.e]).catch(() => {});
   } else if (body.t === 'nm') {
     await pool.query(`UPDATE sync_accounts SET name=$2 WHERE LOWER(email)=LOWER($1)`, [body.e, body.n]);

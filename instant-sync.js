@@ -108,6 +108,18 @@ module.exports = (app, express, deps) => {
     });
     return n;
   };
+  // حالة حساب تغيّرت من الإدارة (قائمة العدادات...): تُدفع مباشرة لأجهزة صاحبه الموثَّقة بلا انتظار استطلاع
+  app.locals.pushAcct = (email, payload) => {
+    const target = String(email || '').toLowerCase();
+    if (!target) return 0;
+    const msg = 'event: acct\ndata: ' + JSON.stringify(payload || {}) + '\n\n';
+    let n = 0;
+    clients.forEach((c) => {
+      if (c.email !== target) return;
+      try { c.res.write(msg); n++; } catch (e) { clients.delete(c); }
+    });
+    return n;
+  };
   // بريد كل من له اتصال موثَّق الآن (يستخدمه بثّ الأرصدة لمراقبة حساباتهم فقط)
   app.locals.sseEmails = () => { const o = new Set(); clients.forEach((c) => { if (c.email) o.add(c.email); }); return [...o]; };
 

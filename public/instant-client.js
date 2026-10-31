@@ -41,6 +41,9 @@
       cfgT = setTimeout(() => { try { if (typeof syncFetch === 'function') syncFetch().then((j) => { if (j && window._cfgChanged && window._cfgH) window._cfgH(j); }).catch(() => {}); } catch (e) {} }, 250);
     });
     es.addEventListener('bal', (e) => { try { window.dispatchEvent(new CustomEvent('bal-evt', { detail: JSON.parse(e.data) })); } catch (x) {} }); // رصيدي تغيّر على السيرفر: اسحبه فوراً
+    es.addEventListener('acct', (e) => { // عدادات حسابي تغيّرت من الإدارة: طبّقها فوراً بلا طلب إضافي
+      try { const j = JSON.parse(e.data); if (j && Array.isArray(j.cl) && window.__csyncReconcile && S.acc) window.__csyncReconcile(S.acc.e, j.cl, false); } catch (x) {}
+    });
     es.addEventListener('cmd', (e) => { try { onCmd(JSON.parse(e.data)); } catch (x) {} });
     es.addEventListener('error', () => { try { es.close(); } catch (e) {} es = null; retry(); });
   }

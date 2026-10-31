@@ -332,9 +332,11 @@ exports.routes = (app, { pool, wrap, ctl }) => {
     try { await q(`UPDATE sync_accounts SET cl=$2::jsonb, ncl=$3, cl_at=NOW() WHERE LOWER(email)=$1`, [em, JSON.stringify(cl), nclAll]); }
     catch (e) { await q(`UPDATE sync_accounts SET cl=$2::jsonb, cl_at=NOW() WHERE LOWER(email)=$1`, [em, JSON.stringify(cl)]); }
     cmd.by = 'srv';
+    // دفع فوري لقائمة العدادات الجديدة لأجهزة صاحب الحساب (قبل أي استعلام إضافي)
+    let delivered = 0; try { if (app.locals.pushAcct) delivered = app.locals.pushAcct(em, { cl }); } catch (e) {}
     const id = (await q(`INSERT INTO sync_cmds(body) VALUES($1) RETURNING id`, [JSON.stringify(cmd)])).rows[0].id;
-    await q(`INSERT INTO ctr_log(email,op,idx,n,note) VALUES($1,$2,$3,$4,$5)`, [em, mode, idx, n, txt(b.note, 200) || note]).catch(() => {});
-    let delivered = 0; try { if (app.locals.broadcastCmd) delivered = app.locals.broadcastCmd(id, cmd); } catch (e) {}
+    try { if (app.locals.broadcastCmd) delivered += app.locals.broadcastCmd(id, cmd); } catch (e) {}
     res.json({ ok: true, note, count: nclAll, delivered });
+    q(`INSERT INTO ctr_log(email,op,idx,n,note) VALUES($1,$2,$3,$4,$5)`, [em, mode, idx, n, txt(b.note, 200) || note]).catch(() => {});
   }));
 };
