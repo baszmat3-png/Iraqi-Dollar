@@ -1,10 +1,10 @@
-/* زر تحميل تطبيق أندرويد بشعار متجر Google Play — الرابط مخفي تحت الأيقونة */
+/* زر تحميل تطبيق أندرويد بشعار متجر Google Play — رابط متجر Google Play */
 (function () {
   if (typeof S === 'undefined' || typeof draw !== 'function') return;
   // داخل تطبيق الأندرويد نفسه (WebView) لا حاجة للزر
   const ua = navigator.userAgent || '';
   if (/;\s*wv\)/.test(ua) || window.Android || window.Capacitor || /AppAndroid/i.test(ua)) return;
-  const APK = 'https://github.com/baszmat3-png/Iraqi-Dollar-App/releases/download/latest/app-release.apk';
+  const APK = 'https://play.google.com/store/apps/details?id=com.app.wrapper';
   const ID = 'apkdl';
   const css = document.createElement('style');
   css.textContent = `
@@ -25,11 +25,11 @@
     if (R === 'welcome') anchor = app.querySelector('[data-r="signup"]');
     else if (R === 'login') anchor = app.querySelector('[data-a="dologin"]');
     else if (R === 'signup') anchor = app.querySelector('[data-a="dosign"]');
-    else if (R === 'profile') { anchor = app.querySelector('[data-a="logout"]'); before = true; } // فوق تسجيل الخروج
+    else if (R === 'profile') { anchor = app.querySelector('[data-a="logout"]'); before = false; } // تحت تسجيل الخروج
     if (!anchor) return;
     const d = document.createElement('div');
     d.id = ID;
-    d.innerHTML = '<a href="' + APK + '" download rel="noopener" aria-label="تحميل التطبيق لأندرويد">' + LOGO +
+    d.innerHTML = '<a href="' + APK + '" target="_blank" rel="noopener" aria-label="تحميل التطبيق لأندرويد">' + LOGO +
       '<span class="t"><small>Android App</small><b>Google Play</b><i>اضغط لتحميل التطبيق</i></span></a>';
     if (before) anchor.insertAdjacentElement('beforebegin', d);
     else (R === 'welcome' ? anchor.parentElement : anchor).insertAdjacentElement('afterend', d);

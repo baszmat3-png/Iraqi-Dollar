@@ -37,7 +37,7 @@ module.exports = (app, { pool, wrap, fail }) => {
       // دخول التطبيق الأصلي (أندرويد): ID Token صادر لـ GOOGLE_CLIENT_ID
       const ti = await getJson('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(at.slice(4)));
       if (!ti.ok || !ti.j) fail(401, 'تعذر التحقق من حساب Google، أعد المحاولة');
-      if (ti.j.aud !== CLIENT_ID) fail(401, 'توكن Google غير صالح لهذا التطبيق');
+      if (ti.j.aud !== CLIENT_ID) { console.warn('google aud mismatch', ti.j.aud, 'expected', CLIENT_ID); fail(401, 'توكن Google غير صالح لهذا التطبيق'); }
       if (!/^(https:\/\/)?accounts\.google\.com$/.test(String(ti.j.iss || ''))) fail(401, 'مصدر التوكن غير صالح');
       email = txt(ti.j.email, 200).toLowerCase();
       sub = txt(ti.j.sub, 100);
