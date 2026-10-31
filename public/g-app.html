@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>الدخول عبر Google</title>
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0b1320;color:#fff;font-family:system-ui,Tahoma,sans-serif}
+.c{width:min(92vw,360px);text-align:center;padding:28px 20px}
+h1{font-size:22px;margin:0 0 10px}p{color:#9fb0c3;line-height:1.7;margin:8px 0 18px}
+#b{display:flex;justify-content:center;min-height:44px}
+.btn{display:none;margin-top:18px;padding:14px 18px;border-radius:14px;background:#00c8d6;color:#06222a;font-weight:700;text-decoration:none}
+</style></head><body><div class="c">
+<h1>الدخول عبر Google</h1><p id="m">جارٍ التحضير…</p><div id="b"></div>
+<a id="back" class="btn" href="#">العودة إلى التطبيق</a></div>
+<script>
+(function () {
+  var m = document.getElementById('m'), back = document.getElementById('back');
+  var s = String(new URLSearchParams(location.search).get('s') || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
+  if (s.length < 16) { m.textContent = 'رابط غير صالح، ارجع إلى التطبيق وأعد المحاولة.'; return; }
+  function done(t) {
+    var q = 's=' + encodeURIComponent(s) + '&t=' + encodeURIComponent(t);
+    var u = 'intent://g?' + q + '#Intent;scheme=iqdgoogle;package=com.app.wrapper;end';
+    m.textContent = 'تم التحقق من حسابك. اضغط الزر للعودة إلى التطبيق.';
+    back.href = u; back.style.display = 'inline-block';
+    document.getElementById('b').style.display = 'none';
+    try { location.href = u; } catch (e) {}
+  }
+  fetch('/api/auth/google/config', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (c) {
+    if (!c || !c.enabled || !c.clientId) { m.textContent = 'الدخول عبر Google غير مفعّل حالياً.'; return; }
+    var sc = document.createElement('script');
+    sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true;
+    sc.onload = function () {
+      google.accounts.id.initialize({ client_id: c.clientId, auto_select: false, cancel_on_tap_outside: false, callback: function (r) { if (r && r.credential) done(r.credential); } });
+      google.accounts.id.renderButton(document.getElementById('b'), { theme: 'filled_blue', size: 'large', text: 'continue_with', shape: 'pill', width: 280 });
+      m.textContent = 'اضغط الزر واختر حساب Google.';
+    };
+    sc.onerror = function () { m.textContent = 'تعذر الاتصال بخدمة Google، تحقق من الإنترنت.'; };
+    document.head.appendChild(sc);
+  }).catch(function () { m.textContent = 'تعذر الاتصال بالسيرفر.'; });
+})();
+</script></body></html>
